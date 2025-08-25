@@ -44,6 +44,7 @@
 		"@mysten/sui": "^1.37.4",
 		"daisyui": "^5.0.50",
 		"date-fns": "^4.1.0",
+		"runed": "^0.31.1",
 		"sui-svelte-wallet-kit": "^0.4.1",
 		"svelte-daisy-toaster": "^0.5.4"
 	}

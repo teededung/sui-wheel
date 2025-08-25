@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
 	import { isValidSuiAddress, shortenAddress } from '$lib/utils/string.js';
+	import { watch } from 'runed';
 
 	// State
 	let entries = $state([
@@ -29,6 +30,7 @@
 
 	let newEntry = $state('');
 	let entriesText = $state('');
+	let serverTargetIndex = $state(null);
 	let spinning = $state(false);
 	let muted = $state(false);
 	let selectedIndex = $state(null);
@@ -36,19 +38,31 @@
 	let pointerIndex = $state(0);
 	let pointerColor = $state('#ef4444');
 
+	// Precomputed label layouts to avoid per-frame text measurement
+	let labelLayouts = $state([]); // [{ displayText: string, font: string }] aligned with entries
+
 	/** Canvas and layout refs */
 	let canvasEl;
 	let canvasContainerEl;
+	let entriesTextareaEl;
 	let ctx;
 	let wheelSize = $state(0); // CSS px size (square)
 
 	/** Audio */
 	let winAudio;
 	onMount(() => {
-		winAudio = new Audio('/success-sound.mp3');
+		winAudio = new Audio('/crowd-reaction.mp3');
 		winAudio.preload = 'auto';
 		winAudio.volume = 0.5;
 	});
+
+	watch(
+		() => entries,
+		() => {
+			recomputeLabelLayouts();
+			drawWheel();
+		}
+	);
 
 	/** Resize handling */
 	let resizeObserver;
@@ -56,14 +70,22 @@
 		if (!canvasEl || !canvasContainerEl) return;
 		const dpr = Math.max(1, window.devicePixelRatio || 1);
 		const size = Math.min(canvasContainerEl.clientWidth, 560);
+		const newWidth = Math.floor(size * dpr);
+		const newHeight = Math.floor(size * dpr);
+
+		//canvas size unchanged, skipping resize
+		if (newWidth === canvasEl.width && newHeight === canvasEl.height) {
+			return;
+		}
 		wheelSize = size;
 
 		canvasEl.style.width = `${size}px`;
 		canvasEl.style.height = `${size}px`;
-		canvasEl.width = Math.floor(size * dpr);
-		canvasEl.height = Math.floor(size * dpr);
+		canvasEl.width = newWidth;
+		canvasEl.height = newHeight;
 		ctx = canvasEl.getContext('2d');
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+		recomputeLabelLayouts();
 		drawWheel();
 	}
 
@@ -91,6 +113,7 @@
 
 	function drawWheel() {
 		if (!ctx || !wheelSize) return;
+
 		const n = Math.max(1, entries.length);
 		const radius = wheelSize / 2;
 		const centerX = radius;
@@ -129,54 +152,22 @@
 			// Skip empty labels
 			if (!label) continue;
 
-			const arcDegrees = (arc * 180) / Math.PI;
-
-			// Dynamic font sizing with better scaling
-			let fontSize = Math.max(9, Math.min(17, arcDegrees * 0.75));
-
-			let displayText = label;
-
-			// Define inner and outer radius for text
+			// Define inner and outer radius for text (shared across all labels)
 			const innerRadius = Math.max(30, radius * 0.2);
 			const outerRadius = radius - 10;
 			const available = outerRadius - innerRadius;
-
 			const padding = 10;
-			const maxWidth = Math.max(0, available - padding);
-			const len = displayText.length;
-			if (len > 0) {
-				// Base font
-				ctx.font = `600 ${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"`;
 
-				// Shrink-to-fit by width instead of distributing letters (right aligned)
-				let measured = ctx.measureText(displayText).width;
-				if (measured > maxWidth && maxWidth > 0) {
-					const scale = maxWidth / measured;
-					fontSize = Math.max(9, Math.floor(fontSize * scale));
-					ctx.font = `600 ${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"`;
-					measured = ctx.measureText(displayText).width;
-				}
-
-				// Ellipsis if still overflowing at minimum size
-				if (measured > maxWidth && maxWidth > 0) {
-					const ellipsis = '…';
-					while (
-						displayText.length > 1 &&
-						ctx.measureText(displayText + ellipsis).width > maxWidth
-					) {
-						displayText = displayText.slice(0, -1);
-					}
-					displayText += ellipsis;
-				}
-
+			const layout = labelLayouts[i];
+			if (layout && layout.displayText) {
+				ctx.font = layout.font;
 				ctx.fillStyle = '#111827';
 				ctx.textAlign = 'right';
 				ctx.textBaseline = 'middle';
-
 				ctx.save();
 				ctx.translate(centerX, centerY);
 				ctx.rotate(mid);
-				ctx.fillText(displayText, innerRadius + available - padding, 0);
+				ctx.fillText(layout.displayText, innerRadius + available - padding, 0);
 				ctx.restore();
 			}
 
@@ -199,10 +190,67 @@
 		pointerColor = segmentColors[pointerIndex % segmentColors.length];
 	}
 
+	function recomputeLabelLayouts() {
+		if (!ctx || !wheelSize) {
+			labelLayouts = [];
+			return;
+		}
+		const n = Math.max(1, entries.length);
+		const radius = wheelSize / 2;
+		const arc = (Math.PI * 2) / n;
+		const innerRadius = Math.max(30, radius * 0.2);
+		const outerRadius = radius - 10;
+		const available = outerRadius - innerRadius;
+		const padding = 10;
+		const maxWidth = Math.max(0, available - padding);
+
+		const layouts = new Array(n);
+		for (let i = 0; i < n; i++) {
+			const raw = String(entries[i] ?? '').trim();
+			const baseLabel = isValidSuiAddress(raw) ? shortenAddress(raw) : raw;
+			if (!baseLabel) {
+				layouts[i] = { displayText: '', font: '' };
+				continue;
+			}
+			const arcDegrees = (arc * 180) / Math.PI;
+			let fontSize = Math.max(9, Math.min(17, arcDegrees * 0.75));
+			let displayText = baseLabel;
+			let font = `600 ${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"`;
+			ctx.font = font;
+			let measured = ctx.measureText(displayText).width;
+			if (measured > maxWidth && maxWidth > 0) {
+				const scale = maxWidth / measured;
+				fontSize = Math.max(9, Math.floor(fontSize * scale));
+				font = `600 ${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"`;
+				ctx.font = font;
+				measured = ctx.measureText(displayText).width;
+			}
+			if (measured > maxWidth && maxWidth > 0) {
+				const ellipsis = '…';
+				while (displayText.length > 1 && ctx.measureText(displayText + ellipsis).width > maxWidth) {
+					displayText = displayText.slice(0, -1);
+				}
+				displayText += ellipsis;
+			}
+			layouts[i] = { displayText, font };
+		}
+		labelLayouts = layouts;
+	}
+
 	/** Spin logic */
 	let rafId;
 	function easeOutCubic(t) {
 		return 1 - Math.pow(1 - t, 3);
+	}
+
+	function easeOutPower(t, power = 3) {
+		const p = Number.isFinite(power) ? Math.max(1, power) : 3;
+		return 1 - Math.pow(1 - t, p);
+	}
+
+	function normalizeAngle(radians) {
+		const tau = Math.PI * 2;
+		return ((radians % tau) + tau) % tau;
 	}
 
 	function pickSelectedIndex() {
@@ -216,20 +264,62 @@
 
 	function spin() {
 		if (spinning || entries.length < 2) return;
+		const n = Math.max(1, entries.length);
+		const idxValue = serverTargetIndex;
+		if (Number.isFinite(idxValue) && idxValue >= 0 && idxValue < n) {
+			spinToIndex(Math.floor(idxValue), {
+				duration: 12000,
+				extraTurnsMin: 10,
+				extraTurnsMax: 14,
+				marginFraction: 0.05,
+				easePower: 4
+			});
+			return;
+		}
+		const randomIndex = Math.floor(Math.random() * n);
+		spinToIndex(randomIndex, {
+			duration: 12000,
+			extraTurnsMin: 10,
+			extraTurnsMax: 14,
+			marginFraction: 0.05,
+			easePower: 4
+		});
+	}
+
+	function spinToIndex(targetIndex, opts = {}) {
+		const n = Math.max(1, entries.length);
+		if (spinning || n < 1) return;
+		const idx = Math.max(0, Math.min(n - 1, Number(targetIndex) | 0));
 		spinning = true;
 		selectedIndex = null;
-		const startAngle = spinAngle;
-		const extraTurns = 5 + Math.random() * 3; // 5-8 turns
-		const randomOffset = Math.random() * Math.PI * 2;
-		const targetAngle = startAngle + extraTurns * Math.PI * 2 + randomOffset;
-		const duration = 4200; // ms
-		const startTime = performance.now();
 
+		const startAngle = spinAngle;
+		const arc = (Math.PI * 2) / n;
+		// Choose a random angle within the target segment (uniform, avoid edges)
+		const marginFraction = Math.max(0, Math.min(0.49, opts.marginFraction ?? 0.05));
+		const margin = arc * marginFraction;
+		const innerWidth = Math.max(0, arc - 2 * margin);
+		const randomWithin = margin + Math.random() * innerWidth;
+		const targetTheta = idx * arc + randomWithin;
+		const baseAligned = normalizeAngle(Math.PI / 2 - targetTheta);
+
+		const extraTurnsMin = opts.extraTurnsMin ?? 5;
+		const extraTurnsMax = opts.extraTurnsMax ?? 7;
+		const duration = opts.duration ?? 5200; // slightly longer for suspense
+		const extraTurnsFloat =
+			extraTurnsMin + Math.random() * Math.max(0, extraTurnsMax - extraTurnsMin);
+		const extraTurns = Math.max(0, Math.ceil(extraTurnsFloat)); // ensure integer full turns for exact alignment
+
+		const tau = Math.PI * 2;
+		const kBase = Math.ceil((startAngle - baseAligned) / tau);
+		const targetAngle = baseAligned + (kBase + extraTurns) * tau;
+
+		const startTime = performance.now();
 		cancelAnimationFrame(rafId);
 		const step = now => {
 			const elapsed = now - startTime;
 			const t = Math.min(1, elapsed / duration);
-			const eased = easeOutCubic(t);
+			const eased = easeOutPower(t, opts.easePower ?? 5);
 			spinAngle = startAngle + (targetAngle - startAngle) * eased;
 			drawWheel();
 			if (t < 1) {
@@ -248,16 +338,22 @@
 		rafId = requestAnimationFrame(step);
 	}
 
+	function spinToValue(value, opts = {}) {
+		const v = String(value ?? '').trim();
+		if (!v) return;
+		const idx = entries.findIndex(e => String(e ?? '').trim() === v);
+		if (idx === -1) return;
+		spinToIndex(idx, opts);
+	}
+
 	function shuffle() {
 		entries = [...entries].sort(() => Math.random() - 0.5);
-		drawWheel();
 	}
 
 	function clearAll() {
 		entries = [];
 		selectedIndex = null;
 		spinAngle = 0;
-		drawWheel();
 	}
 
 	function resetSample() {
@@ -285,7 +381,6 @@
 		];
 		selectedIndex = null;
 		spinAngle = 0;
-		drawWheel();
 	}
 
 	function addEntry() {
@@ -293,7 +388,17 @@
 		if (!v) return;
 		entries = [...entries, v];
 		newEntry = '';
-		drawWheel();
+	}
+
+	function arraysShallowEqual(a, b) {
+		// Compare two string arrays by value and order
+		if (a === b) return true;
+		if (!Array.isArray(a) || !Array.isArray(b)) return false;
+		if (a.length !== b.length) return false;
+		for (let i = 0; i < a.length; i++) {
+			if (a[i] !== b[i]) return false;
+		}
+		return true;
 	}
 
 	function onEntriesTextChange(text) {
@@ -301,18 +406,19 @@
 			.split('\n')
 			.map(s => s.trim())
 			.filter(s => s.length > 0);
+		if (arraysShallowEqual(entries, list)) {
+			return;
+		}
 		entries = list;
 		selectedIndex = null;
 		spinAngle = 0;
-		drawWheel();
 	}
 
 	$effect(() => {
-		drawWheel();
-	});
-
-	$effect(() => {
-		entriesText = entries.join('\n');
+		// If the entries textarea is focused, don't overwrite user edits
+		if (!entriesTextareaEl || document.activeElement !== entriesTextareaEl) {
+			entriesText = entries.join('\n');
+		}
 	});
 </script>
 
@@ -322,9 +428,19 @@
 			<div class="relative mx-auto max-w-[560px]">
 				<div class="rounded-box bg-base-200 p-3 shadow">
 					<div bind:this={canvasContainerEl} class="relative mx-auto aspect-square w-full">
-						<div class="pointer-events-none absolute top-1/2 right-0 z-10 -translate-y-1/2">
+						<div
+							class="pointer-events-none absolute top-1/2 -right-3 z-10 -translate-y-1/2"
+							aria-hidden="true"
+						>
+							<!-- Outline triangle to create a subtle white border for contrast -->
 							<div
-								class="h-0 w-0 border-y-20 border-r-[40px] border-y-transparent"
+								class="h-0 w-0 border-y-[24px] border-r-[48px] border-y-transparent"
+								style="border-right-color: #ffffff; filter: drop-shadow(0 0 6px rgba(0,0,0,0.12)); transform: translateX(6px)"
+							></div>
+
+							<!-- Colored pointer on top of outline -->
+							<div
+								class="absolute top-1/2 right-0 h-0 w-0 -translate-y-1/2 border-y-[20px] border-r-[40px] border-y-transparent"
 								style={`border-right-color: ${pointerColor}; filter: drop-shadow(0 0 12px ${pointerColor}80)`}
 							></div>
 						</div>
@@ -387,6 +503,7 @@
 								placeholder="One entry per line"
 								bind:value={entriesText}
 								oninput={() => onEntriesTextChange(entriesText)}
+								bind:this={entriesTextareaEl}
 							></textarea>
 							<span>Entries list</span>
 						</label>

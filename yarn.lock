@@ -2317,7 +2317,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"esm-env@npm:^1.2.1, esm-env@npm:^1.2.2":
+"esm-env@npm:^1.0.0, esm-env@npm:^1.2.1, esm-env@npm:^1.2.2":
   version: 1.2.2
   resolution: "esm-env@npm:1.2.2"
   checksum: 10c0/3d25c973f2fd69c25ffff29c964399cea573fe10795ecc1d26f6f957ce0483d3254e1cceddb34bf3296a0d7b0f1d53a28992f064ba509dfe6366751e752c4166
@@ -3665,6 +3665,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"runed@npm:^0.31.1":
+  version: 0.31.1
+  resolution: "runed@npm:0.31.1"
+  dependencies:
+    esm-env: "npm:^1.0.0"
+  peerDependencies:
+    svelte: ^5.7.0
+  checksum: 10c0/b954482c29816db5e4793a7e3be869a141bd4fa76d0dfc47503306460f312188cad4f2663b3edfd89b449a4a5c546ab6673bde199272bdb014d47abbd2b4c7dd
+  languageName: node
+  linkType: hard
+
 "sade@npm:^1.7.4, sade@npm:^1.8.1":
   version: 1.8.1
   resolution: "sade@npm:1.8.1"
@@ -3829,9 +3840,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sui-spin@workspace:.":
+"sui-svelte-wallet-kit@npm:^0.4.1":
+  version: 0.4.1
+  resolution: "sui-svelte-wallet-kit@npm:0.4.1"
+  dependencies:
+    "@mysten/sui": "npm:1.37.4"
+    "@mysten/wallet-standard": "npm:^0.16.12"
+    "@suiet/wallet-sdk": "npm:^0.5.0"
+    "@wallet-standard/core": "npm:^1.1.1"
+  peerDependencies:
+    svelte: ^5.0.0
+  checksum: 10c0/2993df391f9f79846bb68755b711c1ce0f71a895195976e5539fd24b4e1043274568529f6e414c47e579e80ea8139c47b99aabb30330260461be8021d69134e8
+  languageName: node
+  linkType: hard
+
+"sui-wheel@workspace:.":
   version: 0.0.0-use.local
-  resolution: "sui-spin@workspace:."
+  resolution: "sui-wheel@workspace:."
   dependencies:
     "@eslint/compat": "npm:^1.3.2"
     "@eslint/js": "npm:^9.34.0"
@@ -3852,6 +3877,7 @@ __metadata:
     prettier: "npm:^3.6.2"
     prettier-plugin-svelte: "npm:^3.4.0"
     prettier-plugin-tailwindcss: "npm:^0.6.14"
+    runed: "npm:^0.31.1"
     sui-svelte-wallet-kit: "npm:^0.4.1"
     svelte: "npm:^5.38.3"
     svelte-check: "npm:^4.3.1"
@@ -3862,20 +3888,6 @@ __metadata:
     vite-plugin-devtools-json: "npm:^1.0.0"
   languageName: unknown
   linkType: soft
-
-"sui-svelte-wallet-kit@npm:^0.4.1":
-  version: 0.4.1
-  resolution: "sui-svelte-wallet-kit@npm:0.4.1"
-  dependencies:
-    "@mysten/sui": "npm:1.37.4"
-    "@mysten/wallet-standard": "npm:^0.16.12"
-    "@suiet/wallet-sdk": "npm:^0.5.0"
-    "@wallet-standard/core": "npm:^1.1.1"
-  peerDependencies:
-    svelte: ^5.0.0
-  checksum: 10c0/2993df391f9f79846bb68755b711c1ce0f71a895195976e5539fd24b4e1043274568529f6e414c47e579e80ea8139c47b99aabb30330260461be8021d69134e8
-  languageName: node
-  linkType: hard
 
 "superstruct@npm:1.0.3":
   version: 1.0.3
