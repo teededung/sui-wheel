@@ -1,0 +1,61 @@
+.DS_Store
+.cursor
+node_modules
+
+/build
+/.svelte-kit
+
+.env
+.env.*
+!.env.example
+
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+/src/generated/prisma
+
+# Netlify
+.netlify/
+.netlify-cache/
+_build/
+dist/
+build/
+.vercel
+
+# PM2
+.pm2/
+*.log
+logs/
+*.out
+
+# Runtime
+*.pid
+*.seed
+*.pid.lock
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.temp/
+
+# Package manager
+.pnpm-debug.log*
+.yarn-error.log

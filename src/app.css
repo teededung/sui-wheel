@@ -1,0 +1,16 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/typography';
+@plugin 'daisyui' {
+	themes:
+		light, dark
+}
+@plugin '@iconify/tailwind4' {
+	prefixes: lucide;
+}
+
+/* Toaster */
+@source '../node_modules/svelte-daisy-toaster/dist';
+
+@theme {
+	--font-mono: 'Roboto Mono', monospace;
+}
