@@ -37,6 +37,8 @@
 	let spinAngle = $state(0); // radians
 	let pointerIndex = $state(0);
 	let pointerColor = $state('#ef4444');
+	// If empty string -> auto color while spinning; if hex -> fixed color
+	let pointerColorOverride = $state('#ef4444');
 
 	// Precomputed label layouts to avoid per-frame text measurement
 	let labelLayouts = $state([]); // [{ displayText: string, font: string }] aligned with entries
@@ -47,6 +49,9 @@
 	let entriesTextareaEl;
 	let ctx;
 	let wheelSize = $state(0); // CSS px size (square)
+	// Offscreen canvas for pre-rendering the wheel
+	let offscreenCanvas;
+	let offscreenCtx;
 
 	/** Audio */
 	let winAudio;
@@ -60,6 +65,7 @@
 		() => entries,
 		() => {
 			recomputeLabelLayouts();
+			renderWheelBitmap();
 			drawWheel();
 		}
 	);
@@ -85,7 +91,20 @@
 		canvasEl.height = newHeight;
 		ctx = canvasEl.getContext('2d');
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+		ctx.imageSmoothingEnabled = true;
+		ctx.imageSmoothingQuality = 'high';
+
+		// initialize offscreen canvas for static wheel bitmap
+		offscreenCanvas = document.createElement('canvas');
+		offscreenCanvas.width = newWidth;
+		offscreenCanvas.height = newHeight;
+		offscreenCtx = offscreenCanvas.getContext('2d');
+		offscreenCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+		offscreenCtx.imageSmoothingEnabled = true;
+		offscreenCtx.imageSmoothingQuality = 'high';
+
 		recomputeLabelLayouts();
+		renderWheelBitmap();
 		drawWheel();
 	}
 
@@ -111,78 +130,13 @@
 		'#06b6d4' // cyan-500
 	];
 
-	function drawWheel() {
-		if (!ctx || !wheelSize) return;
-
-		const n = Math.max(1, entries.length);
-		const radius = wheelSize / 2;
-		const centerX = radius;
-		const centerY = radius;
-		const arc = (Math.PI * 2) / n;
-
-		ctx.clearRect(0, 0, wheelSize, wheelSize);
-
-		// Background circle
-		ctx.save();
-		ctx.translate(centerX, centerY);
-		ctx.rotate(spinAngle);
-		ctx.translate(-centerX, -centerY);
-
-		const baseStart = -Math.PI / 2; // start at top
-		for (let i = 0; i < n; i++) {
-			const start = baseStart + i * arc;
-			const end = start + arc;
-			ctx.beginPath();
-			ctx.moveTo(centerX, centerY);
-			ctx.arc(centerX, centerY, radius - 4, start, end);
-			ctx.closePath();
-			ctx.fillStyle = segmentColors[i % segmentColors.length];
-			ctx.fill();
-
-			// Separator line
-			ctx.strokeStyle = 'rgba(0,0,0,0.06)';
-			ctx.lineWidth = 2;
-			ctx.stroke();
-
-			// Label: improved positioning to reduce overlap
-			const mid = (start + end) / 2;
-			const raw = String(entries[i]).trim();
-			const label = isValidSuiAddress(raw) ? shortenAddress(raw) : raw;
-
-			// Skip empty labels
-			if (!label) continue;
-
-			// Define inner and outer radius for text (shared across all labels)
-			const innerRadius = Math.max(30, radius * 0.2);
-			const outerRadius = radius - 10;
-			const available = outerRadius - innerRadius;
-			const padding = 10;
-
-			const layout = labelLayouts[i];
-			if (layout && layout.displayText) {
-				ctx.font = layout.font;
-				ctx.fillStyle = '#111827';
-				ctx.textAlign = 'right';
-				ctx.textBaseline = 'middle';
-				ctx.save();
-				ctx.translate(centerX, centerY);
-				ctx.rotate(mid);
-				ctx.fillText(layout.displayText, innerRadius + available - padding, 0);
-				ctx.restore();
-			}
-
-			// Removed an extra ctx.restore() here that broke the global rotation state
+	function updatePointerColor() {
+		// Fixed color when override is provided
+		if (pointerColorOverride && pointerColorOverride.trim() !== '') {
+			pointerColor = pointerColorOverride.trim();
+			return;
 		}
-
-		// Center circle
-		ctx.beginPath();
-		ctx.arc(centerX, centerY, Math.max(22, radius * 0.08), 0, Math.PI * 2);
-		ctx.fillStyle = '#ffffff';
-		ctx.fill();
-
-		ctx.restore();
-
-		// Update pointer color to match segment at right-hand pointer
+		// Auto color based on current angle
 		const n2 = Math.max(1, entries.length);
 		const arc2 = (Math.PI * 2) / n2;
 		const normalized = (((Math.PI / 2 - spinAngle) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
@@ -190,8 +144,105 @@
 		pointerColor = segmentColors[pointerIndex % segmentColors.length];
 	}
 
+	function renderWheelBitmap() {
+		if (!offscreenCtx || !wheelSize) return;
+
+		const n = Math.max(1, entries.length);
+		const radius = wheelSize / 2;
+		const centerX = radius;
+		const centerY = radius;
+		const arc = (Math.PI * 2) / n;
+
+		const ctx2 = offscreenCtx;
+		ctx2.clearRect(0, 0, wheelSize, wheelSize);
+
+		ctx2.save();
+		const baseStart = -Math.PI / 2; // start at top
+		for (let i = 0; i < n; i++) {
+			const start = baseStart + i * arc;
+			const end = start + arc;
+			ctx2.beginPath();
+			ctx2.moveTo(centerX, centerY);
+			ctx2.arc(centerX, centerY, radius - 4, start, end);
+			ctx2.closePath();
+			ctx2.fillStyle = segmentColors[i % segmentColors.length];
+			ctx2.fill();
+
+			// Separator line
+			ctx2.strokeStyle = 'rgba(0,0,0,0.06)';
+			ctx2.lineWidth = 2;
+			ctx2.stroke();
+
+			// Label rendering
+			const mid = (start + end) / 2;
+			const raw = String(entries[i]).trim();
+			const label = isValidSuiAddress(raw) ? shortenAddress(raw) : raw;
+			if (!label) continue;
+
+			const innerRadius = Math.max(30, radius * 0.2);
+			const outerRadius = radius - 10;
+			const available = outerRadius - innerRadius;
+			const padding = 10;
+			const layout = labelLayouts[i];
+			if (layout && layout.displayText) {
+				ctx2.font = layout.font;
+				ctx2.fillStyle = '#111827';
+				ctx2.textAlign = 'right';
+				ctx2.textBaseline = 'middle';
+				ctx2.save();
+				ctx2.translate(centerX, centerY);
+				ctx2.rotate(mid);
+				ctx2.fillText(layout.displayText, innerRadius + available - padding, 0);
+				ctx2.restore();
+			}
+		}
+
+		// Center circle
+		ctx2.beginPath();
+		ctx2.arc(centerX, centerY, Math.max(22, radius * 0.08), 0, Math.PI * 2);
+		ctx2.fillStyle = '#ffffff';
+		ctx2.fill();
+
+		ctx2.restore();
+	}
+
+	function drawWheel() {
+		if (!ctx || !wheelSize) return;
+
+		const radius = wheelSize / 2;
+		const centerX = radius;
+		const centerY = radius;
+
+		ctx.clearRect(0, 0, wheelSize, wheelSize);
+
+		ctx.save();
+		ctx.translate(centerX, centerY);
+		ctx.rotate(spinAngle);
+		ctx.translate(-centerX, -centerY);
+
+		if (offscreenCanvas) {
+			ctx.drawImage(
+				offscreenCanvas,
+				0,
+				0,
+				offscreenCanvas.width,
+				offscreenCanvas.height,
+				0,
+				0,
+				wheelSize,
+				wheelSize
+			);
+		}
+
+		ctx.restore();
+
+		// Always update pointer color (respects override)
+		updatePointerColor();
+	}
+
 	function recomputeLabelLayouts() {
-		if (!ctx || !wheelSize) {
+		const measureCtx = offscreenCtx || ctx;
+		if (!measureCtx || !wheelSize) {
 			labelLayouts = [];
 			return;
 		}
@@ -216,18 +267,21 @@
 			let fontSize = Math.max(9, Math.min(17, arcDegrees * 0.75));
 			let displayText = baseLabel;
 			let font = `600 ${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"`;
-			ctx.font = font;
-			let measured = ctx.measureText(displayText).width;
+			measureCtx.font = font;
+			let measured = measureCtx.measureText(displayText).width;
 			if (measured > maxWidth && maxWidth > 0) {
 				const scale = maxWidth / measured;
 				fontSize = Math.max(9, Math.floor(fontSize * scale));
 				font = `600 ${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"`;
-				ctx.font = font;
-				measured = ctx.measureText(displayText).width;
+				measureCtx.font = font;
+				measured = measureCtx.measureText(displayText).width;
 			}
 			if (measured > maxWidth && maxWidth > 0) {
 				const ellipsis = '…';
-				while (displayText.length > 1 && ctx.measureText(displayText + ellipsis).width > maxWidth) {
+				while (
+					displayText.length > 1 &&
+					measureCtx.measureText(displayText + ellipsis).width > maxWidth
+				) {
 					displayText = displayText.slice(0, -1);
 				}
 				displayText += ellipsis;
@@ -268,8 +322,8 @@
 		const idxValue = serverTargetIndex;
 		if (Number.isFinite(idxValue) && idxValue >= 0 && idxValue < n) {
 			spinToIndex(Math.floor(idxValue), {
-				duration: 12000,
-				extraTurnsMin: 10,
+				duration: 10000,
+				extraTurnsMin: 8,
 				extraTurnsMax: 14,
 				marginFraction: 0.05,
 				easePower: 4
@@ -278,8 +332,8 @@
 		}
 		const randomIndex = Math.floor(Math.random() * n);
 		spinToIndex(randomIndex, {
-			duration: 12000,
-			extraTurnsMin: 10,
+			duration: 10000,
+			extraTurnsMin: 8,
 			extraTurnsMax: 14,
 			marginFraction: 0.05,
 			easePower: 4
@@ -327,6 +381,8 @@
 			} else {
 				spinning = false;
 				selectedIndex = pickSelectedIndex();
+				// Ensure pointer color reflects final angle or override
+				updatePointerColor();
 				if (!muted && winAudio) {
 					try {
 						winAudio.currentTime = 0;
