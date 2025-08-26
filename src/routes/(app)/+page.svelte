@@ -29,11 +29,19 @@
 		'Very doubtful'
 	]);
 
+	const spinAnimationConfig = {
+		duration: 10000,
+		extraTurnsMin: 6,
+		extraTurnsMax: 10,
+		marginFraction: 0.05,
+		easePower: 4
+	};
+
 	let newEntry = $state('');
 	let entriesText = $state('');
 	let serverTargetIndex = $state(null);
 	let spinning = $state(false);
-	let muted = $state(false);
+	let muted = $state(true);
 	let selectedIndex = $state(null);
 	let spinAngle = $state(0); // radians
 	let pointerIndex = $state(0);
@@ -70,7 +78,8 @@
 		() => {
 			recomputeLabelLayouts();
 			renderWheelBitmap();
-			drawWheel();
+			drawStaticWheel();
+			updatePointerColor();
 		}
 	);
 
@@ -109,13 +118,22 @@
 
 		recomputeLabelLayouts();
 		renderWheelBitmap();
-		drawWheel();
+		drawStaticWheel();
+		if (canvasEl) {
+			canvasEl.style.transform = `rotate(${spinAngle}rad)`;
+		}
+		updatePointerColor();
 	}
 
 	onMount(() => {
 		resizeObserver = new ResizeObserver(() => setupCanvas());
 		if (canvasContainerEl) resizeObserver.observe(canvasContainerEl);
 		setupCanvas();
+		if (canvasEl) {
+			canvasEl.style.willChange = 'transform';
+			canvasEl.style.transformOrigin = '50% 50%';
+			canvasEl.style.backfaceVisibility = 'hidden';
+		}
 	});
 
 	onDestroy(() => {
@@ -249,6 +267,24 @@
 		updatePointerColor();
 	}
 
+	function drawStaticWheel() {
+		if (!ctx || !wheelSize) return;
+		ctx.clearRect(0, 0, wheelSize, wheelSize);
+		if (offscreenCanvas) {
+			ctx.drawImage(
+				offscreenCanvas,
+				0,
+				0,
+				offscreenCanvas.width,
+				offscreenCanvas.height,
+				0,
+				0,
+				wheelSize,
+				wheelSize
+			);
+		}
+	}
+
 	function recomputeLabelLayouts() {
 		const measureCtx = offscreenCtx || ctx;
 		if (!measureCtx || !wheelSize) {
@@ -325,23 +361,11 @@
 		const n = Math.max(1, entries.length);
 		const idxValue = serverTargetIndex;
 		if (Number.isFinite(idxValue) && idxValue >= 0 && idxValue < n) {
-			spinToIndex(Math.floor(idxValue), {
-				duration: 10000,
-				extraTurnsMin: 8,
-				extraTurnsMax: 14,
-				marginFraction: 0.05,
-				easePower: 4
-			});
+			spinToIndex(Math.floor(idxValue), spinAnimationConfig);
 			return;
 		}
 		const randomIndex = Math.floor(Math.random() * n);
-		spinToIndex(randomIndex, {
-			duration: 10000,
-			extraTurnsMin: 8,
-			extraTurnsMax: 14,
-			marginFraction: 0.05,
-			easePower: 4
-		});
+		spinToIndex(randomIndex, spinAnimationConfig);
 	}
 
 	function spinToIndex(targetIndex, opts = {}) {
@@ -386,7 +410,10 @@
 			ease: getGsapEaseFromPower(opts.easePower ?? 4),
 			onUpdate: () => {
 				spinAngle = animState.angle;
-				drawWheel();
+				if (canvasEl) {
+					canvasEl.style.transform = `rotate(${spinAngle}rad)`;
+				}
+				updatePointerColor();
 			},
 			onComplete: () => {
 				currentTween = null;
@@ -421,40 +448,6 @@
 		spinAngle = 0;
 	}
 
-	function resetSample() {
-		entries = [
-			'It is certain',
-			'Reply hazy, try again',
-			'As I see it, yes',
-			"Don't count on it",
-			'It is decidedly so',
-			'Ask again later',
-			'Most likely',
-			'My reply is no',
-			'Without a doubt',
-			'Better not tell you now',
-			'Outlook good',
-			'My sources say no',
-			'Yes - definitely',
-			'Cannot predict now',
-			'Probably, yes',
-			'Outlook not so good',
-			'You may rely on it',
-			'Concentrate & ask again',
-			'Signs point to yes',
-			'Very doubtful'
-		];
-		selectedIndex = null;
-		spinAngle = 0;
-	}
-
-	function addEntry() {
-		const v = newEntry.trim();
-		if (!v) return;
-		entries = [...entries, v];
-		newEntry = '';
-	}
-
 	function arraysShallowEqual(a, b) {
 		// Compare two string arrays by value and order
 		if (a === b) return true;
@@ -485,6 +478,15 @@
 			entriesText = entries.join('\n');
 		}
 	});
+
+	$effect(() => {
+		// Keep CSS transform in sync when not animating (e.g., after reset)
+		void spinAngle;
+		if (!spinning && canvasEl) {
+			canvasEl.style.transform = `rotate(${spinAngle}rad)`;
+			updatePointerColor();
+		}
+	});
 </script>
 
 <section class="container mx-auto px-4 py-6">
@@ -509,18 +511,19 @@
 								style={`border-right-color: ${pointerColor}; filter: drop-shadow(0 0 12px ${pointerColor}80)`}
 							></div>
 						</div>
-						<canvas bind:this={canvasEl} class="rounded-box bg-base-100 mx-auto block"></canvas>
+						<canvas bind:this={canvasEl} class="rounded-box pointer-events-none mx-auto block"
+						></canvas>
 					</div>
 					<div class="mt-4 flex items-center justify-center gap-3">
 						<ButtonLoading
 							formLoading={spinning}
-							buttonStyle="primary"
+							color="primary"
 							loadingText="Spinning..."
 							onclick={spin}
 						>
 							Spin the wheel
 						</ButtonLoading>
-						<button class="btn" onclick={shuffle} aria-label="Shuffle entries">Shuffle</button>
+
 						<label class="label cursor-pointer gap-2">
 							<span class="label-text">Mute</span>
 							<input
@@ -542,42 +545,24 @@
 		</div>
 
 		<div class="w-full">
-			<div class="card bg-base-100 shadow">
+			<div class="card bg-base-200 shadow">
 				<div class="card-body">
 					<h2 class="card-title">Wheel entries</h2>
 
-					<fieldset class="fieldset border-base-300 rounded-box border p-4">
-						<legend class="fieldset-legend">Manage entries</legend>
+					<textarea
+						class="textarea h-48 w-full"
+						placeholder="One entry per line"
+						bind:value={entriesText}
+						oninput={() => onEntriesTextChange(entriesText)}
+						bind:this={entriesTextareaEl}
+					></textarea>
 
-						<div class="join w-full">
-							<input
-								class="input join-item w-full"
-								placeholder="Add new entry"
-								bind:value={newEntry}
-								onkeydown={e => {
-									if (e.key === 'Enter') addEntry();
-								}}
-								aria-label="New entry"
-							/>
-							<button class="btn join-item" onclick={addEntry} aria-label="Add entry">Add</button>
-						</div>
-
-						<label class="floating-label mt-4">
-							<textarea
-								class="textarea h-48 w-full"
-								placeholder="One entry per line"
-								bind:value={entriesText}
-								oninput={() => onEntriesTextChange(entriesText)}
-								bind:this={entriesTextareaEl}
-							></textarea>
-							<span>Entries list</span>
-						</label>
-
-						<div class="mt-4 flex flex-wrap gap-2">
-							<button class="btn btn-ghost" onclick={resetSample}>Reset sample</button>
-							<button class="btn btn-warning" onclick={clearAll}>Clear all</button>
-						</div>
-					</fieldset>
+					<div class="mt-4 flex flex-wrap gap-2">
+						<button class="btn btn-outline" onclick={shuffle} aria-label="Shuffle entries"
+							>Shuffle</button
+						>
+						<button class="btn btn-warning" onclick={clearAll}>Clear</button>
+					</div>
 				</div>
 			</div>
 		</div>
