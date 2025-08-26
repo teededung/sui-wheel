@@ -41,7 +41,7 @@
 	let entriesText = $state('');
 	let serverTargetIndex = $state(null);
 	let spinning = $state(false);
-	let muted = $state(true);
+	let muted = $state(false);
 	let selectedIndex = $state(null);
 	let spinAngle = $state(0); // radians
 	let pointerIndex = $state(0);
@@ -67,6 +67,9 @@
 
 	/** Audio */
 	let winAudio;
+
+	// Angle tracking for multi-crossing detection
+	let lastAngle = 0;
 	onMount(() => {
 		winAudio = new Audio('/crowd-reaction.mp3');
 		winAudio.preload = 'auto';
@@ -157,18 +160,65 @@
 		'#06b6d4' // cyan-500
 	];
 
+	let lastTickIndex = null;
+
+	function mod(v, n) {
+		return ((v % n) + n) % n;
+	}
+
+	function fireTickForIndex(idx) {
+		// console.log('Pointer passed entry:', entries[idx]);
+	}
+
 	function updatePointerColor() {
-		// Fixed color when override is provided
-		if (pointerColorOverride && pointerColorOverride.trim() !== '') {
-			pointerColor = pointerColorOverride.trim();
-			return;
-		}
-		// Auto color based on current angle
 		const n2 = Math.max(1, entries.length);
 		const arc2 = (Math.PI * 2) / n2;
 		const normalized = (((Math.PI / 2 - spinAngle) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-		pointerIndex = Math.floor(normalized / arc2) % n2;
-		pointerColor = segmentColors[pointerIndex % segmentColors.length];
+		const newIndex = Math.floor(normalized / arc2) % n2;
+
+		// update color (fixed override if provided)
+		if (pointerColorOverride && pointerColorOverride.trim() !== '') {
+			pointerColor = pointerColorOverride.trim();
+		} else {
+			pointerColor = segmentColors[newIndex % segmentColors.length];
+		}
+
+		// No tick calculation if not spinning
+		if (!spinning) {
+			pointerIndex = newIndex;
+			lastTickIndex = newIndex;
+			lastAngle = spinAngle;
+			return;
+		}
+
+		// Compute angle delta for direction and multi-crossing detection
+		const deltaAngle = spinAngle - lastAngle; // rad
+
+		// Initialize lastTickIndex on spin start
+		if (lastTickIndex === null) {
+			lastTickIndex = newIndex;
+			lastAngle = spinAngle;
+			pointerIndex = newIndex;
+			return;
+		}
+
+		if (newIndex !== lastTickIndex && deltaAngle !== 0) {
+			// Determine traversal direction: angle increases => pointer index decreases
+			const dir = deltaAngle > 0 ? -1 : 1;
+			// How many segment boundaries passed this frame along that direction
+			const steps = dir > 0 ? mod(newIndex - lastTickIndex, n2) : mod(lastTickIndex - newIndex, n2);
+
+			const MAX_TICKS_PER_FRAME = 12;
+			const toFire = Math.min(steps, MAX_TICKS_PER_FRAME);
+
+			for (let i = 0; i < toFire; i++) {
+				lastTickIndex = mod(lastTickIndex + dir, n2);
+				fireTickForIndex(lastTickIndex);
+			}
+		}
+
+		pointerIndex = newIndex;
+		lastAngle = spinAngle;
 	}
 
 	function renderWheelBitmap() {
@@ -231,40 +281,6 @@
 		ctx2.fill();
 
 		ctx2.restore();
-	}
-
-	function drawWheel() {
-		if (!ctx || !wheelSize) return;
-
-		const radius = wheelSize / 2;
-		const centerX = radius;
-		const centerY = radius;
-
-		ctx.clearRect(0, 0, wheelSize, wheelSize);
-
-		ctx.save();
-		ctx.translate(centerX, centerY);
-		ctx.rotate(spinAngle);
-		ctx.translate(-centerX, -centerY);
-
-		if (offscreenCanvas) {
-			ctx.drawImage(
-				offscreenCanvas,
-				0,
-				0,
-				offscreenCanvas.width,
-				offscreenCanvas.height,
-				0,
-				0,
-				wheelSize,
-				wheelSize
-			);
-		}
-
-		ctx.restore();
-
-		// Always update pointer color (respects override)
-		updatePointerColor();
 	}
 
 	function drawStaticWheel() {
@@ -374,8 +390,12 @@
 		const idx = Math.max(0, Math.min(n - 1, Number(targetIndex) | 0));
 		spinning = true;
 		selectedIndex = null;
+		// reset tick tracker for this spin
+		lastTickIndex = null;
 
 		const startAngle = spinAngle;
+		// sync angle for high-speed tick detection right at spin start
+		lastAngle = startAngle;
 		const arc = (Math.PI * 2) / n;
 		// Choose a random angle within the target segment (uniform, avoid edges)
 		const marginFraction = Math.max(0, Math.min(0.49, opts.marginFraction ?? 0.05));
@@ -439,6 +459,7 @@
 	}
 
 	function shuffle() {
+		selectedIndex = null;
 		entries = [...entries].sort(() => Math.random() - 0.5);
 	}
 
@@ -460,6 +481,7 @@
 	}
 
 	function onEntriesTextChange(text) {
+		if (spinning) return;
 		const list = text
 			.split('\n')
 			.map(s => s.trim())
@@ -555,13 +577,17 @@
 						bind:value={entriesText}
 						oninput={() => onEntriesTextChange(entriesText)}
 						bind:this={entriesTextareaEl}
+						disabled={spinning}
 					></textarea>
 
 					<div class="mt-4 flex flex-wrap gap-2">
-						<button class="btn btn-outline" onclick={shuffle} aria-label="Shuffle entries"
-							>Shuffle</button
+						<button
+							class="btn btn-outline"
+							disabled={spinning}
+							onclick={shuffle}
+							aria-label="Shuffle entries">Shuffle</button
 						>
-						<button class="btn btn-warning" onclick={clearAll}>Clear</button>
+						<button class="btn btn-warning" disabled={spinning} onclick={clearAll}>Clear</button>
 					</div>
 				</div>
 			</div>
