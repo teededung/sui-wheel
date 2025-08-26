@@ -2603,6 +2603,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"gsap@npm:^3.13.0":
+  version: 3.13.0
+  resolution: "gsap@npm:3.13.0"
+  checksum: 10c0/a42dd2e02467a4abe96409aaf6cd0e5d697c72e05ec13c18c2271330493983aa63cc717c9dd0740fda2f884d0f56c7b98fc18b13500f0c1da94864985840da7c
+  languageName: node
+  linkType: hard
+
 "has-flag@npm:^4.0.0":
   version: 4.0.0
   resolution: "has-flag@npm:4.0.0"
@@ -3874,6 +3881,7 @@ __metadata:
     eslint-config-prettier: "npm:^10.1.8"
     eslint-plugin-svelte: "npm:^3.11.0"
     globals: "npm:^16.3.0"
+    gsap: "npm:^3.13.0"
     prettier: "npm:^3.6.2"
     prettier-plugin-svelte: "npm:^3.4.0"
     prettier-plugin-tailwindcss: "npm:^0.6.14"

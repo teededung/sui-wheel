@@ -3,6 +3,7 @@
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
 	import { isValidSuiAddress, shortenAddress } from '$lib/utils/string.js';
 	import { watch } from 'runed';
+	import { gsap } from 'gsap';
 
 	// State
 	let entries = $state([
@@ -39,6 +40,9 @@
 	let pointerColor = $state('#ef4444');
 	// If empty string -> auto color while spinning; if hex -> fixed color
 	let pointerColorOverride = $state('#ef4444');
+	// GSAP animation state
+	let currentTween;
+	const animState = { angle: 0 };
 
 	// Precomputed label layouts to avoid per-frame text measurement
 	let labelLayouts = $state([]); // [{ displayText: string, font: string }] aligned with entries
@@ -116,6 +120,11 @@
 
 	onDestroy(() => {
 		if (resizeObserver && canvasContainerEl) resizeObserver.unobserve(canvasContainerEl);
+		// Kill GSAP tween on destroy to avoid leaks
+		if (currentTween) {
+			currentTween.kill();
+			currentTween = null;
+		}
 	});
 
 	/** Drawing */
@@ -292,14 +301,9 @@
 	}
 
 	/** Spin logic */
-	let rafId;
-	function easeOutCubic(t) {
-		return 1 - Math.pow(1 - t, 3);
-	}
-
-	function easeOutPower(t, power = 3) {
-		const p = Number.isFinite(power) ? Math.max(1, power) : 3;
-		return 1 - Math.pow(1 - t, p);
+	function getGsapEaseFromPower(power = 4) {
+		const p = Math.max(1, Math.min(4, Math.floor(Number(power) || 4)));
+		return `power${p}.out`;
 	}
 
 	function normalizeAngle(radians) {
@@ -359,7 +363,7 @@
 
 		const extraTurnsMin = opts.extraTurnsMin ?? 5;
 		const extraTurnsMax = opts.extraTurnsMax ?? 7;
-		const duration = opts.duration ?? 5200; // slightly longer for suspense
+		const duration = opts.duration ?? 5200; // ms
 		const extraTurnsFloat =
 			extraTurnsMin + Math.random() * Math.max(0, extraTurnsMax - extraTurnsMin);
 		const extraTurns = Math.max(0, Math.ceil(extraTurnsFloat)); // ensure integer full turns for exact alignment
@@ -368,20 +372,26 @@
 		const kBase = Math.ceil((startAngle - baseAligned) / tau);
 		const targetAngle = baseAligned + (kBase + extraTurns) * tau;
 
-		const startTime = performance.now();
-		cancelAnimationFrame(rafId);
-		const step = now => {
-			const elapsed = now - startTime;
-			const t = Math.min(1, elapsed / duration);
-			const eased = easeOutPower(t, opts.easePower ?? 5);
-			spinAngle = startAngle + (targetAngle - startAngle) * eased;
-			drawWheel();
-			if (t < 1) {
-				rafId = requestAnimationFrame(step);
-			} else {
+		// Kill any running tween
+		if (currentTween) {
+			currentTween.kill();
+			currentTween = null;
+		}
+		// Sync animState with current angle
+		animState.angle = startAngle;
+		// Start GSAP tween
+		currentTween = gsap.to(animState, {
+			angle: targetAngle,
+			duration: duration / 1000,
+			ease: getGsapEaseFromPower(opts.easePower ?? 4),
+			onUpdate: () => {
+				spinAngle = animState.angle;
+				drawWheel();
+			},
+			onComplete: () => {
+				currentTween = null;
 				spinning = false;
 				selectedIndex = pickSelectedIndex();
-				// Ensure pointer color reflects final angle or override
 				updatePointerColor();
 				if (!muted && winAudio) {
 					try {
@@ -390,8 +400,7 @@
 					} catch {}
 				}
 			}
-		};
-		rafId = requestAnimationFrame(step);
+		});
 	}
 
 	function spinToValue(value, opts = {}) {
