@@ -1261,16 +1261,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sveltejs/kit@npm:^2.36.2":
-  version: 2.36.2
-  resolution: "@sveltejs/kit@npm:2.36.2"
+"@sveltejs/kit@npm:^2.36.3":
+  version: 2.36.3
+  resolution: "@sveltejs/kit@npm:2.36.3"
   dependencies:
     "@standard-schema/spec": "npm:^1.0.0"
     "@sveltejs/acorn-typescript": "npm:^1.0.5"
     "@types/cookie": "npm:^0.6.0"
     acorn: "npm:^8.14.1"
     cookie: "npm:^0.6.0"
-    devalue: "npm:^5.1.0"
+    devalue: "npm:^5.3.2"
     esm-env: "npm:^1.2.2"
     kleur: "npm:^4.1.5"
     magic-string: "npm:^0.30.5"
@@ -1288,7 +1288,7 @@ __metadata:
       optional: true
   bin:
     svelte-kit: svelte-kit.js
-  checksum: 10c0/a089f428ac3f9b28373d919ec9e6a3f5a85a74d7f0f838d8dfa0df0c4c70915360bc441080201f99d1727ffba3dc1181245d19f5e961a45e9aea18a50e8391d2
+  checksum: 10c0/f9528e030452b9b425b99f0c81bbd0f9e90777a57991c195cfa54fb293701c8cb35889ef3af76501b3e9c054be73b234fdaaf688ab8f9debe1b02b78e3a941d4
   languageName: node
   linkType: hard
 
@@ -1915,10 +1915,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"daisyui@npm:^5.0.50":
-  version: 5.0.50
-  resolution: "daisyui@npm:5.0.50"
-  checksum: 10c0/6e752fb803c6e4a1e6b4a628a2d79cc0f2012e93e72f7aa03688ed51c7edd4bed3e370938dca6ee27670b71aff834e310dfd33baa9fa1dfb2502dbfc3f794842
+"daisyui@npm:^5.0.51":
+  version: 5.0.51
+  resolution: "daisyui@npm:5.0.51"
+  checksum: 10c0/74b2b1a279d005415337e60ad3d82fdf504f880f563264d8ee0ddb1aefffca26ed8b81bc3a01910ae0bbb50f813aa34e8a9e1097ccb0f961fdca4aad04239948
   languageName: node
   linkType: hard
 
@@ -1962,10 +1962,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"devalue@npm:^5.1.0":
-  version: 5.1.1
-  resolution: "devalue@npm:5.1.1"
-  checksum: 10c0/f6717a856fd54216959abd341cb189e47a9b37d72d8419e055ae77567ff4ed0fb683b1ffb6a71067f645adae5991bffabe6468a3e2385937bff49273e71c1f51
+"devalue@npm:^5.3.2":
+  version: 5.3.2
+  resolution: "devalue@npm:5.3.2"
+  checksum: 10c0/2dab403779233224285afe4b30eaded038df10cb89b8f2c1e41dd855a8e6b634aa24175b87f64df665204bb9a6a6e7758d172682719b9c5cf3cef336ff9fa507
   languageName: node
   linkType: hard
 
@@ -3871,11 +3871,11 @@ __metadata:
     "@iconify/tailwind4": "npm:^1.0.6"
     "@mysten/sui": "npm:^1.37.4"
     "@sveltejs/adapter-netlify": "npm:^5.2.3"
-    "@sveltejs/kit": "npm:^2.36.2"
+    "@sveltejs/kit": "npm:^2.36.3"
     "@sveltejs/vite-plugin-svelte": "npm:^6.1.3"
     "@tailwindcss/typography": "npm:^0.5.16"
     "@tailwindcss/vite": "npm:^4.1.12"
-    daisyui: "npm:^5.0.50"
+    daisyui: "npm:^5.0.51"
     date-fns: "npm:^4.1.0"
     eslint: "npm:^9.34.0"
     eslint-config-prettier: "npm:^10.1.8"
@@ -3887,7 +3887,7 @@ __metadata:
     prettier-plugin-tailwindcss: "npm:^0.6.14"
     runed: "npm:^0.31.1"
     sui-svelte-wallet-kit: "npm:^0.4.1"
-    svelte: "npm:^5.38.3"
+    svelte: "npm:^5.38.5"
     svelte-check: "npm:^4.3.1"
     svelte-daisy-toaster: "npm:^0.5.4"
     tailwindcss: "npm:^4.1.12"
@@ -3961,9 +3961,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"svelte@npm:^5.38.3":
-  version: 5.38.3
-  resolution: "svelte@npm:5.38.3"
+"svelte@npm:^5.38.5":
+  version: 5.38.5
+  resolution: "svelte@npm:5.38.5"
   dependencies:
     "@jridgewell/remapping": "npm:^2.3.4"
     "@jridgewell/sourcemap-codec": "npm:^1.5.0"
@@ -3979,7 +3979,7 @@ __metadata:
     locate-character: "npm:^3.0.0"
     magic-string: "npm:^0.30.11"
     zimmerframe: "npm:^1.1.2"
-  checksum: 10c0/53eb0ed21009be9be28618228b8eb31c399a622070d5078b5d412b463cb793ee74f0ee73f0990c6aff020dc8ba565c54c79a6241391a38960299ddbcb78790aa
+  checksum: 10c0/b09df2754b642e9d62692744341243944ab33166eac946ca0c5f2e005d07edc3bc0278e294f26b5872eb73658ada6ea632dd36f6c255eb74cca898f1db00fc73
   languageName: node
   linkType: hard
 

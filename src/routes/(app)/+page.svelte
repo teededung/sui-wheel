@@ -34,7 +34,7 @@
 		extraTurnsMin: 6,
 		extraTurnsMax: 10,
 		marginFraction: 0.05,
-		easePower: 4
+		easePower: 3
 	};
 
 	let newEntry = $state('');
@@ -47,7 +47,7 @@
 	let pointerIndex = $state(0);
 	let pointerColor = $state('#ef4444');
 	// If empty string -> auto color while spinning; if hex -> fixed color
-	let pointerColorOverride = $state('#ef4444');
+	let pointerColorOverride = $state('');
 	// GSAP animation state
 	let currentTween;
 	const animState = { angle: 0 };
@@ -67,6 +67,9 @@
 
 	/** Audio */
 	let winAudio;
+
+	/** Modal */
+	let winnerModal = $state(null);
 
 	// Angle tracking for multi-crossing detection
 	let lastAngle = 0;
@@ -509,6 +512,13 @@
 			updatePointerColor();
 		}
 	});
+
+	// Show modal when there's a winner
+	$effect(() => {
+		if (selectedIndex !== null && entries[selectedIndex] && winnerModal) {
+			winnerModal.showModal();
+		}
+	});
 </script>
 
 <section class="container mx-auto px-4 py-6">
@@ -518,7 +528,7 @@
 				<div class="rounded-box bg-base-200 p-3 shadow">
 					<div bind:this={canvasContainerEl} class="relative mx-auto aspect-square w-full">
 						<div
-							class="pointer-events-none absolute top-1/2 -right-3 z-10 -translate-y-1/2"
+							class="pointer-events-none absolute top-1/2 -right-6 z-10 -translate-y-1/2"
 							aria-hidden="true"
 						>
 							<!-- Outline triangle to create a subtle white border for contrast -->
@@ -535,17 +545,24 @@
 						</div>
 						<canvas bind:this={canvasEl} class="rounded-box pointer-events-none mx-auto block"
 						></canvas>
+
+						<!-- Centered Spin Button overlay -->
+						<div
+							class="pointer-events-none absolute top-1/2 left-1/2 z-10 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center"
+						>
+							<ButtonLoading
+								formLoading={spinning}
+								color="primary"
+								loadingText="Spinning..."
+								onclick={spin}
+								aria-label="Spin the wheel"
+								moreClass="w-full h-full rounded-full bg-white text-black pointer-events-auto animate-pulse"
+							>
+								Spin
+							</ButtonLoading>
+						</div>
 					</div>
 					<div class="mt-4 flex items-center justify-center gap-3">
-						<ButtonLoading
-							formLoading={spinning}
-							color="primary"
-							loadingText="Spinning..."
-							onclick={spin}
-						>
-							Spin the wheel
-						</ButtonLoading>
-
 						<label class="label cursor-pointer gap-2">
 							<span class="label-text">Mute</span>
 							<input
@@ -558,8 +575,12 @@
 					</div>
 					{#if selectedIndex !== null && entries[selectedIndex]}
 						<div class="mt-3 text-center">
-							<div class="badge badge-lg badge-success">Result</div>
-							<div class="mt-2 text-lg font-semibold">{entries[selectedIndex]}</div>
+							<div class="badge badge-lg badge-success animate-pulse">🎯 Winner</div>
+							<div
+								class="text-success bg-success/10 border-success/20 mt-2 rounded-lg border px-4 py-2 text-lg font-bold break-words"
+							>
+								{entries[selectedIndex]}
+							</div>
 						</div>
 					{/if}
 				</div>
@@ -595,5 +616,51 @@
 	</div>
 </section>
 
-<style>
-</style>
+<!-- Winner Modal -->
+<dialog bind:this={winnerModal} class="modal">
+	<div class="modal-box w-">
+		<h3 class="mb-6 text-center text-2xl font-bold">🎉 Congratulations!</h3>
+		<div class="text-center">
+			<!-- Winner's name is highlighted with enhanced visual effects -->
+			<div class="relative">
+				<!-- Glow effect background -->
+				<div
+					class="absolute inset-0 animate-pulse rounded-xl bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500 opacity-30 blur-xl"
+				></div>
+
+				<!-- Main winner display -->
+				<div
+					class="relative block transform rounded-xl border-4 border-yellow-400 bg-gradient-to-r from-green-500 to-emerald-600 px-8 py-4 text-3xl font-black text-white shadow-2xl transition-all duration-300 hover:scale-101"
+				>
+					<div class="flex items-center justify-center gap-3">
+						<span class="text-4xl">🏆</span>
+						<span class="drop-shadow-lg"
+							>{isValidSuiAddress(entries[selectedIndex])
+								? shortenAddress(entries[selectedIndex])
+								: entries[selectedIndex]}</span
+						>
+						<span class="text-4xl">🏆</span>
+					</div>
+				</div>
+
+				<!-- Sparkle effects -->
+				<div class="absolute -top-2 -right-2 animate-ping text-2xl">✨</div>
+				<div class="absolute -bottom-2 -left-2 animate-ping text-2xl" style="animation-delay: 0.5s">
+					🌟
+				</div>
+				<div class="absolute top-1/2 -left-4 animate-pulse text-xl" style="animation-delay: 1s">
+					⭐
+				</div>
+				<div class="absolute top-1/2 -right-4 animate-pulse text-xl" style="animation-delay: 1.5s">
+					⭐
+				</div>
+			</div>
+			<small class="mt-5 block text-gray-500">
+				The winner will be automatically removed from the list for the next spin.
+			</small>
+		</div>
+	</div>
+	<form method="dialog" class="modal-backdrop">
+		<button>Close</button>
+	</form>
+</dialog>
