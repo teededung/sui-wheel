@@ -7,6 +7,16 @@
 export const MIST_PER_SUI = 1_000_000_000;
 
 /**
+ * Minimum prize amount settings
+ */
+export const MINIMUM_PRIZE_AMOUNT = {
+	/** Minimum prize amount in SUI (decimal) */
+	SUI: 0.01,
+	/** Minimum prize amount in MIST */
+	MIST: 10000000n
+};
+
+/**
  * Default package id placeholder. Replace with your actual package id on testnet.
  */
 export const DEFAULT_PACKAGE_ID =
@@ -20,5 +30,6 @@ export const WHEEL_STRUCT = 'Wheel';
 
 export const WHEEL_FUNCTIONS = {
 	CREATE: 'create_wheel',
-	DONATE: 'donate_to_pool'
+	DONATE: 'donate_to_pool',
+	CANCEL: 'cancel_wheel_and_reclaim_pool'
 };

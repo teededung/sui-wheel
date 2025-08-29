@@ -25,6 +25,7 @@
 	class:btn-success={color === 'success'}
 	class:btn-warning={color === 'warning'}
 	class:btn-info={color === 'info'}
+	class:btn-disabled={formLoading || disabled}
 	disabled={formLoading || disabled}
 	{onclick}
 	{...args}
