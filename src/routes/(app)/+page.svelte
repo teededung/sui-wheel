@@ -1,11 +1,31 @@
 <script>
 	import { onMount, onDestroy } from 'svelte';
+	import { watch, IsIdle } from 'runed';
+	import { gsap } from 'gsap';
+	import { SuiClient } from '@mysten/sui/client';
+	import { Transaction } from '@mysten/sui/transactions';
+
+	import {
+		account,
+		wallet,
+		signAndExecuteTransaction,
+		suiBalance,
+		suiBalanceLoading
+	} from 'sui-svelte-wallet-kit';
+
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
 	import { isValidSuiAddress, shortenAddress } from '$lib/utils/string.js';
-	import { watch, AnimationFrames, IsIdle } from 'runed';
-	import { gsap } from 'gsap';
+	import {
+		DEFAULT_PACKAGE_ID,
+		MIST_PER_SUI,
+		WHEEL_MODULE,
+		WHEEL_FUNCTIONS
+	} from '$lib/constants.js';
 
 	const idle = new IsIdle({ timeout: 5000 });
+
+	// Testnet Sui client for reading transaction details
+	const testnetClient = new SuiClient({ url: 'https://fullnode.testnet.sui.io' });
 
 	// State
 	let entries = $state([
@@ -19,6 +39,17 @@
 		'Most likely',
 		'Most likely'
 	]);
+
+	// Blockchain setup state
+	let packageId = $state(DEFAULT_PACKAGE_ID);
+	let prizeAmounts = $state(['']); // SUI amounts as strings (decimal supported)
+	let delayMs = $state(0);
+	let claimWindowMs = $state(0);
+	let setupLoading = $state(false);
+	let setupError = $state('');
+	let setupSuccessMsg = $state('');
+	let createdWheelId = $state('');
+	let isOnTestnet = $derived(Boolean(account.value?.chains?.[0] === 'sui:testnet'));
 
 	const spinAnimationConfig = {
 		duration: 10000,
@@ -49,6 +80,179 @@
 	let idleTween;
 	const idleAnimState = { angle: 0 };
 	const animState = { angle: 0 };
+
+	function parseSuiToMist(input) {
+		// Parse decimal string SUI to BigInt MIST (9 decimals)
+		let str = String(input ?? '').trim();
+		// Normalize comma decimal to dot and strip spaces
+		str = str.replace(/,/g, '.').replace(/\s+/g, '');
+		if (!str) return 0n;
+		if (!/^[0-9]*\.?[0-9]*$/.test(str)) return 0n;
+		const [intPart, fracRaw = ''] = str.split('.');
+		const frac = (fracRaw + '000000000').slice(0, 9); // pad to 9 decimals
+		try {
+			const mist = BigInt(intPart || '0') * BigInt(MIST_PER_SUI) + BigInt(frac || '0');
+			return mist < 0n ? 0n : mist;
+		} catch {
+			return 0n;
+		}
+	}
+
+	function formatMistToSui(mist) {
+		try {
+			const v = Number(mist) / MIST_PER_SUI;
+			return Number.isFinite(v) ? v.toFixed(6) : '0';
+		} catch {
+			return '0';
+		}
+	}
+
+	function formatMistToSuiCompact(mist) {
+		try {
+			const v = Number(mist) / MIST_PER_SUI;
+			if (!Number.isFinite(v)) return '0';
+			const s = v.toFixed(1);
+			return s.endsWith('.0') ? s.slice(0, -2) : s;
+		} catch {
+			return '0';
+		}
+	}
+
+	let totalDonationMist = $derived.by(() => {
+		try {
+			return prizeAmounts.reduce((acc, v) => acc + parseSuiToMist(v), 0n);
+		} catch {
+			return 0n;
+		}
+	});
+
+	let invalidEntriesCount = $derived.by(() => {
+		const lines = entries.map(s => String(s ?? '').trim()).filter(s => s.length > 0);
+		return lines.filter(s => !isValidSuiAddress(s)).length;
+	});
+
+	let uniqueValidEntriesCount = $derived.by(() => {
+		const valid = entries
+			.map(s => String(s ?? '').trim())
+			.filter(s => s.length > 0 && isValidSuiAddress(s))
+			.map(s => s.toLowerCase());
+		return new Set(valid).size;
+	});
+
+	let prizesCount = $derived.by(() => prizeAmounts.filter(v => parseSuiToMist(v) > 0n).length);
+
+	let hasInsufficientBalance = $derived.by(
+		() => suiBalance.value - 1_000_000_000 < totalDonationMist
+	);
+
+	function addPrize() {
+		prizeAmounts = [...prizeAmounts, ''];
+	}
+
+	function removePrize(idx) {
+		if (prizeAmounts.length <= 1) return;
+		prizeAmounts = prizeAmounts.filter((_, i) => i !== idx);
+	}
+
+	function updatePrizeAmount(index, value) {
+		prizeAmounts = prizeAmounts.map((v, i) => (i === index ? value : v));
+	}
+
+	function handlePrizeKeydown(index, e) {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			addPrize();
+			setTimeout(() => {
+				const els = document.querySelectorAll('.prize-input');
+				const el = els[els.length - 1];
+				if (el && typeof el.focus === 'function') el.focus();
+			}, 0);
+		}
+	}
+
+	function getAddressEntries() {
+		return entries
+			.map(s => String(s ?? '').trim())
+			.filter(s => s.length > 0 && isValidSuiAddress(s));
+	}
+
+	function validateSetup() {
+		const errors = [];
+		if (!account.value) errors.push('Wallet is not connected.');
+		if (!isOnTestnet) errors.push('Wallet must be on Testnet.');
+		if (!packageId || packageId.trim().length === 0) errors.push('Package ID is required.');
+		const addrList = getAddressEntries();
+		if (addrList.length < 2) errors.push('At least 2 valid addresses are required.');
+		const prizesCount = prizeAmounts.filter(v => parseSuiToMist(v) > 0n).length;
+		if (prizesCount === 0) errors.push('Please add at least 1 prize with amount > 0.');
+		if (addrList.length < prizesCount)
+			errors.push('Number of entries must be >= number of prizes.');
+		// unique addresses check
+		const uniqueCount = new Set(addrList.map(a => a.toLowerCase())).size;
+		if (uniqueCount < prizesCount) errors.push('Unique address count must be >= number of prizes.');
+		return errors;
+	}
+
+	async function createWheelAndFund() {
+		setupError = '';
+		setupSuccessMsg = '';
+		const errors = validateSetup();
+		if (errors.length) {
+			setupError = errors.join('\n');
+			return;
+		}
+		setupLoading = true;
+		try {
+			const addrList = getAddressEntries();
+			const prizeMistList = prizeAmounts.map(v => parseSuiToMist(v)).filter(v => v > 0n);
+			// TX 1: create_wheel
+			const tx1 = new Transaction();
+			tx1.moveCall({
+				target: `${packageId}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.CREATE}`,
+				arguments: [
+					tx1.pure.vector('address', addrList),
+					tx1.pure.vector('u64', prizeMistList),
+					tx1.pure.u64(BigInt(Number(delayMs || 0)) * 60000n),
+					tx1.pure.u64(BigInt(Number(claimWindowMs || 0)) * 60000n)
+				]
+			});
+			const res1 = await signAndExecuteTransaction(tx1);
+			const digest = res1?.digest ?? res1?.effects?.transactionDigest;
+			if (!digest) throw new Error('Failed to get transaction digest for create_wheel');
+			const txBlock = await testnetClient.getTransactionBlock({
+				digest,
+				options: { showObjectChanges: true }
+			});
+			const created = (txBlock?.objectChanges || []).find(
+				ch =>
+					ch.type === 'created' && String(ch.objectType || '').endsWith(`::${WHEEL_MODULE}::Wheel`)
+			);
+			const wheelId = created?.objectId;
+			if (!wheelId) throw new Error('Wheel object id not found after creation');
+			createdWheelId = wheelId;
+
+			// TX 2: donate_to_pool with total donation
+			const total = totalDonationMist;
+			if (total <= 0n) throw new Error('Total donation must be greater than 0');
+			const tx2 = new Transaction();
+			const [donationCoin] = tx2.splitCoins(tx2.gas, [total]);
+			tx2.moveCall({
+				target: `${packageId}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.DONATE}`,
+				arguments: [tx2.object(wheelId), donationCoin]
+			});
+			await signAndExecuteTransaction(tx2);
+
+			// Clear web2 entries after successful setup
+			entries = [];
+			selectedIndex = null;
+			spinAngle = 0;
+			setupSuccessMsg = `Wheel created and funded successfully. ID: ${wheelId}`;
+		} catch (e) {
+			setupError = e?.message || String(e);
+		} finally {
+			setupLoading = false;
+		}
+	}
 
 	// Precomputed label layouts to avoid per-frame text measurement
 	let labelLayouts = $state([]); // [{ displayText: string, font: string }] aligned with entries
@@ -692,6 +896,137 @@
 									</div>
 								{/each}
 							</div>
+						</div>
+					{/if}
+
+					<!-- Blockchain Setup Section (visible when wallet connected) -->
+					{#if account.value}
+						<div class="divider">Setup (Testnet)</div>
+						{#if !isOnTestnet}
+							<div
+								class="alert alert-warning alert-soft"
+								role="alert"
+								aria-live="polite"
+								aria-atomic="true"
+							>
+								<span>Chain: {account.value?.chains?.[0] || 'unknown'}</span>
+
+								<span class="text-error">Please switch wallet to Testnet</span>
+							</div>
+						{/if}
+
+						<!-- Prize repeater -->
+						<fieldset class="fieldset bg-base-300 border-base-300 rounded-box mb-3 border p-4">
+							<legend class="fieldset-legend">Prizes (SUI)</legend>
+							{#each prizeAmounts as prize, i}
+								<div class="join mb-2 w-full">
+									<button class="btn btn-disabled join-item">Rank {i + 1}</button>
+									<input
+										type="text"
+										class="input join-item prize-input w-full"
+										placeholder={`Prize #${i + 1} amount (e.g. 0.5)`}
+										value={prizeAmounts[i] ?? ''}
+										oninput={e => updatePrizeAmount(i, e.currentTarget.value)}
+										onchange={e => updatePrizeAmount(i, e.currentTarget.value)}
+										onkeydown={e => handlePrizeKeydown(i, e)}
+										aria-label={`Prize #${i + 1} amount in SUI`}
+									/>
+									<button
+										class="btn btn-error join-item"
+										onclick={() => removePrize(i)}
+										disabled={prizeAmounts.length <= 1}>Remove</button
+									>
+								</div>
+							{/each}
+							<div class="mt-2">
+								<button class="btn btn-outline" onclick={addPrize}>Add prize</button>
+							</div>
+							<div class="mt-3 text-sm">
+								<strong>Total required:</strong>
+								<span>{formatMistToSuiCompact(totalDonationMist)} SUI</span>
+								{#if totalDonationMist > 0n && totalDonationMist < 1n}
+									<span class="ml-2 text-sm text-gray-500"> (Less than 1 SUI)</span>
+								{/if}
+							</div>
+						</fieldset>
+
+						<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+							<label class="floating-label">
+								<input
+									type="number"
+									class="input"
+									min="0"
+									step="1"
+									bind:value={delayMs}
+									aria-label="Delay (minutes)"
+								/>
+								<span>Delay (minutes)</span>
+							</label>
+							<label class="floating-label">
+								<input
+									type="number"
+									class="input"
+									min="0"
+									step="1"
+									bind:value={claimWindowMs}
+									aria-label="Claim window (minutes)"
+								/>
+								<span>Claim window (minutes)</span>
+							</label>
+						</div>
+
+						{#if setupError}
+							<div class="alert alert-error mt-3 whitespace-pre-wrap">{setupError}</div>
+						{/if}
+						{#if setupSuccessMsg}
+							<div class="alert alert-success mt-3 break-words">{setupSuccessMsg}</div>
+						{/if}
+
+						{#if invalidEntriesCount > 0 || uniqueValidEntriesCount < 2 || prizesCount > uniqueValidEntriesCount || hasInsufficientBalance}
+							<div class="alert alert-soft alert-error mt-3">
+								<ul class="list-inside list-disc">
+									{#if invalidEntriesCount > 0}
+										<li>
+											Please fix <strong>{invalidEntriesCount}</strong> invalid entries (must be SUI
+											addresses).
+										</li>
+									{/if}
+									{#if uniqueValidEntriesCount < 2}
+										<li>At least <strong>2 unique</strong> entries are required.</li>
+									{/if}
+									{#if prizesCount > uniqueValidEntriesCount}
+										<li>
+											Prizes count (<strong>{prizesCount}</strong>) must be ≤ unique entries (<strong
+												>{uniqueValidEntriesCount}</strong
+											>).
+										</li>
+									{/if}
+									{#if hasInsufficientBalance}
+										<li>
+											Wallet balance (<strong>{formatMistToSuiCompact(suiBalance.value)} SUI</strong
+											>) is less than total required (<strong
+												>{formatMistToSuiCompact(totalDonationMist)} SUI</strong
+											>).
+										</li>
+									{/if}
+								</ul>
+							</div>
+						{/if}
+
+						<div class="mt-4">
+							<ButtonLoading
+								formLoading={setupLoading}
+								color="primary"
+								loadingText="Setting up..."
+								onclick={createWheelAndFund}
+								aria-label="Create wheel and fund"
+								disabled={invalidEntriesCount > 0 ||
+									uniqueValidEntriesCount < 2 ||
+									prizesCount > uniqueValidEntriesCount ||
+									hasInsufficientBalance}
+							>
+								Create wheel (Testnet)
+							</ButtonLoading>
 						</div>
 					{/if}
 				</div>
