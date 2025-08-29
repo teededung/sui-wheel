@@ -60,11 +60,15 @@
 	// View/Edit and on-chain fetched state
 	let isEditing = $state(false);
 	let wheelFetched = $state(false);
+	let wheelLoading = $state(false);
 	let entriesOnChain = $state([]);
 	let prizesOnChainMist = $state([]);
+	let spunCountOnChain = $state(0);
 	let delayMsOnChain = $state(0);
 	let claimWindowMsOnChain = $state(0);
 	let poolBalanceMistOnChain = $state(0n);
+	let winnersOnChain = $state([]);
+	let postSpinFetchRequested = $state(false);
 
 	// Action loading states
 	let updateLoading = $state(false);
@@ -81,9 +85,6 @@
 		}
 	});
 	let isOnTestnet = $derived(Boolean(account.value?.chains?.[0] === 'sui:testnet'));
-
-	// Disable spin when wallet is connected but wheel hasn't been created
-	let isSpinDisabled = $derived.by(() => Boolean(account.value) && !createdWheelId);
 
 	const spinAnimationConfig = {
 		duration: 10000,
@@ -123,6 +124,19 @@
 		}
 	});
 
+	// Remaining spins based on on-chain prizes and spun count
+	let remainingSpins = $derived.by(() =>
+		Math.max(0, (prizesOnChainMist.length || 0) - (spunCountOnChain || 0))
+	);
+
+	// Disable spin in both modes (off-chain and on-chain)
+	let isSpinDisabled = $derived.by(() => {
+		// On-chain: disable if no remaining spins
+		if (createdWheelId) return remainingSpins === 0;
+		// Off-chain: disable if wallet connected (requires on-chain flow) or not enough entries
+		return (Boolean(account.value) && !createdWheelId) || entries.length < 2;
+	});
+
 	let invalidEntriesCount = $derived.by(() => {
 		const lines = entries.map(s => String(s ?? '').trim()).filter(s => s.length > 0);
 		return lines.filter(s => !isValidSuiAddress(s)).length;
@@ -147,6 +161,23 @@
 
 	let hasInsufficientBalance = $derived.by(
 		() => suiBalance.value - 1_000_000_000 < totalDonationMist
+	);
+
+	// Consolidated warnings visibility
+	let hasSetupWarnings = $derived.by(
+		() =>
+			invalidEntriesCount > 0 ||
+			uniqueValidEntriesCount < 2 ||
+			prizesCount > uniqueValidEntriesCount ||
+			invalidPrizeAmountsCount > 0 ||
+			entries.length > 200 ||
+			hasInsufficientBalance ||
+			!isOnTestnet
+	);
+
+	// Final condition to show setup warnings
+	let shouldShowSetupWarnings = $derived.by(
+		() => hasSetupWarnings && ((isEditing && createdWheelId) || !createdWheelId)
 	);
 
 	function addPrize() {
@@ -269,6 +300,7 @@
 	async function fetchWheelFromChain() {
 		if (!createdWheelId) return;
 		try {
+			wheelLoading = true;
 			const res = await testnetClient.getObject({
 				id: createdWheelId,
 				options: { showContent: true, showOwner: true, showType: true }
@@ -291,7 +323,19 @@
 				}
 			});
 
-			// Delay / ClaimWindow (ms -> minutes)
+			// Winners list
+			winnersOnChain = (f['winners'] || []).map(w => ({
+				addr: String(w?.fields?.addr ?? w?.addr ?? ''),
+				prize_index: Number(w?.fields?.prize_index ?? w?.prize_index ?? 0),
+				claimed: Boolean(w?.fields?.claimed ?? w?.claimed ?? false)
+			}));
+
+			// Spun count and Delay / ClaimWindow (ms -> minutes)
+			try {
+				spunCountOnChain = Number(f['spun_count'] || 0);
+			} catch {
+				spunCountOnChain = 0;
+			}
 			const delayMsRaw = Number(f['delay_ms']);
 			delayMsOnChain = Math.max(0, Math.round(delayMsRaw / 60000));
 
@@ -324,13 +368,15 @@
 			// Sync form states for edit mode convenience
 			entriesText = entriesOnChain.join('\n');
 			entries = [...entriesOnChain];
-			prizeAmounts = prizesOnChainMist.map(m => formatMistToSui(m));
+			prizeAmounts = prizesOnChainMist.map(m => formatMistToSuiCompact(m));
 			delayMs = delayMsOnChain;
 			claimWindowMs = claimWindowMsOnChain;
 
 			wheelFetched = true;
 		} catch (e) {
 			console.error('Failed to fetch wheel:', e);
+		} finally {
+			wheelLoading = false;
 		}
 	}
 
@@ -741,6 +787,32 @@
 		return idx;
 	}
 
+	async function spinOnChainAndAnimate() {
+		if (!createdWheelId || spinning) return;
+		if (!account.value) return;
+		try {
+			spinning = true;
+			// call move function spin_wheel
+			const tx = new Transaction();
+			tx.moveCall({
+				target: `${packageId}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.SPIN}`,
+				arguments: [tx.object(createdWheelId), tx.object('0x8'), tx.object('0x6')]
+			});
+			// NOTE: The Random and Clock object ids '0x8' and '0x6' are placeholders.
+			// Replace with the proper shared object ids in your deployment if needed.
+			const res = await signAndExecuteTransaction(tx);
+			const digest = res?.digest ?? res?.effects?.transactionDigest;
+			if (!digest) throw new Error('Missing tx digest for spin');
+			// Determine a target index (UI only) and defer on-chain fetch until after animation to avoid flicker
+			let targetIdx = Math.floor(Math.random() * Math.max(1, entries.length));
+			postSpinFetchRequested = true;
+			spinToIndex(targetIdx, spinAnimationConfig);
+		} catch (e) {
+			setupError = e?.message || String(e);
+			spinning = false;
+		}
+	}
+
 	function spin() {
 		if (spinning || entries.length < 2) return;
 		// Guard: in blockchain mode require created wheel id
@@ -831,6 +903,11 @@
 					spinAngle = 0;
 					// show winner modal
 					if (winnerModal && !winnerModal.open) winnerModal.showModal();
+				}
+				// Fetch wheel data if requested
+				if (postSpinFetchRequested) {
+					postSpinFetchRequested = false;
+					fetchWheelFromChain();
 				}
 			}
 		});
@@ -928,6 +1005,26 @@
 	});
 </script>
 
+{#snippet showDuplicateEntries()}
+	{#if duplicateEntries.length > 0}
+		<div class="mt-4">
+			<h4 class="text-base-content/70 mb-2 text-sm font-semibold">Duplicate Entries:</h4>
+			<div class="bg-base-300 max-h-32 overflow-y-auto rounded-lg p-2">
+				{#each duplicateEntries as duplicate}
+					<div class="flex items-center justify-between gap-2 text-sm">
+						<span class="flex-1 truncate font-medium">
+							{isValidSuiAddress(duplicate.entry)
+								? shortenAddress(duplicate.entry)
+								: duplicate.entry}
+						</span>
+						<span class="badge badge-secondary badge-sm">{duplicate.count}x</span>
+					</div>
+				{/each}
+			</div>
+		</div>
+	{/if}
+{/snippet}
+
 <section class="container mx-auto px-4 py-6">
 	<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 		<div class="w-full">
@@ -972,13 +1069,17 @@
 
 						<!-- Centered Spin Button overlay -->
 						<div
-							class="pointer-events-none absolute top-1/2 left-1/2 z-10 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center"
+							class="tooltip pointer-events-none absolute top-1/2 left-1/2 z-10 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center"
+							data-tip={`Remaining spins: ${Math.max(
+								0,
+								(prizesOnChainMist.length || 0) - (spunCountOnChain || 0)
+							)}`}
 						>
 							<ButtonLoading
 								formLoading={spinning}
 								color="primary"
 								loadingText="Spinning..."
-								onclick={spin}
+								onclick={createdWheelId ? spinOnChainAndAnimate : spin}
 								aria-label="Spin the wheel"
 								moreClass="w-full h-full rounded-full bg-white text-black pointer-events-auto animate-pulse shadow-lg"
 								disabled={isSpinDisabled}
@@ -999,11 +1100,25 @@
 						</div>
 					{/if}
 
+					{#if createdWheelId}
+						<div class="mt-4 flex justify-center">
+							<div
+								class="badge badge-lg badge-primary rounded px-2 py-1 text-center text-xs font-medium shadow"
+							>
+								Remaining spins: {Math.max(
+									0,
+									(prizesOnChainMist.length || 0) - (spunCountOnChain || 0)
+								)}
+							</div>
+						</div>
+					{/if}
+
 					<!-- Wheel control buttons -->
 					<div class="mt-4 flex flex-wrap justify-center gap-2">
 						<button
 							class="btn btn-outline"
-							disabled={spinning}
+							class:btn-disabled={spinning || entries.length < 2}
+							disabled={spinning || entries.length < 2}
 							onclick={shuffle}
 							aria-label="Shuffle entries">Shuffle</button
 						>
@@ -1021,284 +1136,326 @@
 					<!-- Header actions for view/edit -->
 					{#if createdWheelId}
 						<div class="mb-3 flex items-center justify-between gap-2">
-							<div class="text-sm opacity-70">
-								Wheel ID: <span class="font-mono">{shortenAddress(createdWheelId)}</span>
+							<div class="flex items-center gap-2 text-sm opacity-70">
+								<span
+									>Wheel ID: <span class="font-mono">{shortenAddress(createdWheelId)}</span></span
+								>
+								{#if remainingSpins === 0}
+									<span class="badge badge-error badge-sm">Finished</span>
+								{/if}
 							</div>
 							<div class="flex items-center gap-2">
-								{#if isEditing}
-									<ButtonLoading
-										formLoading={updateLoading}
-										color="primary"
-										loadingText="Updating..."
-										onclick={updateWheel}>Update wheel</ButtonLoading
+								{#if remainingSpins === 0}
+									<button
+										class="btn btn-primary btn-sm"
+										onclick={() => {
+											// reset to create new wheel
+											createdWheelId = '';
+											isEditing = false;
+											wheelFetched = false;
+											entriesOnChain = [];
+											prizesOnChainMist = [];
+											winnersOnChain = [];
+											spunCountOnChain = 0;
+											poolBalanceMistOnChain = 0n;
+										}}>New wheel</button
 									>
-									<button class="btn" onclick={() => (isEditing = false)}>Cancel edit</button>
 								{:else}
-									<button class="btn btn-outline" onclick={() => (isEditing = true)}
-										>Edit wheel</button
+									{#if isEditing}
+										<ButtonLoading
+											formLoading={updateLoading}
+											color="primary"
+											loadingText="Updating..."
+											onclick={updateWheel}>Update wheel</ButtonLoading
+										>
+										<button
+											class="btn"
+											onclick={() => (isEditing = false)}
+											disabled={spunCountOnChain > 0}>Cancel edit</button
+										>
+									{:else}
+										<button
+											class="btn btn-sm btn-outline"
+											onclick={() => (isEditing = true)}
+											disabled={spunCountOnChain > 0}>Edit wheel</button
+										>
+									{/if}
+									<ButtonLoading
+										formLoading={cancelLoading}
+										color="error"
+										loadingText="Cancelling..."
+										onclick={cancelWheel}
+										disabled={spunCountOnChain > 0}>Cancel wheel</ButtonLoading
 									>
 								{/if}
-								<ButtonLoading
-									formLoading={cancelLoading}
-									color="error"
-									loadingText="Cancelling..."
-									onclick={cancelWheel}>Cancel wheel</ButtonLoading
-								>
 							</div>
 						</div>
 					{/if}
 
-					<!-- Tabs -->
-					<div class="tabs tabs-lift">
-						<input
-							type="radio"
-							name="wheel_tabs"
-							class="tab"
-							aria-label="Entries"
-							checked="checked"
-						/>
-						<div class="tab-content bg-base-100 border-base-300 p-6">
-							<h3 class="mb-4 text-lg font-semibold">Entries</h3>
+					{#if createdWheelId && !wheelFetched && !isEditing}
+						<!-- Loading state to avoid flicker before on-chain data replaces off-chain forms -->
+						<div class="space-y-3">
+							<div class="skeleton h-8 w-40"></div>
+							<div class="skeleton h-32 w-full"></div>
+							<div class="skeleton h-8 w-56"></div>
+						</div>
+					{:else}
+						<!-- Tabs -->
+						<div class="tabs tabs-lift">
+							<input
+								type="radio"
+								name="wheel_tabs"
+								class="tab"
+								aria-label="Entries"
+								checked="checked"
+							/>
+							<div class="tab-content bg-base-100 border-base-300 p-6">
+								<h3 class="mb-4 text-lg font-semibold">Entries ({entriesOnChain.length})</h3>
 
-							{#if createdWheelId && wheelFetched && !isEditing}
-								<div class="overflow-x-auto">
-									<table class="table-zebra table">
-										<thead>
-											<tr>
-												<th>#</th>
-												<th>Address</th>
-											</tr>
-										</thead>
-										<tbody>
-											{#each entriesOnChain as addr, i}
-												<tr>
-													<td class="w-12">{i + 1}</td>
-													<td class="font-mono">{shortenAddress(String(addr))}</td>
-												</tr>
-											{/each}
-										</tbody>
-									</table>
-								</div>
-							{:else}
-								<textarea
-									class="textarea h-48 w-full"
-									placeholder="One entry per line"
-									bind:value={entriesText}
-									oninput={() => onEntriesTextChange(entriesText)}
-									bind:this={entriesTextareaEl}
-									disabled={spinning}
-								></textarea>
+								{#if createdWheelId && wheelFetched && !isEditing}
+									{#if entriesOnChain.length > 0}
+										<div class="overflow-x-auto">
+											<table class="table-zebra table">
+												<thead>
+													<tr>
+														<th>#</th>
+														<th>Address</th>
+													</tr>
+												</thead>
+												<tbody>
+													{#each entriesOnChain as addr, i}
+														<tr>
+															<td class="w-12">{i + 1}</td>
+															<td class="font-mono">{String(addr)}</td>
+														</tr>
+													{/each}
+												</tbody>
+											</table>
 
-								{#if duplicateEntries.length > 0}
-									<div class="mt-4">
-										<h4 class="text-base-content/70 mb-2 text-sm font-semibold">
-											Duplicate Entries:
-										</h4>
-										<div class="bg-base-300 max-h-32 overflow-y-auto rounded-lg p-2">
-											{#each duplicateEntries as duplicate}
-												<div class="flex items-center justify-between gap-2 text-sm">
-													<span class="flex-1 truncate font-medium">
-														{isValidSuiAddress(duplicate.entry)
-															? shortenAddress(duplicate.entry)
-															: duplicate.entry}
-													</span>
-													<span class="badge badge-secondary badge-sm">{duplicate.count}x</span>
-												</div>
-											{/each}
+											{@render showDuplicateEntries()}
 										</div>
-									</div>
+									{:else}
+										<div class="text-center text-sm text-gray-500">No entries</div>
+									{/if}
+								{:else}
+									<textarea
+										class="textarea h-48 w-full"
+										placeholder="One entry per line"
+										bind:value={entriesText}
+										oninput={() => onEntriesTextChange(entriesText)}
+										bind:this={entriesTextareaEl}
+										disabled={spinning}
+									></textarea>
+
+									{@render showDuplicateEntries()}
 								{/if}
+							</div>
+
+							{#if account.value}
+								<input type="radio" name="wheel_tabs" class="tab" aria-label="Prizes" />
+								<div class="tab-content bg-base-100 border-base-300 p-6">
+									<h3 class="mb-4 text-lg font-semibold">Prizes (SUI)</h3>
+
+									{#if createdWheelId && wheelFetched && !isEditing}
+										<div class="overflow-x-auto">
+											<table class="table-zebra table">
+												<thead>
+													<tr>
+														<th>#</th>
+														<th>Amount (SUI)</th>
+														<th>Winner</th>
+													</tr>
+												</thead>
+												<tbody>
+													{#each prizesOnChainMist as m, i}
+														<tr>
+															<td class="w-12">{i + 1}</td>
+															<td class="font-mono">{formatMistToSuiCompact(m)}</td>
+															<td class="flex items-center font-mono">
+																{#if winnersOnChain.find(w => w.prize_index === i)}
+																	{shortenAddress(
+																		winnersOnChain.find(w => w.prize_index === i).addr
+																	)}
+																	{#if winnersOnChain.find(w => w.prize_index === i).claimed}
+																		<span class="badge badge-success badge-sm ml-2">claimed</span>
+																	{:else}
+																		<span class="badge badge-warning badge-sm ml-2">unclaimed</span>
+																	{/if}
+																{:else}
+																	<span class="opacity-60">—</span>
+																{/if}
+															</td>
+														</tr>
+													{/each}
+												</tbody>
+											</table>
+										</div>
+									{:else}
+										<!-- Prize repeater -->
+										{#each prizeAmounts as prize, i}
+											<div class="join mb-2 w-full">
+												<button class="btn btn-disabled join-item">Prize #{i + 1}</button>
+												<input
+													type="text"
+													class="input join-item prize-input w-full"
+													placeholder={`Amount (e.g. 0.5)`}
+													value={prizeAmounts[i] ?? ''}
+													oninput={e => updatePrizeAmount(i, e.currentTarget.value)}
+													onchange={e => updatePrizeAmount(i, e.currentTarget.value)}
+													onkeydown={e => handlePrizeKeydown(i, e)}
+													aria-label={`Prize #${i + 1} amount in SUI`}
+												/>
+												<button
+													class="btn btn-error btn-soft join-item"
+													onclick={() => removePrize(i)}
+													disabled={prizeAmounts.length <= 1}
+													aria-label="Remove prize"
+													><span class="icon-[lucide--x] h-4 w-4"></span></button
+												>
+											</div>
+										{/each}
+										<div class="mt-2 flex items-center justify-between">
+											<button class="btn btn-outline" onclick={addPrize}>Add prize</button>
+											<div class="text-sm">
+												<strong>Need:</strong>
+												<span>{formatMistToSuiCompact(totalDonationMist)} SUI</span>
+											</div>
+										</div>
+
+										{#if createdWheelId && wheelFetched}
+											<div class="mt-2 text-sm">
+												<span class="opacity-70">Top-up required:</span>
+												<strong class="ml-1">{formatMistToSuiCompact(topUpMist)} SUI</strong>
+											</div>
+										{/if}
+									{/if}
+								</div>
+
+								<input type="radio" name="wheel_tabs" class="tab" aria-label="Others" />
+								<div class="tab-content bg-base-100 border-base-300 p-6">
+									<h3 class="mb-4 text-lg font-semibold">Settings</h3>
+									<div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+										<label class="floating-label">
+											<input
+												type="number"
+												class="input"
+												min="0"
+												step="1"
+												bind:value={delayMs}
+												aria-label="Delay (minutes)"
+												disabled={createdWheelId && wheelFetched && !isEditing}
+											/>
+											<span>Delay (minutes)</span>
+										</label>
+										<label class="floating-label">
+											<input
+												type="number"
+												class="input"
+												min="0"
+												step="1"
+												bind:value={claimWindowMs}
+												aria-label="Claim window (minutes)"
+												disabled={createdWheelId && wheelFetched && !isEditing}
+											/>
+											<span>Claim window (minutes)</span>
+										</label>
+									</div>
+									<div class="alert alert-info alert-soft">
+										<ul class="list-inside list-disc">
+											<li class="mb-1">
+												<strong>Delay (minutes):</strong> Time to wait after spinning completes before
+												claiming the prize.
+											</li>
+											<li>
+												<strong>Claim window (minutes):</strong> Deadline time to claim the prize. After
+												this time, the prize cannot be claimed (minimum 1 hour, default 24 hours).
+											</li>
+										</ul>
+									</div>
+								</div>
 							{/if}
 						</div>
 
+						<!-- Common alerts and button (always visible) -->
 						{#if account.value}
-							<input type="radio" name="wheel_tabs" class="tab" aria-label="Prizes" />
-							<div class="tab-content bg-base-100 border-base-300 p-6">
-								<h3 class="mb-4 text-lg font-semibold">Prizes (SUI)</h3>
+							{#if setupError}
+								<div class="alert alert-error mt-3 whitespace-pre-wrap">{setupError}</div>
+							{/if}
+							{#if setupSuccessMsg}
+								<div class="alert alert-success mt-3 break-words">{setupSuccessMsg}</div>
+							{/if}
 
-								{#if createdWheelId && wheelFetched && !isEditing}
-									<div class="overflow-x-auto">
-										<table class="table-zebra table">
-											<thead>
-												<tr>
-													<th>#</th>
-													<th>Amount (SUI)</th>
-												</tr>
-											</thead>
-											<tbody>
-												{#each prizesOnChainMist as m, i}
-													<tr>
-														<td class="w-12">{i + 1}</td>
-														<td class="font-mono">{formatMistToSuiCompact(m)}</td>
-													</tr>
-												{/each}
-											</tbody>
-										</table>
-									</div>
-								{:else}
-									<!-- Prize repeater -->
-									{#each prizeAmounts as prize, i}
-										<div class="join mb-2 w-full">
-											<button class="btn btn-disabled join-item">Prize #{i + 1}</button>
-											<input
-												type="text"
-												class="input join-item prize-input w-full"
-												placeholder={`Amount (e.g. 0.5)`}
-												value={prizeAmounts[i] ?? ''}
-												oninput={e => updatePrizeAmount(i, e.currentTarget.value)}
-												onchange={e => updatePrizeAmount(i, e.currentTarget.value)}
-												onkeydown={e => handlePrizeKeydown(i, e)}
-												aria-label={`Prize #${i + 1} amount in SUI`}
-											/>
-											<button
-												class="btn btn-error btn-soft join-item"
-												onclick={() => removePrize(i)}
-												disabled={prizeAmounts.length <= 1}
-												aria-label="Remove prize"
-												><span class="icon-[lucide--x] h-4 w-4"></span></button
-											>
-										</div>
-									{/each}
-									<div class="mt-2 flex items-center justify-between">
-										<button class="btn btn-outline" onclick={addPrize}>Add prize</button>
-										<div class="text-sm">
-											<strong>Need:</strong>
-											<span>{formatMistToSuiCompact(totalDonationMist)} SUI</span>
-										</div>
-									</div>
-
-									{#if createdWheelId && wheelFetched}
-										<div class="mt-2 text-sm">
-											<span class="opacity-70">Top-up required:</span>
-											<strong class="ml-1">{formatMistToSuiCompact(topUpMist)} SUI</strong>
-										</div>
-									{/if}
-								{/if}
-							</div>
-
-							<input type="radio" name="wheel_tabs" class="tab" aria-label="Others" />
-							<div class="tab-content bg-base-100 border-base-300 p-6">
-								<h3 class="mb-4 text-lg font-semibold">Settings</h3>
-								<div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-									<label class="floating-label">
-										<input
-											type="number"
-											class="input"
-											min="0"
-											step="1"
-											bind:value={delayMs}
-											aria-label="Delay (minutes)"
-											disabled={createdWheelId && wheelFetched && !isEditing}
-										/>
-										<span>Delay (minutes)</span>
-									</label>
-									<label class="floating-label">
-										<input
-											type="number"
-											class="input"
-											min="0"
-											step="1"
-											bind:value={claimWindowMs}
-											aria-label="Claim window (minutes)"
-											disabled={createdWheelId && wheelFetched && !isEditing}
-										/>
-										<span>Claim window (minutes)</span>
-									</label>
-								</div>
-								<div class="alert alert-info alert-soft">
+							{#if shouldShowSetupWarnings}
+								<div class="alert alert-soft alert-warning mt-3">
 									<ul class="list-inside list-disc">
-										<li class="mb-1">
-											<strong>Delay (minutes):</strong> Time to wait after spinning completes before
-											claiming the prize.
-										</li>
-										<li>
-											<strong>Claim window (minutes):</strong> Deadline time to claim the prize. After
-											this time, the prize cannot be claimed (minimum 1 hour, default 24 hours).
-										</li>
+										{#if !isOnTestnet}
+											<li>Please switch wallet to Testnet.</li>
+										{/if}
+										{#if invalidEntriesCount > 0}
+											<li>
+												Please fix <strong>{invalidEntriesCount}</strong> invalid entries (must be SUI
+												addresses).
+											</li>
+										{/if}
+										{#if uniqueValidEntriesCount < 2}
+											<li>At least <strong>2 unique</strong> entries are required.</li>
+										{/if}
+										{#if prizesCount > uniqueValidEntriesCount}
+											<li>
+												Prizes count (<strong>{prizesCount}</strong>) must be ≤ unique entries (<strong
+													>{uniqueValidEntriesCount}</strong
+												>).
+											</li>
+										{/if}
+										{#if invalidPrizeAmountsCount > 0}
+											<li>
+												<strong>{invalidPrizeAmountsCount}</strong> prize(s) must be at least {MINIMUM_PRIZE_AMOUNT.SUI}
+												SUI.
+											</li>
+										{/if}
+										{#if entries.length > 200}
+											<li>
+												Entries count (<strong>{entries.length}</strong>) must be ≤ 200.
+											</li>
+										{/if}
+										{#if isOnTestnet && hasInsufficientBalance}
+											<li>
+												Wallet balance (<strong
+													>{formatMistToSuiCompact(suiBalance.value)} SUI</strong
+												>) is less than total required (<strong
+													>{formatMistToSuiCompact(totalDonationMist)} SUI</strong
+												>).
+											</li>
+										{/if}
 									</ul>
 								</div>
-							</div>
-						{/if}
-					</div>
+							{/if}
 
-					<!-- Common alerts and button (always visible) -->
-					{#if account.value}
-						{#if setupError}
-							<div class="alert alert-error mt-3 whitespace-pre-wrap">{setupError}</div>
-						{/if}
-						{#if setupSuccessMsg}
-							<div class="alert alert-success mt-3 break-words">{setupSuccessMsg}</div>
-						{/if}
-
-						{#if invalidEntriesCount > 0 || uniqueValidEntriesCount < 2 || prizesCount > uniqueValidEntriesCount || hasInsufficientBalance || !isOnTestnet || invalidPrizeAmountsCount > 0}
-							<div class="alert alert-soft alert-warning mt-3">
-								<ul class="list-inside list-disc">
-									{#if !isOnTestnet}
-										<li>Please switch wallet to Testnet.</li>
-									{/if}
-									{#if invalidEntriesCount > 0}
-										<li>
-											Please fix <strong>{invalidEntriesCount}</strong> invalid entries (must be SUI
-											addresses).
-										</li>
-									{/if}
-									{#if uniqueValidEntriesCount < 2}
-										<li>At least <strong>2 unique</strong> entries are required.</li>
-									{/if}
-									{#if prizesCount > uniqueValidEntriesCount}
-										<li>
-											Prizes count (<strong>{prizesCount}</strong>) must be ≤ unique entries (<strong
-												>{uniqueValidEntriesCount}</strong
-											>).
-										</li>
-									{/if}
-									{#if invalidPrizeAmountsCount > 0}
-										<li>
-											<strong>{invalidPrizeAmountsCount}</strong> prize(s) must be at least {MINIMUM_PRIZE_AMOUNT.SUI}
-											SUI.
-										</li>
-									{/if}
-									{#if entries.length > 200}
-										<li>
-											Entries count (<strong>{entries.length}</strong>) must be ≤ 200.
-										</li>
-									{/if}
-									{#if isOnTestnet && hasInsufficientBalance}
-										<li>
-											Wallet balance (<strong>{formatMistToSuiCompact(suiBalance.value)} SUI</strong
-											>) is less than total required (<strong
-												>{formatMistToSuiCompact(totalDonationMist)} SUI</strong
-											>).
-										</li>
-									{/if}
-								</ul>
-							</div>
-						{/if}
-
-						{#if !createdWheelId}
-							<div class="mt-4">
-								<ButtonLoading
-									formLoading={setupLoading}
-									color="primary"
-									loadingText="Setting up..."
-									onclick={createWheelAndFund}
-									aria-label="Create wheel and fund"
-									disabled={invalidEntriesCount > 0 ||
-										uniqueValidEntriesCount < 2 ||
-										prizesCount === 0 ||
-										prizesCount > uniqueValidEntriesCount ||
-										invalidPrizeAmountsCount > 0 ||
-										entries.length > 200 ||
-										getAddressEntries().length < 2 ||
-										hasInsufficientBalance}
-								>
-									{#if totalDonationMist > 0n}
-										Create wheel and fund {formatMistToSuiCompact(totalDonationMist)} SUI
-									{:else}
-										Create wheel
-									{/if}
-								</ButtonLoading>
-							</div>
+							{#if !createdWheelId}
+								<div class="mt-4">
+									<ButtonLoading
+										formLoading={setupLoading}
+										color="primary"
+										loadingText="Setting up..."
+										onclick={createWheelAndFund}
+										aria-label="Create wheel and fund"
+										disabled={invalidEntriesCount > 0 ||
+											uniqueValidEntriesCount < 2 ||
+											prizesCount === 0 ||
+											prizesCount > uniqueValidEntriesCount ||
+											invalidPrizeAmountsCount > 0 ||
+											entries.length > 200 ||
+											getAddressEntries().length < 2 ||
+											hasInsufficientBalance}
+									>
+										{#if totalDonationMist > 0n}
+											Create wheel and fund {formatMistToSuiCompact(totalDonationMist)} SUI
+										{:else}
+											Create wheel
+										{/if}
+									</ButtonLoading>
+								</div>
+							{/if}
 						{/if}
 					{/if}
 				</div>

@@ -31,5 +31,6 @@ export const WHEEL_STRUCT = 'Wheel';
 export const WHEEL_FUNCTIONS = {
 	CREATE: 'create_wheel',
 	DONATE: 'donate_to_pool',
+	SPIN: 'spin_wheel',
 	CANCEL: 'cancel_wheel_and_reclaim_pool'
 };
