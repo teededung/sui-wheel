@@ -2,8 +2,10 @@
 	import { onMount, onDestroy } from 'svelte';
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
 	import { isValidSuiAddress, shortenAddress } from '$lib/utils/string.js';
-	import { watch } from 'runed';
+	import { watch, AnimationFrames, IsIdle } from 'runed';
 	import { gsap } from 'gsap';
+
+	const idle = new IsIdle({ timeout: 5000 });
 
 	// State
 	let entries = $state([
@@ -306,7 +308,7 @@
 
 	// Idle rotation helpers
 	function startIdleRotationIfNeeded() {
-		if (spinning || currentTween || idleTween) return;
+		if (spinning || currentTween || idleTween || !idle.current) return;
 		// sync starting angle
 		idleAnimState.angle = spinAngle;
 		idleTween = gsap.to(idleAnimState, {
@@ -318,7 +320,6 @@
 				if (!spinning && !currentTween) {
 					spinAngle = idleAnimState.angle;
 					if (canvasEl) canvasEl.style.transform = `rotate(${spinAngle}rad)`;
-					updatePointerColor();
 				}
 			}
 		});
@@ -491,8 +492,6 @@
 					// show winner modal
 					if (winnerModal && !winnerModal.open) winnerModal.showModal();
 				}
-				// restart idle rotation after short delay
-				setTimeout(() => startIdleRotationIfNeeded(), 1200);
 			}
 		});
 	}
@@ -572,6 +571,15 @@
 		if (!spinning && canvasEl) {
 			canvasEl.style.transform = `rotate(${spinAngle}rad)`;
 			updatePointerColor();
+		}
+	});
+
+	$effect(() => {
+		// Auto rotate wheel when user is idle
+		if (idle.current) {
+			startIdleRotationIfNeeded();
+		} else {
+			stopIdleRotation();
 		}
 	});
 </script>

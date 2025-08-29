@@ -675,12 +675,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@iconify-json/lucide@npm:^1.2.64":
-  version: 1.2.64
-  resolution: "@iconify-json/lucide@npm:1.2.64"
+"@iconify-json/lucide@npm:^1.2.65":
+  version: 1.2.65
+  resolution: "@iconify-json/lucide@npm:1.2.65"
   dependencies:
     "@iconify/types": "npm:*"
-  checksum: 10c0/e1f5afd740c677439ae334ffc8f0e4cb47d4e20ec7a8e5d42d14e9522c75f7480ea147cdd488f0e4336fcf97a83a3b216aa8c77a446d3733d972955bad72c3f5
+  checksum: 10c0/2b28ce5ed5696b1b85126d4de53e04b74020339fc62fd3b53f633212f483bbe6e91cc7d518b92d49196b97dd178cfe77c054103a8725236ebb9b45aff10f019a
   languageName: node
   linkType: hard
 
@@ -848,7 +848,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mysten/sui@npm:1.37.4, @mysten/sui@npm:^1.37.4":
+"@mysten/sui@npm:1.37.4":
   version: 1.37.4
   resolution: "@mysten/sui@npm:1.37.4"
   dependencies:
@@ -885,6 +885,26 @@ __metadata:
     tweetnacl: "npm:^1.0.3"
     valibot: "npm:^0.36.0"
   checksum: 10c0/2c00a694c8f795e65c366043df493cb8babeab61591ff22b5f2337246ad71802285b4d0e80b262e9e58c401ceb4d33c41bf1ca7800a2baac3119443f752e72b3
+  languageName: node
+  linkType: hard
+
+"@mysten/sui@npm:^1.37.5":
+  version: 1.37.5
+  resolution: "@mysten/sui@npm:1.37.5"
+  dependencies:
+    "@graphql-typed-document-node/core": "npm:^3.2.0"
+    "@mysten/bcs": "npm:1.7.0"
+    "@mysten/utils": "npm:0.1.1"
+    "@noble/curves": "npm:^1.9.4"
+    "@noble/hashes": "npm:^1.8.0"
+    "@scure/base": "npm:^1.2.6"
+    "@scure/bip32": "npm:^1.7.0"
+    "@scure/bip39": "npm:^1.6.0"
+    gql.tada: "npm:^1.8.12"
+    graphql: "npm:^16.11.0"
+    poseidon-lite: "npm:^0.2.0"
+    valibot: "npm:^0.36.0"
+  checksum: 10c0/e96a0922c7d711b7a0e55f62e41306c8f1a7c4502c16ee24d90f732f03953c3421b1b269bae20260b693d22c8847dcb8d379b735dda18d9834b60d4b71157f34
   languageName: node
   linkType: hard
 
@@ -1261,9 +1281,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sveltejs/kit@npm:^2.36.3":
-  version: 2.36.3
-  resolution: "@sveltejs/kit@npm:2.36.3"
+"@sveltejs/kit@npm:^2.37.0":
+  version: 2.37.0
+  resolution: "@sveltejs/kit@npm:2.37.0"
   dependencies:
     "@standard-schema/spec": "npm:^1.0.0"
     "@sveltejs/acorn-typescript": "npm:^1.0.5"
@@ -1288,7 +1308,7 @@ __metadata:
       optional: true
   bin:
     svelte-kit: svelte-kit.js
-  checksum: 10c0/f9528e030452b9b425b99f0c81bbd0f9e90777a57991c195cfa54fb293701c8cb35889ef3af76501b3e9c054be73b234fdaaf688ab8f9debe1b02b78e3a941d4
+  checksum: 10c0/a6c752b7698aca45975d7bbd657ede627914d7e46d28db49b5bcc5de97a1e87fc5357117cc45bf2b71e78aa6ee07790e46370292b43c946f51cb96a9ebaa0e51
   languageName: node
   linkType: hard
 
@@ -1915,10 +1935,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"daisyui@npm:^5.0.51":
-  version: 5.0.51
-  resolution: "daisyui@npm:5.0.51"
-  checksum: 10c0/74b2b1a279d005415337e60ad3d82fdf504f880f563264d8ee0ddb1aefffca26ed8b81bc3a01910ae0bbb50f813aa34e8a9e1097ccb0f961fdca4aad04239948
+"daisyui@npm:^5.0.54":
+  version: 5.0.54
+  resolution: "daisyui@npm:5.0.54"
+  checksum: 10c0/dfd9d645bb83947579984041f47cbd2d3f3eb392ede677fb33cb93a376cf8660e1be88d526a3ddcdb02ecdd201ae07e83e1a76ba3f16f89dd6ef41cfb3a5deba
   languageName: node
   linkType: hard
 
@@ -3867,15 +3887,15 @@ __metadata:
   dependencies:
     "@eslint/compat": "npm:^1.3.2"
     "@eslint/js": "npm:^9.34.0"
-    "@iconify-json/lucide": "npm:^1.2.64"
+    "@iconify-json/lucide": "npm:^1.2.65"
     "@iconify/tailwind4": "npm:^1.0.6"
-    "@mysten/sui": "npm:^1.37.4"
+    "@mysten/sui": "npm:^1.37.5"
     "@sveltejs/adapter-netlify": "npm:^5.2.3"
-    "@sveltejs/kit": "npm:^2.36.3"
+    "@sveltejs/kit": "npm:^2.37.0"
     "@sveltejs/vite-plugin-svelte": "npm:^6.1.3"
     "@tailwindcss/typography": "npm:^0.5.16"
     "@tailwindcss/vite": "npm:^4.1.12"
-    daisyui: "npm:^5.0.51"
+    daisyui: "npm:^5.0.54"
     date-fns: "npm:^4.1.0"
     eslint: "npm:^9.34.0"
     eslint-config-prettier: "npm:^10.1.8"
@@ -3887,7 +3907,7 @@ __metadata:
     prettier-plugin-tailwindcss: "npm:^0.6.14"
     runed: "npm:^0.31.1"
     sui-svelte-wallet-kit: "npm:^0.4.1"
-    svelte: "npm:^5.38.5"
+    svelte: "npm:^5.38.6"
     svelte-check: "npm:^4.3.1"
     svelte-daisy-toaster: "npm:^0.5.4"
     tailwindcss: "npm:^4.1.12"
@@ -3961,9 +3981,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"svelte@npm:^5.38.5":
-  version: 5.38.5
-  resolution: "svelte@npm:5.38.5"
+"svelte@npm:^5.38.6":
+  version: 5.38.6
+  resolution: "svelte@npm:5.38.6"
   dependencies:
     "@jridgewell/remapping": "npm:^2.3.4"
     "@jridgewell/sourcemap-codec": "npm:^1.5.0"
@@ -3979,7 +3999,7 @@ __metadata:
     locate-character: "npm:^3.0.0"
     magic-string: "npm:^0.30.11"
     zimmerframe: "npm:^1.1.2"
-  checksum: 10c0/b09df2754b642e9d62692744341243944ab33166eac946ca0c5f2e005d07edc3bc0278e294f26b5872eb73658ada6ea632dd36f6c255eb74cca898f1db00fc73
+  checksum: 10c0/0643cc4f29de3585c4d0eb55117091d0fdbd51de0d75020db6fdf733c37a3dca3be43ee237b623c492b5cea52eecbe06dfd369f800cdbb62371827852b78df43
   languageName: node
   linkType: hard
 
