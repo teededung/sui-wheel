@@ -1,5 +1,5 @@
 // SUI blockchain constants
-// NOTE: Fill in DEFAULT_PACKAGE_ID after publishing your package on devnet
+// NOTE: Fill in PACKAGE_ID after publishing your package on devnet
 
 /**
  * Number of MIST per 1 SUI
@@ -19,8 +19,7 @@ export const MINIMUM_PRIZE_AMOUNT = {
 /**
  * Default package id placeholder. Replace with your actual package id on testnet.
  */
-export const DEFAULT_PACKAGE_ID =
-	'0xa70ede3c3965a34915564c61944005ef8b0fb6695df5b88510d43c410a8cd122';
+export const PACKAGE_ID = '0x8f398c524771a67e4ef2fd60ccb985463ea506387af39365f6a11075c5840cd4';
 
 /**
  * Module and struct names for the wheel contract
@@ -32,5 +31,10 @@ export const WHEEL_FUNCTIONS = {
 	CREATE: 'create_wheel',
 	DONATE: 'donate_to_pool',
 	SPIN: 'spin_wheel',
-	CANCEL: 'cancel_wheel_and_reclaim_pool'
+	CANCEL: 'cancel_wheel_and_reclaim_pool',
+	CLAIM: 'claim_prize'
 };
+
+// Shared object ids (placeholders). Replace with your deployment values
+export const CLOCK_OBJECT_ID = '0x6';
+export const RANDOM_OBJECT_ID = '0x8';

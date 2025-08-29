@@ -22,14 +22,14 @@
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
 
 	import {
-		DEFAULT_PACKAGE_ID,
+		PACKAGE_ID,
 		MIST_PER_SUI,
 		WHEEL_MODULE,
 		WHEEL_FUNCTIONS,
 		MINIMUM_PRIZE_AMOUNT
 	} from '$lib/constants.js';
 
-	const idle = new IsIdle({ timeout: 10000 });
+	const idle = new IsIdle({ timeout: 15000 });
 
 	// Testnet Sui client for reading transaction details
 	const testnetClient = new SuiClient({ url: 'https://fullnode.testnet.sui.io' });
@@ -48,14 +48,17 @@
 	]);
 
 	// Blockchain setup state
-	let packageId = $state(DEFAULT_PACKAGE_ID);
+	let packageId = $state(PACKAGE_ID);
 	let prizeAmounts = $state(['']); // SUI amounts as strings (decimal supported)
 	let delayMs = $state(0);
 	let claimWindowMs = $state(1440); // 24 hours
 	let setupLoading = $state(false);
 	let setupError = $state('');
 	let setupSuccessMsg = $state('');
-	let createdWheelId = $state('0xa7196b65c4134e4a22dac5abb668269dfa8f6cb8c2578306d9a8fd931d8167bf');
+	let createdWheelId = $state('');
+
+	// finished wheelId: 0xa7196b65c4134e4a22dac5abb668269dfa8f6cb8c2578306d9a8fd931d8167bf
+	// finished wheelId: 0xc7e2f2a1d0bd5e9d4584cd1b21be2052597856b91e57c3efc19bba08c8b5a006
 
 	// View/Edit and on-chain fetched state
 	let isEditing = $state(false);
@@ -249,20 +252,44 @@
 		try {
 			const addrList = getAddressEntries();
 			const prizeMistList = prizeAmounts.map(v => parseSuiToMist(v)).filter(v => v > 0n);
-			// TX 1: create_wheel
-			const tx1 = new Transaction();
-			tx1.moveCall({
+			const total = totalDonationMist;
+			if (total <= 0n) throw new Error('Total donation must be greater than 0');
+
+			// Combine into a single PTB
+			const tx = new Transaction();
+
+			// Split the donation coin from gas first
+			const [donationCoin] = tx.splitCoins(tx.gas, [total]);
+
+			// Call create_wheel and capture the returned Wheel
+			const wheel = tx.moveCall({
 				target: `${packageId}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.CREATE}`,
 				arguments: [
-					tx1.pure.vector('address', addrList),
-					tx1.pure.vector('u64', prizeMistList),
-					tx1.pure.u64(BigInt(Number(delayMs || 0)) * 60000n),
-					tx1.pure.u64(BigInt(Number(claimWindowMs || 0)) * 60000n)
+					tx.pure.vector('address', addrList),
+					tx.pure.vector('u64', prizeMistList),
+					tx.pure.u64(BigInt(Number(delayMs || 0)) * 60000n),
+					tx.pure.u64(BigInt(Number(claimWindowMs || 0)) * 60000n)
 				]
 			});
-			const res1 = await signAndExecuteTransaction(tx1);
-			const digest = res1?.digest ?? res1?.effects?.transactionDigest;
-			if (!digest) throw new Error('Failed to get transaction digest for create_wheel');
+
+			// Call donate_to_pool using the wheel (as mutable ref) and donationCoin
+			tx.moveCall({
+				target: `${packageId}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.DONATE}`,
+				arguments: [wheel, donationCoin]
+			});
+
+			// Share the wheel object using the new share_wheel function
+			tx.moveCall({
+				target: `${packageId}::${WHEEL_MODULE}::share_wheel`,
+				arguments: [wheel]
+			});
+
+			// Sign and execute the combined PTB
+			const res = await signAndExecuteTransaction(tx);
+			const digest = res?.digest ?? res?.effects?.transactionDigest;
+			if (!digest) throw new Error('Failed to get transaction digest');
+
+			// Fetch transaction block to get the created Wheel object ID
 			const txBlock = await testnetClient.getTransactionBlock({
 				digest,
 				options: { showObjectChanges: true }
@@ -271,22 +298,14 @@
 				ch =>
 					ch.type === 'created' && String(ch.objectType || '').endsWith(`::${WHEEL_MODULE}::Wheel`)
 			);
-			const wheelId = created?.objectId;
-			if (!wheelId) throw new Error('Wheel object id not found after creation');
-			createdWheelId = wheelId;
 
-			// TX 2: donate_to_pool with total donation
-			const total = totalDonationMist;
-			if (total <= 0n) throw new Error('Total donation must be greater than 0');
-			const tx2 = new Transaction();
-			const [donationCoin] = tx2.splitCoins(tx2.gas, [total]);
-			tx2.moveCall({
-				target: `${packageId}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.DONATE}`,
-				arguments: [tx2.object(wheelId), donationCoin]
-			});
-			await signAndExecuteTransaction(tx2);
+			console.log('created', created);
 
-			setupSuccessMsg = `Wheel created and funded successfully. ID: ${wheelId}`;
+			const finalWheelId = created?.objectId;
+			if (!finalWheelId) throw new Error('Wheel object id not found after creation');
+			createdWheelId = finalWheelId;
+
+			setupSuccessMsg = `Wheel created and funded successfully. ID: ${finalWheelId}`;
 		} catch (e) {
 			setupError = e?.message || String(e);
 		} finally {
@@ -411,12 +430,25 @@
 		setupError = '';
 		try {
 			const tx = new Transaction();
-			tx.moveCall({
-				target: `${packageId}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.CANCEL}`,
-				arguments: [tx.object(createdWheelId)]
+
+			// Get mutable ref to Wheel
+			const wheelRef = tx.object(createdWheelId);
+
+			// Call cancel_wheel_and_reclaim_pool and capture the optional Coin
+			const optCoin = tx.moveCall({
+				target: `${packageId}::${WHEEL_MODULE}::cancel_wheel_and_reclaim_pool`,
+				arguments: [wheelRef]
 			});
+
+			// Handle the optional reclaim by transferring to sender if present
+			tx.moveCall({
+				target: `${packageId}::${WHEEL_MODULE}::transfer_optional_reclaim`,
+				arguments: [optCoin, tx.pure.address(account.value.address)] // Assume walletAddress is the connected organizer's address
+			});
+
+			// Sign and execute the PTB
 			await signAndExecuteTransaction(tx);
-			setupSuccessMsg = 'Wheel cancelled and pool reclaimed.';
+			setupSuccessMsg = 'Wheel cancelled and pool reclaimed if any.';
 			// Reset local state
 			createdWheelId = '';
 			wheelFetched = false;
@@ -1375,6 +1407,14 @@
 								</div>
 							{/if}
 						</div>
+
+						{#if createdWheelId && remainingSpins === 0}
+							<div class="mt-3">
+								<a class="link link-primary" href={`/wheel-result?wheelId=${createdWheelId}`}>
+									View results and claim prizes →
+								</a>
+							</div>
+						{/if}
 
 						<!-- Common alerts and button (always visible) -->
 						{#if account.value}
