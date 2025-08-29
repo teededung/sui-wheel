@@ -14,19 +14,8 @@
 		'It is decidedly so',
 		'Ask again later',
 		'Most likely',
-		'My reply is no',
-		'Without a doubt',
-		'Better not tell you now',
-		'Outlook good',
-		'My sources say no',
-		'Yes - definitely',
-		'Cannot predict now',
-		'Probably, yes',
-		'Outlook not so good',
-		'You may rely on it',
-		'Concentrate & ask again',
-		'Signs point to yes',
-		'Very doubtful'
+		'Most likely',
+		'Most likely'
 	]);
 
 	const spinAnimationConfig = {
@@ -48,8 +37,15 @@
 	let pointerColor = $state('#ef4444');
 	// If empty string -> auto color while spinning; if hex -> fixed color
 	let pointerColorOverride = $state('');
+	// Store last winner to display after removal
+	let lastWinner = $state('');
+	// Duplicate entries tracking
+	let duplicateEntries = $state([]);
 	// GSAP animation state
 	let currentTween;
+	// Idle rotation state
+	let idleTween;
+	const idleAnimState = { angle: 0 };
 	const animState = { angle: 0 };
 
 	// Precomputed label layouts to avoid per-frame text measurement
@@ -86,6 +82,7 @@
 			renderWheelBitmap();
 			drawStaticWheel();
 			updatePointerColor();
+			updateDuplicateEntries();
 		}
 	);
 
@@ -129,6 +126,9 @@
 			canvasEl.style.transform = `rotate(${spinAngle}rad)`;
 		}
 		updatePointerColor();
+
+		// start idle rotation when not spinning
+		startIdleRotationIfNeeded();
 	}
 
 	onMount(() => {
@@ -304,6 +304,33 @@
 		}
 	}
 
+	// Idle rotation helpers
+	function startIdleRotationIfNeeded() {
+		if (spinning || currentTween || idleTween) return;
+		// sync starting angle
+		idleAnimState.angle = spinAngle;
+		idleTween = gsap.to(idleAnimState, {
+			angle: idleAnimState.angle + Math.PI * 2,
+			duration: 40,
+			ease: 'linear',
+			repeat: -1,
+			onUpdate: () => {
+				if (!spinning && !currentTween) {
+					spinAngle = idleAnimState.angle;
+					if (canvasEl) canvasEl.style.transform = `rotate(${spinAngle}rad)`;
+					updatePointerColor();
+				}
+			}
+		});
+	}
+
+	function stopIdleRotation() {
+		if (idleTween) {
+			idleTween.kill();
+			idleTween = null;
+		}
+	}
+
 	function recomputeLabelLayouts() {
 		const measureCtx = offscreenCtx || ctx;
 		if (!measureCtx || !wheelSize) {
@@ -424,6 +451,8 @@
 			currentTween.kill();
 			currentTween = null;
 		}
+		// stop idle rotation when starting a spin
+		stopIdleRotation();
 		// Sync animState with current angle
 		animState.angle = startAngle;
 		// Start GSAP tween
@@ -449,6 +478,21 @@
 						winAudio.play();
 					} catch {}
 				}
+				// capture winner and remove from list
+				const winnerIndex = selectedIndex;
+				const winnerValue = entries[winnerIndex];
+				lastWinner = String(winnerValue ?? '');
+				if (lastWinner) {
+					entries = entries.filter(
+						entry => String(entry ?? '').trim() !== String(winnerValue ?? '').trim()
+					);
+					selectedIndex = null;
+					spinAngle = 0;
+					// show winner modal
+					if (winnerModal && !winnerModal.open) winnerModal.showModal();
+				}
+				// restart idle rotation after short delay
+				setTimeout(() => startIdleRotationIfNeeded(), 1200);
 			}
 		});
 	}
@@ -497,6 +541,24 @@
 		spinAngle = 0;
 	}
 
+	function updateDuplicateEntries() {
+		const entryCount = {};
+		entries.forEach(entry => {
+			const trimmed = entry.trim();
+			if (trimmed) {
+				entryCount[trimmed] = (entryCount[trimmed] || 0) + 1;
+			}
+		});
+
+		// Filter entries that appear more than once
+		const duplicates = Object.entries(entryCount)
+			.filter(([entry, count]) => count > 1)
+			.map(([entry, count]) => ({ entry, count }))
+			.sort((a, b) => b.count - a.count); // Sort by count descending
+
+		duplicateEntries = duplicates;
+	}
+
 	$effect(() => {
 		// If the entries textarea is focused, don't overwrite user edits
 		if (!entriesTextareaEl || document.activeElement !== entriesTextareaEl) {
@@ -512,13 +574,6 @@
 			updatePointerColor();
 		}
 	});
-
-	// Show modal when there's a winner
-	$effect(() => {
-		if (selectedIndex !== null && entries[selectedIndex] && winnerModal) {
-			winnerModal.showModal();
-		}
-	});
 </script>
 
 <section class="container mx-auto px-4 py-6">
@@ -526,7 +581,10 @@
 		<div class="w-full">
 			<div class="relative mx-auto max-w-[560px]">
 				<div class="rounded-box bg-base-200 p-3 shadow">
-					<div bind:this={canvasContainerEl} class="relative mx-auto aspect-square w-full">
+					<div
+						bind:this={canvasContainerEl}
+						class="border-base-300 relative mx-auto aspect-square w-full rounded-full border-1 shadow-lg"
+					>
 						<div
 							class="pointer-events-none absolute top-1/2 -right-6 z-10 -translate-y-1/2"
 							aria-hidden="true"
@@ -556,7 +614,7 @@
 								loadingText="Spinning..."
 								onclick={spin}
 								aria-label="Spin the wheel"
-								moreClass="w-full h-full rounded-full bg-white text-black pointer-events-auto animate-pulse"
+								moreClass="w-full h-full rounded-full bg-white text-black pointer-events-auto animate-pulse shadow-lg"
 							>
 								Spin
 							</ButtonLoading>
@@ -610,6 +668,24 @@
 						>
 						<button class="btn btn-warning" disabled={spinning} onclick={clearAll}>Clear</button>
 					</div>
+
+					{#if duplicateEntries.length > 0}
+						<div class="mt-4">
+							<h3 class="text-base-content/70 mb-2 text-sm font-semibold">Duplicate Entries:</h3>
+							<div class="bg-base-300 max-h-32 overflow-y-auto rounded-lg p-2">
+								{#each duplicateEntries as duplicate}
+									<div class="flex items-center justify-between gap-2 text-sm">
+										<span class="flex-1 truncate font-medium">
+											{isValidSuiAddress(duplicate.entry)
+												? shortenAddress(duplicate.entry)
+												: duplicate.entry}
+										</span>
+										<span class="badge badge-secondary badge-sm">{duplicate.count}x</span>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
 				</div>
 			</div>
 		</div>
@@ -635,9 +711,7 @@
 					<div class="flex items-center justify-center gap-3">
 						<span class="text-4xl">🏆</span>
 						<span class="drop-shadow-lg"
-							>{isValidSuiAddress(entries[selectedIndex])
-								? shortenAddress(entries[selectedIndex])
-								: entries[selectedIndex]}</span
+							>{isValidSuiAddress(lastWinner) ? shortenAddress(lastWinner) : lastWinner}</span
 						>
 						<span class="text-4xl">🏆</span>
 					</div>
