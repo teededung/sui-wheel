@@ -27,7 +27,7 @@
 		WHEEL_FUNCTIONS
 	} from '$lib/constants.js';
 
-	const idle = new IsIdle({ timeout: 5000 });
+	const idle = new IsIdle({ timeout: 10000 });
 
 	// Testnet Sui client for reading transaction details
 	const testnetClient = new SuiClient({ url: 'https://fullnode.testnet.sui.io' });
@@ -49,12 +49,15 @@
 	let packageId = $state(DEFAULT_PACKAGE_ID);
 	let prizeAmounts = $state(['']); // SUI amounts as strings (decimal supported)
 	let delayMs = $state(0);
-	let claimWindowMs = $state(0);
+	let claimWindowMs = $state(1440); // 24 hours
 	let setupLoading = $state(false);
 	let setupError = $state('');
 	let setupSuccessMsg = $state('');
 	let createdWheelId = $state('');
 	let isOnTestnet = $derived(Boolean(account.value?.chains?.[0] === 'sui:testnet'));
+
+	// Disable spin when wallet is connected but wheel hasn't been created
+	let isSpinDisabled = $derived.by(() => Boolean(account.value) && !createdWheelId);
 
 	const spinAnimationConfig = {
 		duration: 10000,
@@ -577,6 +580,8 @@
 
 	function spin() {
 		if (spinning || entries.length < 2) return;
+		// Guard: in blockchain mode require created wheel id
+		if (account.value && !createdWheelId) return;
 		const n = Math.max(1, entries.length);
 		const idxValue = serverTargetIndex;
 		if (Number.isFinite(idxValue) && idxValue >= 0 && idxValue < n) {
@@ -765,6 +770,20 @@
 						bind:this={canvasContainerEl}
 						class="border-base-300 relative mx-auto aspect-square w-full rounded-full border-1 shadow-lg"
 					>
+						<!-- Voice toggle icon in top-right corner -->
+						<button
+							class="btn btn-circle btn-sm tooltip absolute top-2 right-2 z-20 bg-white/90 shadow-lg backdrop-blur-sm transition-all duration-200 hover:bg-white"
+							onclick={() => (muted = !muted)}
+							aria-label={muted ? 'Enable sound' : 'Disable sound'}
+							title={muted ? 'Enable sound' : 'Disable sound'}
+							data-tip={muted ? 'Enable sound' : 'Disable sound'}
+						>
+							{#if muted}
+								<span class="icon-[lucide--volume-off] text-base text-gray-600"></span>
+							{:else}
+								<span class="icon-[lucide--volume-2] text-base text-gray-700"></span>
+							{/if}
+						</button>
 						<div
 							class="pointer-events-none absolute top-1/2 -right-6 z-10 -translate-y-1/2"
 							aria-hidden="true"
@@ -795,22 +814,13 @@
 								onclick={spin}
 								aria-label="Spin the wheel"
 								moreClass="w-full h-full rounded-full bg-white text-black pointer-events-auto animate-pulse shadow-lg"
+								disabled={isSpinDisabled}
 							>
 								Spin
 							</ButtonLoading>
 						</div>
 					</div>
-					<div class="mt-4 flex items-center justify-center gap-3">
-						<label class="label cursor-pointer gap-2">
-							<span class="label-text">Mute</span>
-							<input
-								type="checkbox"
-								class="toggle"
-								bind:checked={muted}
-								aria-label="Toggle sound"
-							/>
-						</label>
-					</div>
+
 					{#if selectedIndex !== null && entries[selectedIndex]}
 						<div class="mt-3 text-center">
 							<div class="badge badge-lg badge-success animate-pulse">🎯 Winner</div>
@@ -821,6 +831,19 @@
 							</div>
 						</div>
 					{/if}
+
+					<!-- Wheel control buttons -->
+					<div class="mt-4 flex flex-wrap justify-center gap-2">
+						<button
+							class="btn btn-outline"
+							disabled={spinning}
+							onclick={shuffle}
+							aria-label="Shuffle entries">Shuffle</button
+						>
+						{#if !createdWheelId}
+							<button class="btn btn-warning" disabled={spinning} onclick={clearAll}>Clear</button>
+						{/if}
+					</div>
 				</div>
 			</div>
 		</div>
@@ -838,16 +861,6 @@
 						bind:this={entriesTextareaEl}
 						disabled={spinning}
 					></textarea>
-
-					<div class="mt-4 flex flex-wrap gap-2">
-						<button
-							class="btn btn-outline"
-							disabled={spinning}
-							onclick={shuffle}
-							aria-label="Shuffle entries">Shuffle</button
-						>
-						<button class="btn btn-warning" disabled={spinning} onclick={clearAll}>Clear</button>
-					</div>
 
 					{#if duplicateEntries.length > 0}
 						<div class="mt-4">
@@ -869,20 +882,6 @@
 
 					<!-- Blockchain Setup Section (visible when wallet connected) -->
 					{#if account.value}
-						<div class="divider">Setup (Testnet)</div>
-						{#if !isOnTestnet}
-							<div
-								class="alert alert-warning alert-soft"
-								role="alert"
-								aria-live="polite"
-								aria-atomic="true"
-							>
-								<span>Chain: {account.value?.chains?.[0] || 'unknown'}</span>
-
-								<span class="text-error">Please switch wallet to Testnet</span>
-							</div>
-						{/if}
-
 						<!-- Prize repeater -->
 						<fieldset class="fieldset bg-base-300 border-base-300 rounded-box mb-3 border p-4">
 							<legend class="fieldset-legend">Prizes (SUI)</legend>
@@ -900,21 +899,19 @@
 										aria-label={`Prize #${i + 1} amount in SUI`}
 									/>
 									<button
-										class="btn btn-error join-item"
+										class="btn btn-error btn-soft join-item"
 										onclick={() => removePrize(i)}
-										disabled={prizeAmounts.length <= 1}>Remove</button
+										disabled={prizeAmounts.length <= 1}
+										aria-label="Remove prize"><span class="icon-[lucide--x] h-4 w-4"></span></button
 									>
 								</div>
 							{/each}
-							<div class="mt-2">
+							<div class="mt-2 flex items-center justify-between">
 								<button class="btn btn-outline" onclick={addPrize}>Add prize</button>
-							</div>
-							<div class="mt-3 text-sm">
-								<strong>Total required:</strong>
-								<span>{formatMistToSuiCompact(totalDonationMist)} SUI</span>
-								{#if totalDonationMist > 0n && totalDonationMist < 1n}
-									<span class="ml-2 text-sm text-gray-500"> (Less than 1 SUI)</span>
-								{/if}
+								<div class="text-sm">
+									<strong>Need:</strong>
+									<span>{formatMistToSuiCompact(totalDonationMist)} SUI</span>
+								</div>
 							</div>
 						</fieldset>
 
@@ -950,9 +947,12 @@
 							<div class="alert alert-success mt-3 break-words">{setupSuccessMsg}</div>
 						{/if}
 
-						{#if invalidEntriesCount > 0 || uniqueValidEntriesCount < 2 || prizesCount > uniqueValidEntriesCount || hasInsufficientBalance}
+						{#if invalidEntriesCount > 0 || uniqueValidEntriesCount < 2 || prizesCount > uniqueValidEntriesCount || hasInsufficientBalance || !isOnTestnet}
 							<div class="alert alert-soft alert-warning mt-3">
 								<ul class="list-inside list-disc">
+									{#if !isOnTestnet}
+										<li>Please switch wallet to Testnet.</li>
+									{/if}
 									{#if invalidEntriesCount > 0}
 										<li>
 											Please fix <strong>{invalidEntriesCount}</strong> invalid entries (must be SUI
@@ -969,7 +969,7 @@
 											>).
 										</li>
 									{/if}
-									{#if hasInsufficientBalance}
+									{#if isOnTestnet && hasInsufficientBalance}
 										<li>
 											Wallet balance (<strong>{formatMistToSuiCompact(suiBalance.value)} SUI</strong
 											>) is less than total required (<strong
@@ -993,7 +993,11 @@
 									prizesCount > uniqueValidEntriesCount ||
 									hasInsufficientBalance}
 							>
-								Create wheel (Testnet)
+								{#if totalDonationMist > 0n}
+									Create wheel and fund {formatMistToSuiCompact(totalDonationMist)} SUI
+								{:else}
+									Create wheel
+								{/if}
 							</ButtonLoading>
 						</div>
 					{/if}

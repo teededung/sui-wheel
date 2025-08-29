@@ -56,7 +56,7 @@ export function formatMistToSuiCompact(mist) {
 	try {
 		const v = Number(mist) / MIST_PER_SUI;
 		if (!Number.isFinite(v)) return '0';
-		const s = v.toFixed(1);
+		const s = v.toFixed(2);
 		return s.endsWith('.0') ? s.slice(0, -2) : s;
 	} catch {
 		return '0';
