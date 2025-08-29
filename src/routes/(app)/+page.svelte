@@ -4,7 +4,6 @@
 	import { gsap } from 'gsap';
 	import { SuiClient } from '@mysten/sui/client';
 	import { Transaction } from '@mysten/sui/transactions';
-
 	import {
 		account,
 		wallet,
@@ -12,9 +11,15 @@
 		suiBalance,
 		suiBalanceLoading
 	} from 'sui-svelte-wallet-kit';
+	import { shortenAddress } from '$lib/utils/string.js';
+	import {
+		isValidSuiAddress,
+		parseSuiToMist,
+		formatMistToSuiCompact
+	} from '$lib/utils/suiHelpers.js';
 
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
-	import { isValidSuiAddress, shortenAddress } from '$lib/utils/string.js';
+
 	import {
 		DEFAULT_PACKAGE_ID,
 		MIST_PER_SUI,
@@ -80,43 +85,6 @@
 	let idleTween;
 	const idleAnimState = { angle: 0 };
 	const animState = { angle: 0 };
-
-	function parseSuiToMist(input) {
-		// Parse decimal string SUI to BigInt MIST (9 decimals)
-		let str = String(input ?? '').trim();
-		// Normalize comma decimal to dot and strip spaces
-		str = str.replace(/,/g, '.').replace(/\s+/g, '');
-		if (!str) return 0n;
-		if (!/^[0-9]*\.?[0-9]*$/.test(str)) return 0n;
-		const [intPart, fracRaw = ''] = str.split('.');
-		const frac = (fracRaw + '000000000').slice(0, 9); // pad to 9 decimals
-		try {
-			const mist = BigInt(intPart || '0') * BigInt(MIST_PER_SUI) + BigInt(frac || '0');
-			return mist < 0n ? 0n : mist;
-		} catch {
-			return 0n;
-		}
-	}
-
-	function formatMistToSui(mist) {
-		try {
-			const v = Number(mist) / MIST_PER_SUI;
-			return Number.isFinite(v) ? v.toFixed(6) : '0';
-		} catch {
-			return '0';
-		}
-	}
-
-	function formatMistToSuiCompact(mist) {
-		try {
-			const v = Number(mist) / MIST_PER_SUI;
-			if (!Number.isFinite(v)) return '0';
-			const s = v.toFixed(1);
-			return s.endsWith('.0') ? s.slice(0, -2) : s;
-		} catch {
-			return '0';
-		}
-	}
 
 	let totalDonationMist = $derived.by(() => {
 		try {
@@ -920,11 +888,11 @@
 							<legend class="fieldset-legend">Prizes (SUI)</legend>
 							{#each prizeAmounts as prize, i}
 								<div class="join mb-2 w-full">
-									<button class="btn btn-disabled join-item">Rank {i + 1}</button>
+									<button class="btn btn-disabled join-item">Prize #{i + 1}</button>
 									<input
 										type="text"
 										class="input join-item prize-input w-full"
-										placeholder={`Prize #${i + 1} amount (e.g. 0.5)`}
+										placeholder={`Amount (e.g. 0.5)`}
 										value={prizeAmounts[i] ?? ''}
 										oninput={e => updatePrizeAmount(i, e.currentTarget.value)}
 										onchange={e => updatePrizeAmount(i, e.currentTarget.value)}
@@ -983,7 +951,7 @@
 						{/if}
 
 						{#if invalidEntriesCount > 0 || uniqueValidEntriesCount < 2 || prizesCount > uniqueValidEntriesCount || hasInsufficientBalance}
-							<div class="alert alert-soft alert-error mt-3">
+							<div class="alert alert-soft alert-warning mt-3">
 								<ul class="list-inside list-disc">
 									{#if invalidEntriesCount > 0}
 										<li>
