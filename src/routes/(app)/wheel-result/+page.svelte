@@ -521,7 +521,12 @@
 						{#if isCancelled}
 							<div class="alert alert-info mb-3 text-sm">
 								<span class="icon-[lucide--heart]"></span>
-								<span>Hope you'll win in future spins! Keep participating! 🌟</span>
+								<span>This wheel has been cancelled! 🌟</span>
+							</div>
+						{:else if !account.value}
+							<div class="alert alert-info mb-3 text-sm">
+								<span class="icon-[lucide--info]"></span>
+								<span>Connect your wallet to view your prize and claim it! 🔑</span>
 							</div>
 						{:else if winnerInfo}
 							{#if winnerInfo.claimed}
@@ -536,9 +541,9 @@
 								</div>
 							{/if}
 						{:else}
-							<div class="alert alert-neutral mb-3 text-sm">
-								<span class="icon-[lucide--refresh-cw]"></span>
-								<span>Better luck next time! Keep spinning! 🍀</span>
+							<div class="alert border-info alert-outline mb-3 text-sm">
+								<span class="icon-[lucide--circle-alert] h-4 w-4"></span>
+								<span>You are not a winner for this wheel.</span>
 							</div>
 						{/if}
 

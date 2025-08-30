@@ -55,6 +55,7 @@
 
 	// finished wheelId: 0xa7196b65c4134e4a22dac5abb668269dfa8f6cb8c2578306d9a8fd931d8167bf
 	// finished wheelId: 0xc7e2f2a1d0bd5e9d4584cd1b21be2052597856b91e57c3efc19bba08c8b5a006
+	// not spin: 0x57012fe0a3d3f1d4e6eacb102dd39c4cea0ed7c9d8fa29d349aca309b783dd43
 
 	// View/Edit and on-chain fetched state
 	let isEditing = $state(false);
@@ -320,9 +321,20 @@
 			// Immediately fetch on-chain data to populate UI
 			await fetchWheelFromChain();
 
-			setupSuccessMsg = `Wheel created and funded successfully. ID: ${finalWheelId}`;
+			setupSuccessMsg = `Wheel created and funded successfully.`;
+
 			// Notify and update current URL with wheelId param so reload keeps context
-			toast.success('Wheel created successfully', { position: 'bottom-right', durationMs: 1600 });
+			toast.success('Wheel created and funded successfully', {
+				position: 'bottom-right',
+				durationMs: 5000,
+				button: {
+					text: 'View Tx',
+					class: 'btn btn-primary btn-sm',
+					callback: () => {
+						window.open(`https://testnet.suivision.xyz/txblock/${digest}`, '_blank', 'noopener');
+					}
+				}
+			});
 			goto(`?wheelId=${finalWheelId}`, { replaceState: true, keepfocus: true, noScroll: true });
 		} catch (e) {
 			setupError = e?.message || String(e);
@@ -1535,6 +1547,7 @@
 										loadingText="Setting up..."
 										onclick={createWheelAndFund}
 										aria-label="Create wheel and fund"
+										size="lg"
 										disabled={invalidEntriesCount > 0 ||
 											uniqueValidEntriesCount < 2 ||
 											prizesCount === 0 ||
@@ -1545,7 +1558,9 @@
 											hasInsufficientBalance}
 									>
 										{#if totalDonationMist > 0n}
-											Create wheel and fund {formatMistToSuiCompact(totalDonationMist)} SUI
+											Create wheel and fund <span class="text-success text-bold font-mono"
+												>{formatMistToSuiCompact(totalDonationMist)}</span
+											> SUI
 										{:else}
 											Create wheel
 										{/if}
