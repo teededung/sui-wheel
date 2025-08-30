@@ -32,7 +32,8 @@ export const WHEEL_FUNCTIONS = {
 	DONATE: 'donate_to_pool',
 	SPIN: 'spin_wheel',
 	CANCEL: 'cancel_wheel_and_reclaim_pool',
-	CLAIM: 'claim_prize'
+	CLAIM: 'claim_prize',
+	RECLAIM: 'reclaim_pool'
 };
 
 // Shared object ids (placeholders). Replace with your deployment values

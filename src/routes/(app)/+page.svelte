@@ -36,15 +36,9 @@
 
 	// State
 	let entries = $state([
-		'It is certain',
-		'Reply hazy, try again',
-		'As I see it, yes',
-		"Don't count on it",
-		'It is decidedly so',
-		'Ask again later',
-		'Most likely',
-		'Most likely',
-		'Most likely'
+		'0x4e4ab932a358e66e79cce1d94457d50029af1e750482ca3619ea3dd41f1c62b4',
+		'0x860de660df6f748354e7a6d44b36d302f9dbe70938b957837bf8556d258ca35f',
+		'0xf4be218d73c57b9622de671b683221274f9f5a306a2825c470563249e2c718e5'
 	]);
 
 	// Blockchain setup state
