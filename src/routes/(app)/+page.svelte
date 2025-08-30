@@ -1226,11 +1226,7 @@
 
 						<!-- Centered Spin Button overlay -->
 						<div
-							class="tooltip pointer-events-none absolute top-1/2 left-1/2 z-10 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center"
-							data-tip={`Remaining spins: ${Math.max(
-								0,
-								(prizesOnChainMist.length || 0) - (spunCountOnChain || 0)
-							)}`}
+							class="pointer-events-none absolute top-1/2 left-1/2 z-10 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center"
 						>
 							<ButtonLoading
 								formLoading={spinning}
@@ -1425,7 +1421,7 @@
 									{/if}
 								{:else}
 									<textarea
-										class="textarea h-48 w-full"
+										class="textarea h-48 w-full text-base"
 										placeholder="One entry per line"
 										bind:value={entriesText}
 										oninput={() => onEntriesTextChange(entriesText)}
