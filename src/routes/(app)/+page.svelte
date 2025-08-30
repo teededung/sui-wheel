@@ -1701,6 +1701,12 @@
 									</ButtonLoading>
 								</div>
 							{/if}
+						{:else}
+							<div class="alert alert-info alert-soft mt-3">
+								<span class="icon-[lucide--info] h-5 w-5"></span>
+								Connect your Sui wallet to create and spin the wheel on-chain. You can still try spinning
+								off-chain without connecting your wallet.
+							</div>
 						{/if}
 					{/if}
 				</div>
