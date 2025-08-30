@@ -33,3 +33,56 @@ The wheel uses on-chain randomness to select winners from the remaining entries 
 - Expand prizes: coins & NFTs
 
 Built with Svelte 5, Tailwind CSS 4 and daisyUI.
+
+## Front-end deployment (simple)
+
+### Requirements
+
+- Node.js 22.12.0 (configured in `netlify.toml`)
+- Yarn 4 (the project uses Yarn as the package manager; see `package.json`)
+
+Enable Corepack to use the exact Yarn version:
+
+```bash
+corepack enable
+corepack use yarn@4.9.2
+yarn --version
+```
+
+### Run locally
+
+Use the scripts from `package.json`:
+
+```bash
+yarn install
+yarn dev       # start the dev server
+yarn build     # build the app
+yarn preview   # preview the production build locally
+```
+
+### Deploy to Netlify (recommended)
+
+This project is already configured with the Netlify adapter and `netlify.toml`:
+
+1. Connect this repo to Netlify (New site from Git > select this repo)
+2. Settings:
+   - Build command: `yarn build`
+   - Publish directory: `build`
+   - Node version: `22.12.0` (already in `netlify.toml`)
+3. Deploy. Each push to the default branch will auto build & deploy.
+
+### Deploy with Netlify CLI (optional)
+
+```bash
+# Log in and initialize the site (first time)
+yarn dlx netlify-cli@latest login
+yarn dlx netlify-cli@latest init
+
+# Build using the package.json script
+yarn build
+
+# Deploy the build directory to production
+yarn dlx netlify-cli@latest deploy --dir=build --prod
+```
+
+Note: This is a front-end app using SvelteKit + the Netlify adapter, no separate backend required. If you need environment variables, set them in your Netlify site settings.

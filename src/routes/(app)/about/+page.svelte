@@ -1,3 +1,16 @@
+<svelte:head>
+	<title>About — Sui Wheel</title>
+	<meta
+		name="description"
+		content={'About Sui Wheel — create and manage on-chain prize wheels on Sui Testnet.'}
+	/>
+	<meta property="og:title" content={'About — Sui Wheel'} />
+	<meta
+		property="og:description"
+		content={'About Sui Wheel — create and manage on-chain prize wheels on Sui Testnet.'}
+	/>
+</svelte:head>
+
 <section class="container mx-auto px-4 py-4">
 	<div class="mx-auto max-w-3xl">
 		<div class="card bg-base-200 shadow-xl">

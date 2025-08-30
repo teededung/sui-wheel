@@ -522,6 +522,16 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Sui Wheel — Results</title>
+	<meta name="description" content={'View winners and claim prizes for a Sui Wheel on Testnet.'} />
+	<meta property="og:title" content={'Sui Wheel — Results'} />
+	<meta
+		property="og:description"
+		content={'View winners and claim prizes for a Sui Wheel on Testnet.'}
+	/>
+</svelte:head>
+
 <section class="container mx-auto px-4 py-6">
 	<div class="mb-4 flex items-center justify-between">
 		<h1 class="text-xl font-bold">Wheel Results</h1>

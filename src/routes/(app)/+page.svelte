@@ -1162,6 +1162,19 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Sui Wheel — Spin & Win</title>
+	<meta
+		name="description"
+		content={'Sui Wheel — create and fund a spin wheel on Sui Testnet, manage entries and prizes.'}
+	/>
+	<meta property="og:title" content={'Sui Wheel — Spin & Win'} />
+	<meta
+		property="og:description"
+		content={'Sui Wheel — create and fund a spin wheel on Sui Testnet, manage entries and prizes.'}
+	/>
+</svelte:head>
+
 {#snippet showDuplicateEntries()}
 	{#if duplicateEntries.length > 0}
 		<div class="mt-4">
