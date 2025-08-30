@@ -11,6 +11,8 @@
 		</a>
 	</div>
 	<div class="navbar-end flex items-center gap-3">
+		<a href="/wheel-list" class="btn btn-ghost btn-sm" aria-label="Go to Wheel List">Wheel List</a>
+		<a href="/about" class="btn btn-ghost btn-sm" aria-label="Go to About">About</a>
 		<ButtonThemeSwitch />
 		<ButtonConnectWallet showBalance={false} />
 	</div>

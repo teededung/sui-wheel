@@ -23,6 +23,7 @@
 	} from '$lib/utils/suiHelpers.js';
 
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
+	import QRCode from 'qrcode';
 
 	import {
 		PACKAGE_ID,
@@ -75,6 +76,23 @@
 	let postSpinFetchRequested = $state(false);
 	// Cancellation state
 	let isCancelled = $state(false);
+
+	// QR code for results link when wheel is finished
+	let qrDataUrl = $state('');
+	$effect(() => {
+		try {
+			if (createdWheelId && remainingSpins === 0 && typeof window !== 'undefined') {
+				const url = `${window.location.origin}/wheel-result?wheelId=${createdWheelId}`;
+				QRCode.toDataURL(url, { width: 220, margin: 1 })
+					.then(u => (qrDataUrl = u))
+					.catch(() => (qrDataUrl = ''));
+			} else {
+				qrDataUrl = '';
+			}
+		} catch {
+			qrDataUrl = '';
+		}
+	});
 
 	// Action loading states
 	let updateLoading = $state(false);
@@ -1278,7 +1296,7 @@
 									>Wheel ID: <span class="font-mono">{shortenAddress(createdWheelId)}</span></span
 								>
 								{#if remainingSpins === 0}
-									<span class="badge badge-error badge-sm">Finished</span>
+									<span class="badge badge-neutral badge-sm">Finished</span>
 								{/if}
 								{#if isCancelled}
 									<span class="badge badge-warning badge-sm">Cancelled</span>
@@ -1543,6 +1561,16 @@
 								<a class="link link-primary" href={`/wheel-result?wheelId=${createdWheelId}`}>
 									View results and claim prizes →
 								</a>
+								{#if qrDataUrl}
+									<div class="mt-3 flex items-center gap-3">
+										<img
+											src={qrDataUrl}
+											alt="Result QR"
+											class="rounded-box border-base-300 bg-base-100 mb-3 h-60 w-60 border p-2 shadow"
+										/>
+									</div>
+									<div class="opacity-80">Scan to open results on your phone</div>
+								{/if}
 							</div>
 						{/if}
 

@@ -8,6 +8,7 @@
 		switchAccount,
 		switchWallet,
 		accounts,
+		wallet,
 		walletName,
 		walletIconUrl,
 		suiBalance,
@@ -32,7 +33,7 @@
 
 	// reactive mirrors (from wallet kit)
 	let walletIcon = $derived(walletIconUrl?.value || null);
-	let walletLabel = $derived(walletName?.value || '');
+	let walletLabel = $derived(wallet.value?.label || walletName?.value || '');
 	let accts = $derived(accounts?.value || []);
 	let bal = $derived(suiBalance?.value / 1_000_000_000);
 	let balLoading = $derived(Boolean(suiBalanceLoading?.value));

@@ -47,6 +47,16 @@
 	});
 	let winnerPrizeIndex = $derived.by(() => (winnerInfo ? Number(winnerInfo.prize_index) : -1));
 
+	// Remaining spins based on number of prizes and spun timestamps
+	let remainingSpins = $derived.by(() => {
+		try {
+			const spun = (spinTimes || []).filter(v => Number(v) > 0).length;
+			return Math.max(0, (prizeAmounts || []).length - spun);
+		} catch {
+			return 0;
+		}
+	});
+
 	async function getPackageIdFromWheelId(wheelId) {
 		try {
 			const objectData = await client.getObject({
@@ -528,6 +538,10 @@
 				>
 				{#if isCancelled}
 					<span class="badge badge-warning badge-sm">Cancelled</span>
+				{:else if remainingSpins > 0}
+					<span class="badge badge-primary badge-sm">Running</span>
+				{:else}
+					<span class="badge badge-neutral badge-sm">Finished</span>
 				{/if}
 			</div>
 		{/if}

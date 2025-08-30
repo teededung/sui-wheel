@@ -45,6 +45,7 @@
 		"daisyui": "^5.0.54",
 		"date-fns": "^4.1.0",
 		"gsap": "^3.13.0",
+		"qrcode": "^1.5.4",
 		"runed": "^0.31.1",
 		"sui-svelte-wallet-kit": "^0.4.1",
 		"svelte-daisy-toaster": "^0.5.4"
