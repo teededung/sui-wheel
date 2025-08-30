@@ -1053,6 +1053,7 @@
 						entries = entries.filter(
 							entry => String(entry ?? '').trim() !== String(winnerValue ?? '').trim()
 						);
+						entriesText = entries.join('\n');
 					}
 					selectedIndex = null;
 					spinAngle = 0;
@@ -1081,6 +1082,7 @@
 		if (spinning) return;
 		selectedIndex = null;
 		entries = [...entries].sort(() => Math.random() - 0.5);
+		entriesText = entries.join('\n');
 	}
 
 	function clearAll() {
@@ -1342,13 +1344,34 @@
 											disabled={spunCountOnChain > 0 || isCancelled}>Edit wheel</button
 										> -->
 									{/if}
-									<ButtonLoading
-										formLoading={cancelLoading}
-										color="error"
-										loadingText="Cancelling..."
-										onclick={cancelWheel}
-										disabled={spunCountOnChain > 0 || isCancelled}>Cancel wheel</ButtonLoading
-									>
+									{#if isCancelled}
+										<!-- If cancelled, hide Cancel button and show New wheel instead -->
+										<button
+											class="btn btn-primary btn-sm"
+											onclick={() => {
+												createdWheelId = '';
+												isEditing = false;
+												wheelFetched = false;
+												entriesText = '';
+												entries = [];
+												entriesOnChain = [];
+												prizeAmounts = [];
+												prizesOnChainMist = [];
+												winnersOnChain = [];
+												spunCountOnChain = 0;
+												poolBalanceMistOnChain = 0n;
+												goto('/');
+											}}>New wheel</button
+										>
+									{:else}
+										<ButtonLoading
+											formLoading={cancelLoading}
+											color="error"
+											loadingText="Cancelling..."
+											onclick={cancelWheel}
+											disabled={spunCountOnChain > 0}>Cancel wheel</ButtonLoading
+										>
+									{/if}
 								{/if}
 							</div>
 						</div>

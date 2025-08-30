@@ -150,8 +150,19 @@
 								{#each wheels as w, i}
 									<tr>
 										<td>{i + 1}</td>
-										<td class="font-mono" title={w.id}>{shortenAddress(w.id)}</td>
-										<td>
+										<td class="font-mono">
+											<a
+												href={`https://testnet.suivision.xyz/object/${w.id}`}
+												target="_blank"
+												rel="noopener noreferrer"
+												class="link link-primary hover:link-accent"
+												title={`View ${w.id} on Sui Vision`}
+												aria-label={`View wheel ${shortenAddress(w.id)} on Sui Vision`}
+											>
+												{shortenAddress(w.id)}
+											</a>
+										</td>
+										<td class="whitespace-nowrap">
 											{#if w.timestampMs}
 												<span class="badge badge-soft badge-success">
 													{formatDistanceToNow(w.timestampMs, { addSuffix: true })}
