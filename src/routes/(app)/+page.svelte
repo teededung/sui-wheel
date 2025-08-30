@@ -57,10 +57,6 @@
 	let setupSuccessMsg = $state('');
 	let createdWheelId = $state('');
 
-	// finished wheelId: 0xa7196b65c4134e4a22dac5abb668269dfa8f6cb8c2578306d9a8fd931d8167bf
-	// finished wheelId: 0xc7e2f2a1d0bd5e9d4584cd1b21be2052597856b91e57c3efc19bba08c8b5a006
-	// not spin: 0x57012fe0a3d3f1d4e6eacb102dd39c4cea0ed7c9d8fa29d349aca309b783dd43
-
 	// View/Edit and on-chain fetched state
 	let isEditing = $state(false);
 	let wheelFetched = $state(false);
@@ -905,6 +901,8 @@
 	}
 
 	async function spinOnChainAndAnimate() {
+		if (isSpinDisabled)
+			return toast.info('Please create a wheel first.', { showCloseButton: true });
 		if (!createdWheelId || spinning || isCancelled) return;
 		if (!account.value) return;
 		try {
@@ -1208,9 +1206,9 @@
 						<button
 							class="btn btn-circle btn-sm tooltip absolute top-2 right-2 z-20 bg-white/90 shadow-lg backdrop-blur-sm transition-all duration-200 hover:bg-white"
 							onclick={() => (muted = !muted)}
-							aria-label={muted ? 'Enable sound' : 'Disable sound'}
-							title={muted ? 'Enable sound' : 'Disable sound'}
-							data-tip={muted ? 'Enable sound' : 'Disable sound'}
+							aria-label={muted ? 'Sound: off' : 'Sound: on'}
+							title={'Toggle sound'}
+							data-tip={muted ? 'Sound: off' : 'Sound: on'}
 						>
 							{#if muted}
 								<span class="icon-[lucide--volume-off] text-base text-gray-600"></span>
@@ -1244,11 +1242,11 @@
 							<ButtonLoading
 								formLoading={spinning}
 								color="primary"
+								size="lg"
 								loadingText="Spinning..."
-								onclick={createdWheelId ? spinOnChainAndAnimate : spin}
+								onclick={account?.value ? spinOnChainAndAnimate : spin}
 								aria-label="Spin the wheel"
-								moreClass="w-full h-full rounded-full bg-white text-black pointer-events-auto animate-pulse shadow-lg"
-								disabled={isSpinDisabled}
+								moreClass={`w-full h-full bg-white rounded-full text-black pointer-events-auto shadow-lg`}
 							>
 								Spin
 							</ButtonLoading>
