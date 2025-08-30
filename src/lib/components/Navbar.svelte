@@ -12,6 +12,6 @@
 	</div>
 	<div class="navbar-end flex items-center gap-3">
 		<ButtonThemeSwitch />
-		<ButtonConnectWallet />
+		<ButtonConnectWallet showBalance={false} />
 	</div>
 </div>

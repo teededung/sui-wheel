@@ -81,7 +81,13 @@
 			return 0n;
 		}
 	});
-	let isOnTestnet = $derived(Boolean(account.value?.chains?.[0] === 'sui:testnet'));
+	let isOnTestnet = $derived.by(() => {
+		// Treat as pending (true) until account and chain are resolved to avoid warning flicker
+		if (!account.value) return true;
+		const chain = account.value?.chains?.[0];
+		if (!chain) return true;
+		return chain === 'sui:testnet';
+	});
 
 	const spinAnimationConfig = {
 		duration: 10000,
@@ -156,9 +162,16 @@
 		}).length;
 	});
 
-	let hasInsufficientBalance = $derived.by(
-		() => suiBalance.value - 1_000_000_000 < totalDonationMist
-	);
+	let hasInsufficientBalance = $derived.by(() => {
+		// Do not warn about balance until wallet and balance are fully loaded
+		if (!account.value) return false;
+		if (suiBalanceLoading?.value) return false;
+		try {
+			return suiBalance.value - 1_000_000_000 < totalDonationMist;
+		} catch {
+			return false;
+		}
+	});
 
 	// Consolidated warnings visibility
 	let hasSetupWarnings = $derived.by(
@@ -173,9 +186,9 @@
 	);
 
 	// Final condition to show setup warnings
-	let shouldShowSetupWarnings = $derived.by(
-		() => hasSetupWarnings && ((isEditing && createdWheelId) || !createdWheelId)
-	);
+	let shouldShowSetupWarnings = $derived.by(() => {
+		return hasSetupWarnings && ((isEditing && createdWheelId) || !createdWheelId);
+	});
 
 	function addPrize() {
 		prizeAmounts = [...prizeAmounts, ''];
