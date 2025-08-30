@@ -19,7 +19,7 @@ export const MINIMUM_PRIZE_AMOUNT = {
 /**
  * Default package id placeholder. Replace with your actual package id on testnet.
  */
-export const PACKAGE_ID = '0x8f398c524771a67e4ef2fd60ccb985463ea506387af39365f6a11075c5840cd4';
+export const PACKAGE_ID = '0x70b44c598b4bffa29dc75e99fb03ebeee93bfbd3ef34066086a57d1b524a7f09';
 
 /**
  * Module and struct names for the wheel contract

@@ -6,6 +6,7 @@
 	import { Transaction } from '@mysten/sui/transactions';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-daisy-toaster';
+	import { formatDistanceToNow } from 'date-fns';
 	import {
 		account,
 		wallet,
@@ -28,7 +29,9 @@
 		MIST_PER_SUI,
 		WHEEL_MODULE,
 		WHEEL_FUNCTIONS,
-		MINIMUM_PRIZE_AMOUNT
+		MINIMUM_PRIZE_AMOUNT,
+		RANDOM_OBJECT_ID,
+		CLOCK_OBJECT_ID
 	} from '$lib/constants.js';
 
 	const idle = new IsIdle({ timeout: 15000 });
@@ -68,6 +71,7 @@
 	let claimWindowMsOnChain = $state(0);
 	let poolBalanceMistOnChain = $state(0n);
 	let winnersOnChain = $state([]);
+	let spinTimesOnChain = $state([]);
 	let postSpinFetchRequested = $state(false);
 	// Cancellation state
 	let isCancelled = $state(false);
@@ -318,10 +322,11 @@
 			const finalWheelId = created?.objectId;
 			if (!finalWheelId) throw new Error('Wheel object id not found after creation');
 			createdWheelId = finalWheelId;
+
 			// Immediately fetch on-chain data to populate UI
 			await fetchWheelFromChain();
 
-			setupSuccessMsg = `Wheel created and funded successfully.`;
+			setupSuccessMsg = `Successfully created and funded. We can spin it now.`;
 
 			// Notify and update current URL with wheelId param so reload keeps context
 			toast.success('Wheel created and funded successfully', {
@@ -380,6 +385,13 @@
 				prize_index: Number(w?.fields?.prize_index ?? w?.prize_index ?? 0),
 				claimed: Boolean(w?.fields?.claimed ?? w?.claimed ?? false)
 			}));
+
+			// Spin times (ms since epoch) aligned with prize indices
+			try {
+				spinTimesOnChain = (f['spin_times'] || []).map(v => Number(v));
+			} catch {
+				spinTimesOnChain = [];
+			}
 
 			// Spun count and Delay / ClaimWindow (ms -> minutes)
 			try {
@@ -479,8 +491,25 @@
 			});
 
 			// Sign and execute the PTB
-			await signAndExecuteTransaction(tx);
+			const res = await signAndExecuteTransaction(tx);
+			const digest = res?.digest ?? res?.effects?.transactionDigest;
+			if (!digest) {
+				setupError = 'Failed to cancel wheel.';
+				toast.error(setupError || 'Failed to cancel wheel.', { position: 'bottom-right' });
+				return;
+			}
 			setupSuccessMsg = 'Wheel cancelled and pool reclaimed if any.';
+			toast.success('Wheel cancelled successfully.', {
+				position: 'bottom-right',
+				durationMs: 3000,
+				button: {
+					text: 'View Tx',
+					class: 'btn btn-primary btn-sm',
+					callback: () => {
+						window.open(`https://testnet.suivision.xyz/txblock/${digest}`, '_blank', 'noopener');
+					}
+				}
+			});
 			// Reset local state
 			createdWheelId = '';
 			wheelFetched = false;
@@ -861,21 +890,56 @@
 		if (!createdWheelId || spinning || isCancelled) return;
 		if (!account.value) return;
 		try {
+			// Mark as busy while the transaction is pending
 			spinning = true;
 			// call move function spin_wheel
 			const tx = new Transaction();
 			tx.moveCall({
 				target: `${packageId}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.SPIN}`,
-				arguments: [tx.object(createdWheelId), tx.object('0x8'), tx.object('0x6')]
+				arguments: [
+					tx.object(createdWheelId),
+					tx.object(RANDOM_OBJECT_ID),
+					tx.object(CLOCK_OBJECT_ID)
+				]
 			});
-			// NOTE: The Random and Clock object ids '0x8' and '0x6' are placeholders.
-			// Replace with the proper shared object ids in your deployment if needed.
 			const res = await signAndExecuteTransaction(tx);
 			const digest = res?.digest ?? res?.effects?.transactionDigest;
 			if (!digest) throw new Error('Missing tx digest for spin');
-			// Determine a target index (UI only) and defer on-chain fetch until after animation to avoid flicker
-			let targetIdx = Math.floor(Math.random() * Math.max(1, entries.length));
+
+			// Try to read SpinEvent from the transaction to get the exact winner and prize index
+			let targetIdx = -1;
+			try {
+				const txBlock = await testnetClient.getTransactionBlock({
+					digest,
+					options: { showEvents: true }
+				});
+				const spinEventType = `${packageId}::${WHEEL_MODULE}::SpinEvent`;
+				const ev = (txBlock?.events || []).find(e => {
+					const t = String(e?.type || '');
+					return t === spinEventType || t.endsWith(`::${WHEEL_MODULE}::SpinEvent`);
+				});
+				const parsed = ev?.parsedJson || {};
+				const winnerAddr = String(
+					parsed?.winner ?? parsed?.winner_address ?? parsed?.winnerAddress ?? ''
+				).toLowerCase();
+				if (winnerAddr) {
+					targetIdx = entries.findIndex(a => String(a ?? '').toLowerCase() === winnerAddr);
+				}
+			} catch {}
+
+			if (
+				!Number.isFinite(targetIdx) ||
+				targetIdx < 0 ||
+				targetIdx >= Math.max(1, entries.length)
+			) {
+				// Fallback to a random index if event parsing fails
+				targetIdx = Math.floor(Math.random() * Math.max(1, entries.length));
+			}
+
+			// Fetch on-chain data after animation completes to avoid flicker
 			postSpinFetchRequested = true;
+			// Release busy flag so spinToIndex can start the animation
+			spinning = false;
 			spinToIndex(targetIdx, spinAnimationConfig);
 		} catch (e) {
 			setupError = e?.message || String(e);
@@ -966,9 +1030,12 @@
 				const winnerValue = entries[winnerIndex];
 				lastWinner = String(winnerValue ?? '');
 				if (lastWinner) {
-					entries = entries.filter(
-						entry => String(entry ?? '').trim() !== String(winnerValue ?? '').trim()
-					);
+					// do not remove winner from list if fetch is requested
+					if (!postSpinFetchRequested) {
+						entries = entries.filter(
+							entry => String(entry ?? '').trim() !== String(winnerValue ?? '').trim()
+						);
+					}
 					selectedIndex = null;
 					spinAngle = 0;
 					// show winner modal
@@ -1226,11 +1293,15 @@
 											createdWheelId = '';
 											isEditing = false;
 											wheelFetched = false;
+											entriesText = '';
+											entries = [];
 											entriesOnChain = [];
+											prizeAmounts = [];
 											prizesOnChainMist = [];
 											winnersOnChain = [];
 											spunCountOnChain = 0;
 											poolBalanceMistOnChain = 0n;
+											goto('/');
 										}}>New wheel</button
 									>
 								{:else}
@@ -1247,11 +1318,11 @@
 											disabled={spunCountOnChain > 0}>Cancel edit</button
 										>
 									{:else}
-										<button
+										<!-- <button
 											class="btn btn-sm btn-outline"
 											onclick={() => (isEditing = true)}
 											disabled={spunCountOnChain > 0 || isCancelled}>Edit wheel</button
-										>
+										> -->
 									{/if}
 									<ButtonLoading
 										formLoading={cancelLoading}
@@ -1300,7 +1371,7 @@
 													{#each entriesOnChain as addr, i}
 														<tr>
 															<td class="w-12">{i + 1}</td>
-															<td class="font-mono">{String(addr)}</td>
+															<td class="font-mono">{shortenAddress(String(addr))}</td>
 														</tr>
 													{/each}
 												</tbody>
@@ -1343,7 +1414,7 @@
 												<thead>
 													<tr>
 														<th>#</th>
-														<th>Amount (SUI)</th>
+														<th>Amount</th>
 														<th>Winner</th>
 													</tr>
 												</thead>
@@ -1357,10 +1428,13 @@
 																	{shortenAddress(
 																		winnersOnChain.find(w => w.prize_index === i).addr
 																	)}
-																	{#if winnersOnChain.find(w => w.prize_index === i).claimed}
-																		<span class="badge badge-success badge-sm ml-2">claimed</span>
-																	{:else}
-																		<span class="badge badge-warning badge-sm ml-2">unclaimed</span>
+																	{#if Number(spinTimesOnChain[i] || 0) > 0}
+																		<span
+																			class="badge badge-success badge-sm ml-2 text-xs opacity-70"
+																			>{formatDistanceToNow(spinTimesOnChain[i], {
+																				addSuffix: true
+																			})}</span
+																		>
 																	{/if}
 																{:else}
 																	<span class="opacity-60">—</span>

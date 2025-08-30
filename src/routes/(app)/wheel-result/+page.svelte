@@ -20,6 +20,7 @@
 	let winners = $state([]);
 	let prizeAmounts = $state([]);
 	let spinTimes = $state([]);
+	let spunAtTexts = $state([]);
 	let delayMs = $state(0);
 	let claimWindowMs = $state(0);
 	let organizer = $state('');
@@ -30,6 +31,11 @@
 	let lastReclaim = $state({ amount: 0n, timestampMs: 0, digest: '' });
 	let lastClaim = $state({ amount: 0n, timestampMs: 0, digest: '' });
 	let isCancelled = $state(false);
+	// Wheel meta
+	let wheelCreatedAtMs = $state(0);
+	let wheelCreatedTx = $state('');
+	// Non-winning entries (remaining entries on chain)
+	let nonWinningEntries = $state([]);
 	let winnerInfo = $derived.by(() => {
 		try {
 			const addr = account.value?.address?.toLowerCase?.();
@@ -66,22 +72,22 @@
 		await fetchData();
 		await fetchReclaimEvents();
 		await fetchClaimEventsForWinner(); // Initial fetch for lastClaim for winner
-		// Start 1s ticker for countdown updates
-		ticker = setInterval(() => {
-			nowMs = Date.now();
-		}, 1000);
+		// Precompute static "Spun at" texts based on current time once
+		const base = Date.now();
+		spunAtTexts = (spinTimes || []).map(ts => formatRelativePreciseAt(ts, base));
 	});
 
-	onDestroy(() => {
-		if (ticker) clearInterval(ticker);
-	});
+	onDestroy(() => {});
 
 	async function fetchData() {
 		if (!wheelId) return;
 		loading = true;
 		error = '';
 		try {
-			const res = await client.getObject({ id: wheelId, options: { showContent: true } });
+			const res = await client.getObject({
+				id: wheelId,
+				options: { showContent: true, showPreviousTransaction: true }
+			});
 			const f = res?.data?.content?.fields ?? {};
 			isCancelled = Boolean(f.is_cancelled);
 			winners = (f.winners || []).map(w => ({
@@ -94,6 +100,11 @@
 			delayMs = Number(f.delay_ms || 0);
 			claimWindowMs = Number(f.claim_window_ms || 0);
 			organizer = String(f.organizer || '');
+			// Remaining entries represent non-winners
+			nonWinningEntries = (f.remaining_entries || []).map(v => String(v));
+
+			// Wheel creation timestamp from the transaction that created this object
+			await fetchWheelCreationMeta();
 			// Parse pool balance from nested balance field variants
 			try {
 				let pool = 0n;
@@ -254,6 +265,27 @@
 		return { state: 'claimable', endsInMs: end - now };
 	}
 
+	// Precise relative formatter similar to Suivision (mins/secs granularity)
+	function formatRelativePreciseAt(tsMs, baseMs) {
+		const ts = Number(tsMs || 0);
+		if (!Number.isFinite(ts) || ts <= 0) return '';
+		const diffSec = Math.max(0, Math.floor((baseMs - ts) / 1000));
+		const days = Math.floor(diffSec / 86400);
+		const hours = Math.floor((diffSec % 86400) / 3600);
+		const minutes = Math.floor((diffSec % 3600) / 60);
+		const seconds = diffSec % 60;
+		if (days > 0) {
+			return `${days} ${days === 1 ? 'day' : 'days'} ${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
+		}
+		if (hours > 0) {
+			return `${hours} ${hours === 1 ? 'hour' : 'hours'} ${minutes} mins ago`;
+		}
+		if (minutes > 0) {
+			return `${minutes} mins ${seconds} secs ago`;
+		}
+		return `${seconds} secs ago`;
+	}
+
 	function findWinner(idx) {
 		try {
 			return winners.find(w => w.prize_index === idx);
@@ -384,6 +416,100 @@
 			reclaimLoading = false;
 		}
 	}
+
+	function isYou(addr) {
+		return String(account.value?.address || '').toLowerCase() === String(addr).toLowerCase();
+	}
+
+	async function fetchWheelCreationMeta() {
+		try {
+			wheelCreatedAtMs = 0;
+			wheelCreatedTx = '';
+
+			// Preferred: read CreateEvent for this wheel id
+			try {
+				const eventType = `${PACKAGE_ID}::${WHEEL_MODULE}::CreateEvent`;
+
+				let cursorEv = null;
+				for (let page = 0; page < 10; page++) {
+					const evRes = await client.queryEvents({
+						query: { MoveEventType: eventType },
+						cursor: cursorEv,
+						limit: 10
+					});
+
+					const list = Array.isArray(evRes?.data) ? evRes.data : [];
+					const match = list.find(
+						e =>
+							String(e?.parsedJson?.wheel_id || '').toLowerCase() === String(wheelId).toLowerCase()
+					);
+					if (match) {
+						wheelCreatedAtMs = Number(match?.timestampMs || 0);
+						wheelCreatedTx = String(match?.id?.txDigest || match?.transactionDigest || '');
+						return;
+					}
+					if (!evRes?.hasNextPage) break;
+					cursorEv = evRes?.nextCursor || null;
+				}
+			} catch {}
+
+			// Fast path: Check if previous transaction created the wheel
+			const obj = await client.getObject({
+				id: wheelId,
+				options: { showPreviousTransaction: true }
+			});
+
+			let digest = obj?.data?.previousTransaction || '';
+
+			if (digest) {
+				const txb = await client.getTransactionBlock({
+					digest,
+					options: { showObjectChanges: true }
+				});
+
+				const created = (txb?.objectChanges || []).some(
+					ch => ch?.type === 'created' && ch.objectId === wheelId
+				);
+				if (created) {
+					wheelCreatedTx = digest;
+					wheelCreatedAtMs = Number(txb?.timestampMs || 0);
+					return;
+				}
+			}
+
+			// Fallback: Query transactions by Move function and find the creation tx
+			const moveFilter = {
+				MoveFunction: { package: packageId, module: 'sui_wheel', function: 'create_wheel' }
+			};
+			let cursor = null;
+			let found = false;
+			while (!found) {
+				const res = await client.queryTransactionBlocks({
+					filter: moveFilter,
+					options: { showObjectChanges: true },
+					limit: 50,
+					order: 'ascending',
+					cursor
+				});
+
+				for (const tx of res?.data || []) {
+					const created = (tx?.objectChanges || []).some(
+						ch => ch?.type === 'created' && ch.objectId === wheelId
+					);
+					if (created) {
+						wheelCreatedTx = tx.digest;
+						wheelCreatedAtMs = Number(tx?.timestampMs || 0);
+						found = true;
+						break;
+					}
+				}
+				if (!res?.hasNextPage || found) break;
+				cursor = res.nextCursor;
+			}
+		} catch {
+			// Silently fail, keep defaults
+		}
+	}
 </script>
 
 <section class="container mx-auto px-4 py-6">
@@ -392,7 +518,13 @@
 		{#if wheelId}
 			<div class="flex items-center gap-2">
 				<span class="text-sm opacity-70"
-					>Wheel ID: <span class="font-mono">{shortenAddress(wheelId)}</span></span
+					>Wheel ID:
+					<a
+						class="link link-primary font-mono"
+						href={`https://testnet.suivision.xyz/object/${wheelId}`}
+						target="_blank"
+						rel="noopener noreferrer">{shortenAddress(wheelId)}</a
+					></span
 				>
 				{#if isCancelled}
 					<span class="badge badge-warning badge-sm">Cancelled</span>
@@ -425,62 +557,33 @@
 	{:else}
 		<div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
 			<div class="overflow-x-auto lg:col-span-2">
-				<div class="mb-3 flex items-center justify-between">
+				<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
 					<div class="text-sm opacity-80">
 						Pool balance: <span class="font-mono font-semibold"
 							>{formatMistToSuiCompact(poolBalanceMist)} SUI</span
 						>
 					</div>
+
+					{#if wheelCreatedAtMs > 0}
+						<div class="text-sm opacity-80">
+							Created
+							<span title={new Date(wheelCreatedAtMs).toISOString()}>
+								{formatDistanceToNow(new Date(wheelCreatedAtMs), { addSuffix: true })}
+							</span>
+							{#if wheelCreatedTx}
+								<a
+									class="link link-primary ml-2"
+									href={`https://testnet.suivision.xyz/txblock/${wheelCreatedTx}`}
+									target="_blank"
+									rel="noopener noreferrer">View tx</a
+								>
+							{/if}
+						</div>
+					{/if}
 				</div>
 
-				<h2 class="text-lg font-semibold">Winners</h2>
-				<table class="table-zebra table">
-					<thead>
-						<tr>
-							<th>#</th>
-							<th>Amount (SUI)</th>
-							<th>Winner</th>
-							<th>Status</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each prizeAmounts as m, i}
-							<tr>
-								<td class="w-12">{i + 1}</td>
-								<td class="font-mono">{formatMistToSuiCompact(m)}</td>
-								<td class="font-mono">{findWinner(i) ? shortenAddress(findWinner(i).addr) : '—'}</td
-								>
-								<td>
-									{#if findWinner(i)}
-										{#if findWinner(i).claimed}
-											<span class="badge badge-success badge-sm">claimed</span>
-										{:else if getClaimState(i).state === 'claimable'}
-											<div class="flex flex-col gap-1">
-												<span class="badge badge-primary badge-sm">claimable</span>
-												<span class="text-xs opacity-70"
-													>ends in {formatDuration(getClaimState(i).endsInMs)}</span
-												>
-											</div>
-										{:else if getClaimState(i).state === 'too_early'}
-											<div class="flex flex-col gap-1">
-												<span class="badge badge-warning badge-sm">too early</span>
-												<span class="text-xs opacity-70"
-													>starts in {formatDuration(getClaimState(i).startsInMs)}</span
-												>
-											</div>
-										{:else}
-											<span class="badge badge-error badge-sm">expired</span>
-										{/if}
-									{:else}
-										<span class="opacity-60">—</span>
-									{/if}
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
 				{#if lastReclaim.timestampMs > 0 && isOrganizer}
-					<div class="text-base-content/70 mt-4 text-xs">
+					<div class="text-base-content/70 mb-4 text-xs">
 						Last reclaim:
 						<strong>{formatMistToSuiCompact(lastReclaim.amount)} SUI</strong>
 						on
@@ -512,6 +615,72 @@
 						</div>
 					{/if}
 				{/if}
+
+				<h2 class="text-lg font-semibold">Winners</h2>
+				<div class="mb-6 overflow-x-auto">
+					<table class="table-zebra table">
+						<thead>
+							<tr>
+								<th>#</th>
+								<th>Amount</th>
+								<th>Winner</th>
+								<th>Spun at</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each prizeAmounts as m, i}
+								<tr>
+									<td class="w-12">{i + 1}</td>
+									<td class="font-mono">{formatMistToSuiCompact(m)}</td>
+									<td class="font-mono"
+										>{findWinner(i) ? shortenAddress(findWinner(i).addr) : '—'}
+										{#if findWinner(i) && isYou(findWinner(i).addr)}
+											<span class="badge badge-neutral badge-sm ml-2 text-xs opacity-70">You</span>
+										{/if}
+									</td>
+									<td class="text-sm opacity-80">
+										{#if Number(spinTimes[i] || 0) > 0}
+											<span title={new Date(spinTimes[i]).toISOString()}>
+												{spunAtTexts[i]}
+											</span>
+										{:else}
+											<span class="opacity-60">—</span>
+										{/if}
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+
+				{#if nonWinningEntries.length > 0}
+					<h2 class="text-lg font-semibold">Non-winning entries</h2>
+
+					<div class="overflow-x-auto">
+						<table class="table-zebra table">
+							<thead>
+								<tr>
+									<th>#</th>
+									<th>Address</th>
+								</tr>
+							</thead>
+							<tbody>
+								{#each nonWinningEntries as addr, idx}
+									<tr class:active={isYou(addr)}>
+										<td class="w-12">{idx + 1}</td>
+										<td class="flex items-center font-mono"
+											>{shortenAddress(addr)}
+											{#if isYou(addr)}
+												<span class="badge badge-neutral badge-sm ml-2 text-xs opacity-70">You</span
+												>
+											{/if}
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				{/if}
 			</div>
 			<div>
 				<div class="card bg-base-200 shadow">
@@ -537,7 +706,7 @@
 							{:else}
 								<div class="alert alert-warning mb-3 text-sm">
 									<span class="icon-[lucide--gift]"></span>
-									<span>Your prize is waiting! Don't forget to claim it! 🎁</span>
+									<span>Your prize is waiting! Don't forget to claim it!</span>
 								</div>
 							{/if}
 						{:else}
