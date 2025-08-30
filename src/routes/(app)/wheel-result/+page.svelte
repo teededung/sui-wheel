@@ -29,6 +29,7 @@
 	let poolBalanceMist = $state(0n);
 	let lastReclaim = $state({ amount: 0n, timestampMs: 0, digest: '' });
 	let lastClaim = $state({ amount: 0n, timestampMs: 0, digest: '' });
+	let isCancelled = $state(false);
 	let winnerInfo = $derived.by(() => {
 		try {
 			const addr = account.value?.address?.toLowerCase?.();
@@ -82,6 +83,7 @@
 		try {
 			const res = await client.getObject({ id: wheelId, options: { showContent: true } });
 			const f = res?.data?.content?.fields ?? {};
+			isCancelled = Boolean(f.is_cancelled);
 			winners = (f.winners || []).map(w => ({
 				addr: String(w?.fields?.addr ?? w?.addr ?? ''),
 				prize_index: Number(w?.fields?.prize_index ?? w?.prize_index ?? 0),
@@ -388,9 +390,14 @@
 	<div class="mb-4 flex items-center justify-between">
 		<h1 class="text-xl font-bold">Wheel Results</h1>
 		{#if wheelId}
-			<span class="text-sm opacity-70"
-				>Wheel ID: <span class="font-mono">{shortenAddress(wheelId)}</span></span
-			>
+			<div class="flex items-center gap-2">
+				<span class="text-sm opacity-70"
+					>Wheel ID: <span class="font-mono">{shortenAddress(wheelId)}</span></span
+				>
+				{#if isCancelled}
+					<span class="badge badge-warning badge-sm">Cancelled</span>
+				{/if}
+			</div>
 		{/if}
 	</div>
 
@@ -510,6 +517,31 @@
 				<div class="card bg-base-200 shadow">
 					<div class="card-body">
 						<h3 class="mb-2 text-lg font-semibold">Your prize</h3>
+
+						{#if isCancelled}
+							<div class="alert alert-info mb-3 text-sm">
+								<span class="icon-[lucide--heart]"></span>
+								<span>Hope you'll win in future spins! Keep participating! 🌟</span>
+							</div>
+						{:else if winnerInfo}
+							{#if winnerInfo.claimed}
+								<div class="alert alert-success mb-3 text-sm">
+									<span class="icon-[lucide--party-popper]"></span>
+									<span>Congratulations on your win! 🎉</span>
+								</div>
+							{:else}
+								<div class="alert alert-warning mb-3 text-sm">
+									<span class="icon-[lucide--gift]"></span>
+									<span>Your prize is waiting! Don't forget to claim it! 🎁</span>
+								</div>
+							{/if}
+						{:else}
+							<div class="alert alert-neutral mb-3 text-sm">
+								<span class="icon-[lucide--refresh-cw]"></span>
+								<span>Better luck next time! Keep spinning! 🍀</span>
+							</div>
+						{/if}
+
 						{#if winnerInfo}
 							<div class="mb-2 text-sm">
 								<span class="opacity-70">Winner:</span>

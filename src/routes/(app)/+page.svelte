@@ -4,6 +4,8 @@
 	import { gsap } from 'gsap';
 	import { SuiClient } from '@mysten/sui/client';
 	import { Transaction } from '@mysten/sui/transactions';
+	import { goto } from '$app/navigation';
+	import { toast } from 'svelte-daisy-toaster';
 	import {
 		account,
 		wallet,
@@ -66,6 +68,8 @@
 	let poolBalanceMistOnChain = $state(0n);
 	let winnersOnChain = $state([]);
 	let postSpinFetchRequested = $state(false);
+	// Cancellation state
+	let isCancelled = $state(false);
 
 	// Action loading states
 	let updateLoading = $state(false);
@@ -96,6 +100,9 @@
 		marginFraction: 0.05,
 		easePower: 3
 	};
+
+	// UI: active tab in settings (entries | prizes | others)
+	let activeTab = $state('entries');
 
 	let newEntry = $state('');
 	let entriesText = $state('');
@@ -135,7 +142,7 @@
 	// Disable spin in both modes (off-chain and on-chain)
 	let isSpinDisabled = $derived.by(() => {
 		// On-chain: disable if no remaining spins
-		if (createdWheelId) return remainingSpins === 0;
+		if (createdWheelId) return isCancelled || remainingSpins === 0;
 		// Off-chain: disable if wallet connected (requires on-chain flow) or not enough entries
 		return (Boolean(account.value) && !createdWheelId) || entries.length < 2;
 	});
@@ -178,6 +185,7 @@
 		() =>
 			invalidEntriesCount > 0 ||
 			uniqueValidEntriesCount < 2 ||
+			prizesCount === 0 ||
 			prizesCount > uniqueValidEntriesCount ||
 			invalidPrizeAmountsCount > 0 ||
 			entries.length > 200 ||
@@ -306,15 +314,19 @@
 					ch.type === 'created' && String(ch.objectType || '').endsWith(`::${WHEEL_MODULE}::Wheel`)
 			);
 
-			console.log('created', created);
-
 			const finalWheelId = created?.objectId;
 			if (!finalWheelId) throw new Error('Wheel object id not found after creation');
 			createdWheelId = finalWheelId;
+			// Immediately fetch on-chain data to populate UI
+			await fetchWheelFromChain();
 
 			setupSuccessMsg = `Wheel created and funded successfully. ID: ${finalWheelId}`;
+			// Notify and update current URL with wheelId param so reload keeps context
+			toast.success('Wheel created successfully', { position: 'bottom-right', durationMs: 1600 });
+			goto(`?wheelId=${finalWheelId}`, { replaceState: true, keepfocus: true, noScroll: true });
 		} catch (e) {
 			setupError = e?.message || String(e);
+			toast.error(setupError || 'Failed to create wheel', { position: 'bottom-right' });
 		} finally {
 			setupLoading = false;
 		}
@@ -335,7 +347,8 @@
 			if (!content || content?.dataType !== 'moveObject') return;
 			const f = content.fields || {};
 
-			console.log('f', f);
+			// Cancellation flag
+			isCancelled = Boolean(f['is_cancelled']);
 
 			// Entries (addresses)
 			entriesOnChain = (f['remaining_entries'] || []).map(v => String(v));
@@ -562,6 +575,12 @@
 			canvasEl.style.backfaceVisibility = 'hidden';
 		}
 		// Also fetch wheel data if an id is preset
+		// Try to read wheelId from URL to restore state on reload
+		try {
+			const params = new URLSearchParams(window.location.search);
+			const w = params.get('wheelId');
+			if (w && !createdWheelId) createdWheelId = w;
+		} catch {}
 		if (createdWheelId) {
 			fetchWheelFromChain();
 		}
@@ -827,7 +846,7 @@
 	}
 
 	async function spinOnChainAndAnimate() {
-		if (!createdWheelId || spinning) return;
+		if (!createdWheelId || spinning || isCancelled) return;
 		if (!account.value) return;
 		try {
 			spinning = true;
@@ -1173,7 +1192,7 @@
 			<div class="card bg-base-200 shadow">
 				<div class="card-body">
 					<!-- Header actions for view/edit -->
-					{#if createdWheelId}
+					{#if createdWheelId && wheelFetched}
 						<div class="mb-3 flex items-center justify-between gap-2">
 							<div class="flex items-center gap-2 text-sm opacity-70">
 								<span
@@ -1181,6 +1200,9 @@
 								>
 								{#if remainingSpins === 0}
 									<span class="badge badge-error badge-sm">Finished</span>
+								{/if}
+								{#if isCancelled}
+									<span class="badge badge-warning badge-sm">Cancelled</span>
 								{/if}
 							</div>
 							<div class="flex items-center gap-2">
@@ -1216,7 +1238,7 @@
 										<button
 											class="btn btn-sm btn-outline"
 											onclick={() => (isEditing = true)}
-											disabled={spunCountOnChain > 0}>Edit wheel</button
+											disabled={spunCountOnChain > 0 || isCancelled}>Edit wheel</button
 										>
 									{/if}
 									<ButtonLoading
@@ -1224,7 +1246,7 @@
 										color="error"
 										loadingText="Cancelling..."
 										onclick={cancelWheel}
-										disabled={spunCountOnChain > 0}>Cancel wheel</ButtonLoading
+										disabled={spunCountOnChain > 0 || isCancelled}>Cancel wheel</ButtonLoading
 									>
 								{/if}
 							</div>
@@ -1246,7 +1268,8 @@
 								name="wheel_tabs"
 								class="tab"
 								aria-label="Entries"
-								checked="checked"
+								checked={activeTab === 'entries'}
+								onclick={() => (activeTab = 'entries')}
 							/>
 							<div class="tab-content bg-base-100 border-base-300 p-6">
 								<h3 class="mb-4 text-lg font-semibold">Entries ({entriesOnChain.length})</h3>
@@ -1291,7 +1314,14 @@
 							</div>
 
 							{#if account.value}
-								<input type="radio" name="wheel_tabs" class="tab" aria-label="Prizes" />
+								<input
+									type="radio"
+									name="wheel_tabs"
+									class="tab"
+									aria-label="Prizes"
+									checked={activeTab === 'prizes'}
+									onclick={() => (activeTab = 'prizes')}
+								/>
 								<div class="tab-content bg-base-100 border-base-300 p-6">
 									<h3 class="mb-4 text-lg font-semibold">Prizes (SUI)</h3>
 
@@ -1370,7 +1400,14 @@
 									{/if}
 								</div>
 
-								<input type="radio" name="wheel_tabs" class="tab" aria-label="Others" />
+								<input
+									type="radio"
+									name="wheel_tabs"
+									class="tab"
+									aria-label="Others"
+									checked={activeTab === 'others'}
+									onclick={() => (activeTab = 'others')}
+								/>
 								<div class="tab-content bg-base-100 border-base-300 p-6">
 									<h3 class="mb-4 text-lg font-semibold">Settings</h3>
 									<div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1446,6 +1483,18 @@
 										{/if}
 										{#if uniqueValidEntriesCount < 2}
 											<li>At least <strong>2 unique</strong> entries are required.</li>
+										{/if}
+										{#if prizesCount === 0}
+											<li>
+												You need to add at least <strong>1 prize</strong>.
+												<button
+													class="btn btn-link btn-sm ml-1 align-baseline"
+													onclick={() => (activeTab = 'prizes')}
+													aria-label="Go to Prizes tab"
+												>
+													Open Prizes
+												</button>
+											</li>
 										{/if}
 										{#if prizesCount > uniqueValidEntriesCount}
 											<li>
