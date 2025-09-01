@@ -63,9 +63,11 @@
 				id: wheelId,
 				options: { showType: true }
 			});
+
 			if (!objectData.data?.type) {
 				throw new Error('Object not found or invalid type');
 			}
+
 			// Parse type: "0xpackage::module::struct"
 			const type = objectData.data.type;
 			const packageId = type.split('::')[0];
@@ -79,6 +81,7 @@
 	onMount(async () => {
 		wheelId = new URLSearchParams($page.url.search).get('wheelId') ?? '';
 		packageId = await getPackageIdFromWheelId(wheelId);
+
 		await fetchData();
 		await fetchReclaimEvents();
 		await fetchClaimEventsForWinner(); // Initial fetch for lastClaim for winner
@@ -713,24 +716,24 @@
 
 						{#if isCancelled}
 							<div class="alert alert-info mb-3 text-sm">
-								<span class="icon-[lucide--heart]"></span>
-								<span>This wheel has been cancelled! 🌟</span>
+								<span class="icon-[lucide--heart] h-4 w-4"></span>
+								<span>This wheel has been cancelled!</span>
 							</div>
 						{:else if !account.value}
 							<div class="alert alert-info mb-3 text-sm">
-								<span class="icon-[lucide--info]"></span>
+								<span class="icon-[lucide--info] h-4 w-4"></span>
 								<span>Connect your wallet to view your prize and claim it! 🔑</span>
 							</div>
 						{:else if winnerInfo}
 							{#if winnerInfo.claimed}
 								<div class="alert alert-success mb-3 text-sm">
-									<span class="icon-[lucide--party-popper]"></span>
+									<span class="icon-[lucide--party-popper] h-4 w-4"></span>
 									<span>Congratulations on your win! 🎉</span>
 								</div>
 							{:else}
 								<div class="alert alert-warning mb-3 text-sm">
-									<span class="icon-[lucide--gift]"></span>
-									<span>Your prize is waiting! Don't forget to claim it!</span>
+									<span class="icon-[lucide--circle-alert] h-4 w-4"></span>
+									<span>You might have missed your chance to claim your prize.</span>
 								</div>
 							{/if}
 						{:else if remainingSpins > 0}
@@ -798,7 +801,26 @@
 										Starts in {formatDuration(getClaimState(winnerPrizeIndex).startsInMs)}
 									</div>
 								{:else}
-									<div class="text-error text-xs">Expired</div>
+									<div class="text-error text-xs">
+										Claim window expired on
+										<strong
+											class="ml-1"
+											title={new Date(
+												(spinTimes[winnerPrizeIndex] ?? 0) + delayMs + claimWindowMs
+											).toISOString()}
+										>
+											{format(
+												new Date((spinTimes[winnerPrizeIndex] ?? 0) + delayMs + claimWindowMs),
+												'PPpp'
+											)}
+										</strong>
+										<span class="text-base-content"
+											>({formatDistanceToNow(
+												new Date((spinTimes[winnerPrizeIndex] ?? 0) + delayMs + claimWindowMs),
+												{ addSuffix: true }
+											)})</span
+										>
+									</div>
 								{/if}
 							{:else}
 								<div class="text-sm opacity-70">You are not a winner for this wheel.</div>
