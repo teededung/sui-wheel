@@ -274,9 +274,10 @@
 		const now = nowMs;
 		const start = spinTime + delayMs;
 		const end = spinTime + delayMs + claimWindowMs;
-		if (now < start) return { state: 'too_early', startsInMs: start - now };
-		if (now >= end) return { state: 'expired' };
-		return { state: 'claimable', endsInMs: end - now };
+		let state = 'claimable';
+		if (now < start) state = 'too_early';
+		if (now >= end) state = 'expired';
+		return { state, startsInMs: start - now, endsInMs: end - now };
 	}
 
 	// Precise relative formatter similar to Suivision (mins/secs granularity)
@@ -314,6 +315,7 @@
 			return;
 		}
 		error = '';
+		const t = toast.loading('Claiming...', { position: 'bottom-right' });
 		try {
 			const tx = new Transaction();
 			// Call claim to get a Coin<SUI> back in the PTB
@@ -329,6 +331,8 @@
 			await fetchClaimEventsForWinner();
 		} catch (e) {
 			error = e?.message || String(e);
+		} finally {
+			t.dismiss();
 		}
 	}
 
@@ -546,7 +550,7 @@
 	<div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 		<h1 class="text-xl font-bold">Wheel Results</h1>
 		{#if wheelId}
-			<div class="flex max-w-full items-center gap-2 text-sm opacity-70">
+			<div class="flex max-w-full items-center gap-2 text-sm">
 				<span class="mr-1 inline-block">Wheel ID:</span>
 				<a
 					class="link link-primary inline-block max-w-[12rem] truncate font-mono sm:max-w-[16rem]"
@@ -612,7 +616,7 @@
 					</div>
 
 					{#if wheelCreatedAtMs > 0}
-						<div class="text-sm opacity-80">
+						<div class="flex items-start text-sm opacity-80">
 							Created
 							<span title={new Date(wheelCreatedAtMs).toISOString()}>
 								{formatDistanceToNow(new Date(wheelCreatedAtMs), { addSuffix: true })}
@@ -622,7 +626,8 @@
 									class="link link-primary ml-2"
 									href={`https://testnet.suivision.xyz/txblock/${wheelCreatedTx}`}
 									target="_blank"
-									rel="noopener noreferrer">View tx</a
+									rel="noopener noreferrer"
+									>Tx details <span class="icon-[lucide--external-link]"></span></a
 								>
 							{/if}
 						</div>
@@ -736,12 +741,45 @@
 							{#if winnerInfo.claimed}
 								<div class="alert alert-success mb-3 text-sm">
 									<span class="icon-[lucide--party-popper] h-4 w-4"></span>
-									<span>Congratulations on your win! 🎉</span>
+									<p>
+										<span class="mb-1 block">Congratulations on your win! 🎉</span>
+										{#if lastClaim.timestampMs > 0}
+											<span class="block text-xs">
+												Claimed at
+												<span
+													class="text-primary"
+													title={new Date(lastClaim.timestampMs).toISOString()}
+												>
+													{format(new Date(lastClaim.timestampMs), 'PPpp')}</span
+												>
+												({formatDistanceToNow(new Date(lastClaim.timestampMs), {
+													addSuffix: true
+												})}) .
+
+												{#if lastClaim.digest}
+													<a
+														class="link link-primary hover:link-primary flex items-center"
+														href={`https://testnet.suivision.xyz/txblock/${lastClaim.digest}`}
+														target="_blank"
+														rel="noopener noreferrer"
+													>
+														<span class="mr-2">View tx</span>
+														<span class="icon-[lucide--external-link]"></span>
+													</a>
+												{/if}
+											</span>
+										{/if}
+									</p>
 								</div>
-							{:else}
+							{:else if getClaimState(winnerPrizeIndex).state === 'claimable'}
 								<div class="alert alert-warning mb-3 text-sm">
+									<span class="icon-[lucide--gift] h-4 w-4"></span>
+									<span>Congratulation! You can claim your prize now.</span>
+								</div>
+							{:else if getClaimState(winnerPrizeIndex).state === 'expired'}
+								<div class="alert alert-error mb-3 text-sm">
 									<span class="icon-[lucide--circle-alert] h-4 w-4"></span>
-									<span>You might have missed your chance to claim your prize.</span>
+									<span>Claim window expired. You can't claim your prize anymore.</span>
 								</div>
 							{/if}
 						{:else if remainingSpins > 0}
@@ -757,82 +795,58 @@
 						{/if}
 
 						{#if winnerInfo}
-							<div class="mb-2 text-sm">
+							<div class="text-sm">
 								<span class="opacity-70">Winner:</span>
 								<span class="ml-1 font-mono">{shortenAddress(winnerInfo.addr)}</span>
 							</div>
 							<div class="mb-3 text-sm">
 								<span class="opacity-70">Prize:</span>
-								<strong class="ml-1"
+								<strong class="text-primary ml-1"
 									>{formatMistToSuiCompact(prizeAmounts[winnerPrizeIndex] ?? 0n)} SUI</strong
 								>
 							</div>
 
-							{#if winnerInfo.claimed}
-								<div class="badge badge-success">Claimed</div>
-								{#if lastClaim.timestampMs > 0}
-									<div class="mt-2 text-xs opacity-80">
-										Claimed at
-										<span
-											class="text-secondary"
-											title={new Date(lastClaim.timestampMs).toISOString()}
+							{#if !winnerInfo.claimed}
+								{#if winnerPrizeIndex >= 0}
+									{#if getClaimState(winnerPrizeIndex).state === 'claimable'}
+										<ButtonLoading
+											formLoading={reclaimLoading}
+											color="primary"
+											loadingText="Claiming..."
+											onclick={() => claim(winnerPrizeIndex)}
+											disabled={!isOnTestnet}
+											moreClass="mb-2">Claim prize</ButtonLoading
 										>
-											{format(new Date(lastClaim.timestampMs), 'PPpp')} ({formatDistanceToNow(
-												new Date(lastClaim.timestampMs),
-												{ addSuffix: true }
-											)})
-										</span>.
-									</div>
-
-									{#if lastClaim.digest}
-										<a
-											class="link hover:link-primary flex items-center"
-											href={`https://testnet.suivision.xyz/txblock/${lastClaim.digest}`}
-											target="_blank"
-											rel="noopener noreferrer"
-										>
-											<span class="mr-2">View tx</span>
-											<span class="icon-[lucide--external-link]"></span>
-										</a>
 									{/if}
-								{/if}
-							{:else if winnerPrizeIndex >= 0}
-								{#if getClaimState(winnerPrizeIndex).state === 'claimable'}
-									<ButtonLoading
-										formLoading={reclaimLoading}
-										color="primary"
-										loadingText="Claiming..."
-										onclick={() => claim(winnerPrizeIndex)}
-										disabled={!isOnTestnet}>Claim prize</ButtonLoading
-									>
-								{:else if getClaimState(winnerPrizeIndex).state === 'too_early'}
-									<div class="text-xs opacity-80">
-										Starts in {formatDuration(getClaimState(winnerPrizeIndex).startsInMs)}
-									</div>
+									{#if getClaimState(winnerPrizeIndex).state === 'too_early'}
+										<div class="text-xs opacity-80">
+											Starts in {formatDuration(getClaimState(winnerPrizeIndex).startsInMs)}
+										</div>
+									{:else}
+										<div class="text-error text-xs">
+											Claim window expired on
+											<strong
+												class="ml-1"
+												title={new Date(
+													(spinTimes[winnerPrizeIndex] ?? 0) + delayMs + claimWindowMs
+												).toISOString()}
+											>
+												{format(
+													new Date((spinTimes[winnerPrizeIndex] ?? 0) + delayMs + claimWindowMs),
+													'PPpp'
+												)}
+											</strong>
+											<span class="text-base-content"
+												>({formatDistanceToNow(
+													new Date((spinTimes[winnerPrizeIndex] ?? 0) + delayMs + claimWindowMs),
+													{ addSuffix: true }
+												)})</span
+											>
+										</div>
+									{/if}
 								{:else}
-									<div class="text-error text-xs">
-										Claim window expired on
-										<strong
-											class="ml-1"
-											title={new Date(
-												(spinTimes[winnerPrizeIndex] ?? 0) + delayMs + claimWindowMs
-											).toISOString()}
-										>
-											{format(
-												new Date((spinTimes[winnerPrizeIndex] ?? 0) + delayMs + claimWindowMs),
-												'PPpp'
-											)}
-										</strong>
-										<span class="text-base-content"
-											>({formatDistanceToNow(
-												new Date((spinTimes[winnerPrizeIndex] ?? 0) + delayMs + claimWindowMs),
-												{ addSuffix: true }
-											)})</span
-										>
-									</div>
+									<div class="text-sm opacity-70">You are not a winner for this wheel.</div>
 								{/if}
-							{:else}
-								<div class="text-sm opacity-70">You are not a winner for this wheel.</div>
 							{/if}
 						{/if}
 					</div>
