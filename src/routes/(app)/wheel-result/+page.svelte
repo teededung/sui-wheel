@@ -581,11 +581,22 @@
 	{:else}
 		<div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
 			<div class="overflow-x-auto lg:col-span-2">
-				<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-					<div class="text-sm opacity-80">
-						Pool balance: <span class="font-mono font-semibold"
-							>{formatMistToSuiCompact(poolBalanceMist)} SUI</span
-						>
+				<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+					<div class="flex items-center gap-2">
+						<div class="text-sm opacity-80">
+							Pool balance: <span class="text-primary font-mono font-semibold"
+								>{formatMistToSuiCompact(poolBalanceMist)} SUI</span
+							>
+						</div>
+						{#if account.value && isOrganizer && canOrganizerReclaim() && poolBalanceMist > 0n}
+							<ButtonLoading
+								formLoading={reclaimLoading}
+								color="warning"
+								size="xs"
+								loadingText="Reclaiming..."
+								onclick={reclaimPool}>Reclaim</ButtonLoading
+							>
+						{/if}
 					</div>
 
 					{#if wheelCreatedAtMs > 0}
@@ -626,18 +637,6 @@
 							>
 						{/if}
 					</div>
-				{/if}
-				{#if account.value && isOrganizer}
-					{#if canOrganizerReclaim() && poolBalanceMist > 0n}
-						<div class="mt-4">
-							<ButtonLoading
-								formLoading={reclaimLoading}
-								color="warning"
-								loadingText="Reclaiming..."
-								onclick={reclaimPool}>Reclaim pool to organizer</ButtonLoading
-							>
-						</div>
-					{/if}
 				{/if}
 
 				<h2 class="text-lg font-semibold">Winners</h2>
@@ -733,6 +732,11 @@
 									<span>Your prize is waiting! Don't forget to claim it!</span>
 								</div>
 							{/if}
+						{:else if remainingSpins > 0}
+							<div class="alert alert-info mb-3 text-sm">
+								<span class="icon-[lucide--clock] h-4 w-4"></span>
+								<span>The wheel is still running. Please come back later.</span>
+							</div>
 						{:else}
 							<div class="alert border-info alert-outline mb-3 text-sm">
 								<span class="icon-[lucide--circle-alert] h-4 w-4"></span>
