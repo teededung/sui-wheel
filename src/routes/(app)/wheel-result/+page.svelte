@@ -772,7 +772,7 @@
 									</p>
 								</div>
 							{:else if getClaimState(winnerPrizeIndex).state === 'claimable'}
-								<div class="alert alert-warning mb-3 text-sm">
+								<div class="alert alert-success mb-3 text-sm">
 									<span class="icon-[lucide--gift] h-4 w-4"></span>
 									<span>Congratulation! You can claim your prize now.</span>
 								</div>
