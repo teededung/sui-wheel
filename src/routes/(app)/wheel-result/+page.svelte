@@ -533,26 +533,27 @@
 </svelte:head>
 
 <section class="container mx-auto px-4 py-6">
-	<div class="mb-4 flex items-center justify-between">
+	<div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 		<h1 class="text-xl font-bold">Wheel Results</h1>
 		{#if wheelId}
-			<div class="flex items-center gap-2">
-				<span class="text-sm opacity-70"
-					>Wheel ID:
-					<a
-						class="link link-primary font-mono"
-						href={`https://testnet.suivision.xyz/object/${wheelId}`}
-						target="_blank"
-						rel="noopener noreferrer">{shortenAddress(wheelId)}</a
-					></span
+			<div class="flex max-w-full items-center gap-2 text-sm opacity-70">
+				<span class="mr-1 inline-block">Wheel ID:</span>
+				<a
+					class="link link-primary inline-block max-w-[12rem] truncate font-mono sm:max-w-[16rem]"
+					href={`https://testnet.suivision.xyz/object/${wheelId}`}
+					target="_blank"
+					rel="noopener noreferrer"
+					title={wheelId}>{shortenAddress(wheelId)}</a
 				>
-				{#if isCancelled}
-					<span class="badge badge-warning badge-sm">Cancelled</span>
-				{:else if remainingSpins > 0}
-					<span class="badge badge-primary badge-sm">Running</span>
-				{:else}
-					<span class="badge badge-neutral badge-sm">Finished</span>
-				{/if}
+				<div class="flex flex-wrap items-center gap-2">
+					{#if isCancelled}
+						<span class="badge badge-warning badge-sm">Cancelled</span>
+					{:else if remainingSpins > 0}
+						<span class="badge badge-primary badge-sm">Running</span>
+					{:else}
+						<span class="badge badge-neutral badge-sm">Finished</span>
+					{/if}
+				</div>
 			</div>
 		{/if}
 	</div>
@@ -580,7 +581,7 @@
 		</div>
 	{:else}
 		<div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-			<div class="overflow-x-auto lg:col-span-2">
+			<div class="order-2 overflow-x-auto lg:order-1 lg:col-span-2">
 				<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
 					<div class="flex items-center gap-2">
 						<div class="text-sm opacity-80">
@@ -705,7 +706,7 @@
 					</div>
 				{/if}
 			</div>
-			<div>
+			<div class="order-1 mb-4 lg:order-2 lg:mb-0">
 				<div class="card bg-base-200 shadow">
 					<div class="card-body">
 						<h3 class="mb-2 text-lg font-semibold">Your prize</h3>
