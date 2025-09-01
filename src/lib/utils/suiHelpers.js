@@ -131,3 +131,15 @@ export function formatSui(balance = '0') {
 		return balance?.toString() ?? '0';
 	}
 }
+
+/**
+ * Checks if an account is on the SUI testnet
+ * @param {Object} account - The account object to check
+ * @returns {boolean} True if the account is on the SUI testnet, false otherwise
+ */
+export function isTestnet(account) {
+	if (!account.value) return true;
+	const chain = account.value?.chains?.[0];
+	if (!chain) return true;
+	return chain === 'sui:testnet';
+}

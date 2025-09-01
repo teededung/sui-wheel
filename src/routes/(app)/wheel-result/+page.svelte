@@ -5,7 +5,7 @@
 	import { account, signAndExecuteTransaction } from 'sui-svelte-wallet-kit';
 	import { page } from '$app/stores';
 	import { shortenAddress } from '$lib/utils/string.js';
-	import { formatMistToSuiCompact } from '$lib/utils/suiHelpers.js';
+	import { formatMistToSuiCompact, isTestnet } from '$lib/utils/suiHelpers.js';
 	import { PACKAGE_ID, WHEEL_MODULE, WHEEL_FUNCTIONS, CLOCK_OBJECT_ID } from '$lib/constants.js';
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
 	import { toast } from 'svelte-daisy-toaster';
@@ -13,6 +13,7 @@
 
 	const client = new SuiClient({ url: 'https://fullnode.testnet.sui.io' });
 
+	let isOnTestnet = $derived.by(() => isTestnet(account));
 	let wheelId = $state('');
 	let loading = $state(true);
 	let error = $state('');
@@ -536,6 +537,12 @@
 </svelte:head>
 
 <section class="container mx-auto px-4 py-6">
+	{#if account.value && !isOnTestnet}
+		<div class="alert alert-warning mb-4 text-sm">
+			<span class="icon-[lucide--triangle-alert] h-4 w-4"></span>
+			<span>This app runs on Sui Testnet. Please switch your wallet network to Testnet.</span>
+		</div>
+	{/if}
 	<div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 		<h1 class="text-xl font-bold">Wheel Results</h1>
 		{#if wheelId}
@@ -598,7 +605,8 @@
 								color="warning"
 								size="xs"
 								loadingText="Reclaiming..."
-								onclick={reclaimPool}>Reclaim</ButtonLoading
+								onclick={reclaimPool}
+								disabled={!isOnTestnet}>Reclaim</ButtonLoading
 							>
 						{/if}
 					</div>
@@ -794,7 +802,8 @@
 										formLoading={reclaimLoading}
 										color="primary"
 										loadingText="Claiming..."
-										onclick={() => claim(winnerPrizeIndex)}>Claim prize</ButtonLoading
+										onclick={() => claim(winnerPrizeIndex)}
+										disabled={!isOnTestnet}>Claim prize</ButtonLoading
 									>
 								{:else if getClaimState(winnerPrizeIndex).state === 'too_early'}
 									<div class="text-xs opacity-80">

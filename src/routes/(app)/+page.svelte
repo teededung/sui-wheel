@@ -19,7 +19,8 @@
 		isValidSuiAddress,
 		parseSuiToMist,
 		formatMistToSuiCompact,
-		formatMistToSui
+		formatMistToSui,
+		isTestnet
 	} from '$lib/utils/suiHelpers.js';
 
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
@@ -104,13 +105,7 @@
 			return 0n;
 		}
 	});
-	let isOnTestnet = $derived.by(() => {
-		// Treat as pending (true) until account and chain are resolved to avoid warning flicker
-		if (!account.value) return true;
-		const chain = account.value?.chains?.[0];
-		if (!chain) return true;
-		return chain === 'sui:testnet';
-	});
+	let isOnTestnet = $derived.by(() => isTestnet(account));
 
 	const spinAnimationConfig = {
 		duration: 10000,
