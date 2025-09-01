@@ -31,7 +31,7 @@
 
 		<!-- Logo -->
 		<a href="/" class="flex items-center gap-2 text-xl">
-			<img src="/sui-logo.png" alt="Sui logo" class="h-8 rounded-full" />
+			<img src="/sui-wheel-logo-small.png" alt="Sui wheel logo" class="h-8 rounded-full" />
 			<span class="text-md hidden lg:block">Sui Wheel</span>
 		</a>
 	</div>
