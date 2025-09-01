@@ -19,7 +19,7 @@ export const MINIMUM_PRIZE_AMOUNT = {
 /**
  * Default package id placeholder. Replace with your actual package id on testnet.
  */
-export const PACKAGE_ID = '0x70b44c598b4bffa29dc75e99fb03ebeee93bfbd3ef34066086a57d1b524a7f09';
+export const PACKAGE_ID = '0x63f33b3a73432b1ecd625cdb5827376d9a58c7130aab56ea7c89a83a9f3671c0';
 
 /**
  * Module and struct names for the wheel contract
@@ -31,6 +31,7 @@ export const WHEEL_FUNCTIONS = {
 	CREATE: 'create_wheel',
 	DONATE: 'donate_to_pool',
 	SPIN: 'spin_wheel',
+	SPIN_AND_ASSIGN_LAST: 'spin_wheel_and_assign_last_prize',
 	CANCEL: 'cancel_wheel_and_reclaim_pool',
 	CLAIM: 'claim_prize',
 	RECLAIM: 'reclaim_pool'

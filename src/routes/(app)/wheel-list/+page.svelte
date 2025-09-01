@@ -162,11 +162,11 @@
 												href={`https://testnet.suivision.xyz/object/${w.id}`}
 												target="_blank"
 												rel="noopener noreferrer"
-												class="link link-primary hover:link-accent"
+												class="link link-primary hover:link-accent flex items-center gap-2"
 												title={`View ${w.id} on Sui Vision`}
 												aria-label={`View wheel ${shortenAddress(w.id)} on Sui Vision`}
 											>
-												{shortenAddress(w.id)}
+												{shortenAddress(w.id)} <span class="icon-[lucide--external-link]"></span>
 											</a>
 										</td>
 										<td class="whitespace-nowrap">
@@ -192,12 +192,12 @@
 										<td>
 											<div class="join">
 												<a
-													class="btn btn-sm join-item"
+													class="btn btn-sm btn-success btn-soft join-item"
 													href={`/?wheelId=${w.id}`}
 													aria-label="Open wheel to spin">Open</a
 												>
 												<a
-													class="btn btn-sm btn-outline join-item"
+													class="btn btn-sm btn-secondary btn-soft join-item"
 													href={`/wheel-result/?wheelId=${w.id}`}
 													aria-label="View results">Results</a
 												>

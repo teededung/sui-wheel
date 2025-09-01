@@ -131,6 +131,8 @@
 	let pointerColorOverride = $state('');
 	// Store last winner to display after removal
 	let lastWinner = $state('');
+	let secondaryWinner = $state('');
+	let usedCombinedSpin = $state(false);
 	// Duplicate entries tracking
 	let duplicateEntries = $state([]);
 	// GSAP animation state
@@ -903,10 +905,34 @@
 		try {
 			// Mark as busy while the transaction is pending
 			spinning = true;
-			// call move function spin_wheel
+			secondaryWinner = '';
+			usedCombinedSpin = false;
+			// Build transaction and choose function depending on remaining unique entries
 			const tx = new Transaction();
+			let remainingEntriesList = createdWheelId ? entriesOnChain : entries;
+			try {
+				remainingEntriesList = remainingEntriesList
+					.map(s => String(s ?? '').trim())
+					.filter(s => s.length > 0);
+			} catch {}
+			const uniqueLeft = (() => {
+				try {
+					const set = new Set(
+						remainingEntriesList.map(s => s.toLowerCase()).filter(s => isValidSuiAddress(s))
+					);
+					return set.size;
+				} catch {
+					return Math.max(0, remainingEntriesList?.length || 0);
+				}
+			})();
+			// Use combined spin when before this spin there are exactly 2 unique entries and 2 prizes left
+			const shouldAssignLast = uniqueLeft === 2 && remainingSpins === 2 && !isCancelled;
+			usedCombinedSpin = shouldAssignLast;
+			const targetFn = shouldAssignLast
+				? WHEEL_FUNCTIONS.SPIN_AND_ASSIGN_LAST
+				: WHEEL_FUNCTIONS.SPIN;
 			tx.moveCall({
-				target: `${packageId}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.SPIN}`,
+				target: `${packageId}::${WHEEL_MODULE}::${targetFn}`,
 				arguments: [
 					tx.object(createdWheelId),
 					tx.object(RANDOM_OBJECT_ID),
@@ -917,7 +943,7 @@
 			const digest = res?.digest ?? res?.effects?.transactionDigest;
 			if (!digest) throw new Error('Missing tx digest for spin');
 
-			// Try to read SpinEvent from the transaction to get the exact winner and prize index
+			// Try to read SpinEvent(s) from the transaction to get the exact winner(s)
 			let targetIdx = -1;
 			try {
 				const txBlock = await testnetClient.getTransactionBlock({
@@ -925,16 +951,35 @@
 					options: { showEvents: true }
 				});
 				const spinEventType = `${packageId}::${WHEEL_MODULE}::SpinEvent`;
-				const ev = (txBlock?.events || []).find(e => {
+				const spinEvents = (txBlock?.events || []).filter(e => {
 					const t = String(e?.type || '');
 					return t === spinEventType || t.endsWith(`::${WHEEL_MODULE}::SpinEvent`);
 				});
-				const parsed = ev?.parsedJson || {};
+				// When combined is used, there can be 2 SpinEvents; animate to the first winner
+				const firstEv = spinEvents?.[0];
+				const parsed = firstEv?.parsedJson || {};
 				const winnerAddr = String(
 					parsed?.winner ?? parsed?.winner_address ?? parsed?.winnerAddress ?? ''
 				).toLowerCase();
 				if (winnerAddr) {
-					targetIdx = entries.findIndex(a => String(a ?? '').toLowerCase() === winnerAddr);
+					// If the winner appears multiple times (duplicates), pick a random matching index for animation
+					const candidateIdxs = entries.reduce((acc, a, i) => {
+						if (String(a ?? '').toLowerCase() === winnerAddr) acc.push(i);
+						return acc;
+					}, []);
+					targetIdx = candidateIdxs.length
+						? candidateIdxs[Math.floor(Math.random() * candidateIdxs.length)]
+						: -1;
+				}
+				if (usedCombinedSpin && spinEvents.length > 1) {
+					const secondParsed = spinEvents[1]?.parsedJson || {};
+					const secondAddr = String(
+						secondParsed?.winner ??
+							secondParsed?.winner_address ??
+							secondParsed?.winnerAddress ??
+							''
+					).toLowerCase();
+					if (secondAddr) secondaryWinner = secondAddr;
 				}
 			} catch {}
 
@@ -1040,6 +1085,10 @@
 				const winnerIndex = selectedIndex;
 				const winnerValue = entries[winnerIndex];
 				lastWinner = String(winnerValue ?? '');
+				// If combined spin used and we parsed secondary winner address, keep it for modal display
+				if (usedCombinedSpin && secondaryWinner) {
+					// Keep secondaryWinner as full address string; UI will shorten if needed
+				}
 				if (lastWinner) {
 					// do not remove winner from list if fetch is requested
 					if (!postSpinFetchRequested) {
@@ -1733,6 +1782,17 @@
 					</div>
 				</div>
 
+				{#if usedCombinedSpin && secondaryWinner}
+					<div class="mt-3 text-center text-sm">
+						<span class="opacity-80">Also assigned:</span>
+						<strong class="ml-2 font-mono">
+							{isValidSuiAddress(secondaryWinner)
+								? shortenAddress(secondaryWinner)
+								: secondaryWinner}
+						</strong>
+					</div>
+				{/if}
+
 				<!-- Sparkle effects -->
 				<div class="absolute -top-2 -right-2 animate-ping text-2xl">✨</div>
 				<div class="absolute -bottom-2 -left-2 animate-ping text-2xl" style="animation-delay: 0.5s">
@@ -1746,7 +1806,7 @@
 				</div>
 			</div>
 			<small class="mt-5 block text-gray-500">
-				The winner will be automatically removed from the list for the next spin.
+				The winner will be automatically removed from the list.
 			</small>
 		</div>
 	</div>
