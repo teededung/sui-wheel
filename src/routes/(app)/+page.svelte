@@ -1017,6 +1017,46 @@
 		spinToIndex(randomIndex, spinAnimationConfig);
 	}
 
+	function showConfetti() {
+		// trigger confetti
+		try {
+			const cf = typeof window !== 'undefined' ? window.confetti : undefined;
+			if (typeof cf === 'function') {
+				const duration = 3 * 1000,
+					animationEnd = Date.now() + duration,
+					defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 1000 };
+
+				function randomInRange(min, max) {
+					return Math.random() * (max - min) + min;
+				}
+
+				const interval = setInterval(function () {
+					const timeLeft = animationEnd - Date.now();
+
+					if (timeLeft <= 0) {
+						return clearInterval(interval);
+					}
+
+					const particleCount = 50 * (timeLeft / duration);
+
+					// since particles fall down, start a bit higher than random
+					cf(
+						Object.assign({}, defaults, {
+							particleCount,
+							origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+						})
+					);
+					cf(
+						Object.assign({}, defaults, {
+							particleCount,
+							origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+						})
+					);
+				}, 250);
+			}
+		} catch {}
+	}
+
 	function spinToIndex(targetIndex, opts = {}) {
 		const n = Math.max(1, entries.length);
 		if (spinning || n < 1) return;
@@ -1100,7 +1140,10 @@
 					selectedIndex = null;
 					spinAngle = 0;
 					// show winner modal
-					if (winnerModal && !winnerModal.open) winnerModal.showModal();
+					if (winnerModal && !winnerModal.open) {
+						winnerModal.showModal();
+						showConfetti();
+					}
 				}
 				// Fetch wheel data if requested
 				if (postSpinFetchRequested) {
