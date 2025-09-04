@@ -10,6 +10,9 @@ const config = {
 		csrf: {
 			trustedOrigins: ['*']
 		}
+	},
+	vitePlugin: {
+		inspector: true
 	}
 };
 
