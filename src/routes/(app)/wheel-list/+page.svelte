@@ -171,114 +171,112 @@
 				<a href="/" class="btn btn-primary btn-sm" aria-label="Create new wheel">Create new</a>
 			</div>
 
-			<svelte:boundary>
-				{#if !account.value}
-					{#if accountLoading.value}
-						<div class="alert alert-info">
-							<span class="loading loading-spinner loading-sm"></span>
-							Account loading...
-						</div>
-					{:else}
-						<div class="alert alert-info">Please connect your wallet to view your wheels.</div>
-					{/if}
+			{#if !account.value}
+				{#if accountLoading.value}
+					<div class="alert alert-info">
+						<span class="loading loading-spinner loading-sm"></span>
+						Account loading...
+					</div>
 				{:else}
-					{#if errorMsg}
-						<div class="alert alert-error break-words">{errorMsg}</div>
-					{/if}
-
-					{#if accountLoading.value || loadingWheels}
-						<div class="space-y-3">
-							<div class="skeleton h-8 w-40"></div>
-							<div class="skeleton h-32 w-full"></div>
-						</div>
-					{:else if wheels.length === 0}
-						<div class="text-sm opacity-70">No wheels found.</div>
-					{:else}
-						<div class="relative">
-							<div class="overflow-x-auto">
-								<table class="table-zebra table">
-									<thead>
-										<tr>
-											<th class="w-12">#</th>
-											<th>Wheel ID</th>
-											<th>Created</th>
-											<th>Status</th>
-											<th class="w-64">Actions</th>
-										</tr>
-									</thead>
-									<tbody>
-										{#each wheels as w, i (w.id)}
-											<tr>
-												<td>{i + 1}</td>
-												<td class="font-mono">
-													<a
-														href={`https://testnet.suivision.xyz/object/${w.id}`}
-														target="_blank"
-														rel="noopener noreferrer"
-														class="link link-primary hover:link-accent flex items-center gap-2"
-														title={`View ${w.id} on Sui Vision`}
-														aria-label={`View wheel ${shortenAddress(w.id)} on Sui Vision`}
-													>
-														{shortenAddress(w.id)}
-														<span class="icon-[lucide--external-link]"></span>
-													</a>
-												</td>
-												<td class="whitespace-nowrap">
-													{#if w.timestampMs}
-														<span class="badge badge-soft badge-success">
-															{formatDistanceToNow(w.timestampMs, { addSuffix: true })}
-														</span>
-													{:else}
-														<span class="opacity-60">—</span>
-													{/if}
-												</td>
-												<td>
-													{#if w.status === 'Cancelled'}
-														<span class="badge badge-warning">Cancelled</span>
-													{:else if w.status === 'Running'}
-														<span class="badge badge-primary">Running</span>
-													{:else if w.status === 'Finished'}
-														<span class="badge badge-neutral">Finished</span>
-													{:else}
-														<span class="badge">—</span>
-													{/if}
-												</td>
-												<td>
-													<div class="join">
-														<a
-															class="btn btn-sm btn-success btn-soft join-item"
-															href={`/?wheelId=${w.id}`}
-															aria-label="Open wheel to spin">Open</a
-														>
-														<a
-															class="btn btn-sm btn-secondary btn-soft join-item"
-															href={`/wheel-result/?wheelId=${w.id}`}
-															aria-label="View results">Results</a
-														>
-													</div>
-												</td>
-											</tr>
-										{/each}
-									</tbody>
-								</table>
-							</div>
-							{#if refreshing}
-								<div
-									class="bg-base-300/40 pointer-events-none absolute inset-0 grid place-items-center"
-									in:fade
-									out:fade
-									aria-hidden="true"
-								>
-									<span
-										class="loading loading-spinner loading-md text-primary"
-										aria-label="Refreshing"
-									></span>
-								</div>
-							{/if}
-						</div>
-					{/if}
+					<div class="alert alert-info">Please connect your wallet to view your wheels.</div>
 				{/if}
-			</svelte:boundary>
+			{:else}
+				{#if errorMsg}
+					<div class="alert alert-error break-words">{errorMsg}</div>
+				{/if}
+
+				{#if accountLoading.value || loadingWheels}
+					<div class="space-y-3">
+						<div class="skeleton h-8 w-40"></div>
+						<div class="skeleton h-32 w-full"></div>
+					</div>
+				{:else if wheels.length === 0}
+					<div class="text-sm opacity-70">No wheels found.</div>
+				{:else}
+					<div class="relative">
+						<div class="overflow-x-auto">
+							<table class="table-zebra table">
+								<thead>
+									<tr>
+										<th class="w-12">#</th>
+										<th>Wheel ID</th>
+										<th>Created</th>
+										<th>Status</th>
+										<th class="w-64">Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each wheels as w, i (w.id)}
+										<tr>
+											<td>{i + 1}</td>
+											<td class="font-mono">
+												<a
+													href={`https://testnet.suivision.xyz/object/${w.id}`}
+													target="_blank"
+													rel="noopener noreferrer"
+													class="link link-primary hover:link-accent flex items-center gap-2"
+													title={`View ${w.id} on Sui Vision`}
+													aria-label={`View wheel ${shortenAddress(w.id)} on Sui Vision`}
+												>
+													{shortenAddress(w.id)}
+													<span class="icon-[lucide--external-link]"></span>
+												</a>
+											</td>
+											<td class="whitespace-nowrap">
+												{#if w.timestampMs}
+													<span class="badge badge-soft badge-success">
+														{formatDistanceToNow(w.timestampMs, { addSuffix: true })}
+													</span>
+												{:else}
+													<span class="opacity-60">—</span>
+												{/if}
+											</td>
+											<td>
+												{#if w.status === 'Cancelled'}
+													<span class="badge badge-warning">Cancelled</span>
+												{:else if w.status === 'Running'}
+													<span class="badge badge-primary">Running</span>
+												{:else if w.status === 'Finished'}
+													<span class="badge badge-neutral">Finished</span>
+												{:else}
+													<span class="badge">—</span>
+												{/if}
+											</td>
+											<td>
+												<div class="join">
+													<a
+														class="btn btn-sm btn-success btn-soft join-item"
+														href={`/?wheelId=${w.id}`}
+														aria-label="Open wheel to spin">Open</a
+													>
+													<a
+														class="btn btn-sm btn-secondary btn-soft join-item"
+														href={`/wheel-result/?wheelId=${w.id}`}
+														aria-label="View results">Results</a
+													>
+												</div>
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+						{#if refreshing}
+							<div
+								class="bg-base-300/40 pointer-events-none absolute inset-0 grid place-items-center"
+								in:fade
+								out:fade
+								aria-hidden="true"
+							>
+								<span
+									class="loading loading-spinner loading-md text-primary"
+									aria-label="Refreshing"
+								></span>
+							</div>
+						{/if}
+					</div>
+				{/if}
+			{/if}
 		</div>
 	</div>
 </section>
