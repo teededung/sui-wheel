@@ -122,6 +122,8 @@
 	let entriesText = $state('');
 	let serverTargetIndex = $state(null);
 	let spinning = $state(false);
+	// Show pre-submission state while waiting for wallet signature / zkLogin
+	let progressing = $state(false);
 	let muted = $state(false);
 	let selectedIndex = $state(null);
 	let spinAngle = $state(0); // radians
@@ -317,11 +319,12 @@
 
 			// Sign and execute the combined PTB
 			const res = await signAndExecuteTransaction(tx);
+
 			const digest = res?.digest ?? res?.effects?.transactionDigest;
 			if (!digest) throw new Error('Failed to get transaction digest');
 
-			// Fetch transaction block to get the created Wheel object ID
-			const txBlock = await testnetClient.getTransactionBlock({
+			// Wait for the transaction to be available across RPCs, then read object changes
+			const txBlock = await testnetClient.waitForTransaction({
 				digest,
 				options: { showObjectChanges: true }
 			});
@@ -903,8 +906,9 @@
 		if (!createdWheelId || spinning || isCancelled) return;
 		if (!account.value) return;
 		try {
-			// Mark as busy while the transaction is pending
+			// Mark as busy and show pre-submission progress while waiting for signature
 			spinning = true;
+			progressing = true;
 			secondaryWinner = '';
 			usedCombinedSpin = false;
 			// Build transaction and choose function depending on remaining unique entries
@@ -940,13 +944,15 @@
 				]
 			});
 			const res = await signAndExecuteTransaction(tx);
+			// After submission, switch to spinning state
+			progressing = false;
 			const digest = res?.digest ?? res?.effects?.transactionDigest;
 			if (!digest) throw new Error('Missing tx digest for spin');
 
 			// Try to read SpinEvent(s) from the transaction to get the exact winner(s)
 			let targetIdx = -1;
 			try {
-				const txBlock = await testnetClient.getTransactionBlock({
+				const txBlock = await testnetClient.waitForTransaction({
 					digest,
 					options: { showEvents: true }
 				});
@@ -1000,6 +1006,7 @@
 		} catch (e) {
 			setupError = e?.message || String(e);
 			spinning = false;
+			progressing = false;
 		}
 	}
 
@@ -1330,7 +1337,7 @@
 								formLoading={spinning}
 								color="primary"
 								size="lg"
-								loadingText="Spinning..."
+								loadingText={progressing ? 'Confirming...' : 'Spinning...'}
 								onclick={account?.value ? spinOnChainAndAnimate : spin}
 								aria-label="Spin the wheel"
 								moreClass={`w-full h-full bg-white rounded-full text-black pointer-events-auto shadow-lg`}
@@ -1463,7 +1470,7 @@
 											color="error"
 											loadingText="Cancelling..."
 											onclick={cancelWheel}
-											disabled={spunCountOnChain > 0}>Cancel wheel</ButtonLoading
+											disabled={spinning || spunCountOnChain > 0}>Cancel wheel</ButtonLoading
 										>
 									{/if}
 								{/if}

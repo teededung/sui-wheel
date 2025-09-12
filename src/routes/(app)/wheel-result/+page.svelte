@@ -15,7 +15,11 @@
 
 	let isOnTestnet = $derived.by(() => isTestnet(account));
 	let wheelId = $state('');
+
 	let loading = $state(true);
+	let reclaimLoading = $state(false);
+	let claimLoading = $state(false);
+
 	let error = $state('');
 	let packageId = $state(PACKAGE_ID);
 	let winners = $state([]);
@@ -26,15 +30,17 @@
 	let claimWindowMs = $state(0);
 	let organizer = $state('');
 	let nowMs = $state(Date.now());
-	let reclaimLoading = $state(false);
+
 	let ticker;
 	let poolBalanceMist = $state(0n);
 	let lastReclaim = $state({ amount: 0n, timestampMs: 0, digest: '' });
 	let lastClaim = $state({ amount: 0n, timestampMs: 0, digest: '' });
 	let isCancelled = $state(false);
+
 	// Wheel meta
 	let wheelCreatedAtMs = $state(0);
 	let wheelCreatedTx = $state('');
+
 	// Non-winning entries (remaining entries on chain)
 	let nonWinningEntries = $state([]);
 	let winnerInfo = $derived.by(() => {
@@ -315,6 +321,7 @@
 			return;
 		}
 		error = '';
+		claimLoading = true;
 		const t = toast.loading('Claiming...', { position: 'bottom-right' });
 		try {
 			const tx = new Transaction();
@@ -332,6 +339,7 @@
 		} catch (e) {
 			error = e?.message || String(e);
 		} finally {
+			claimLoading = false;
 			t.dismiss();
 		}
 	}
@@ -810,7 +818,7 @@
 								{#if winnerPrizeIndex >= 0}
 									{#if getClaimState(winnerPrizeIndex).state === 'claimable'}
 										<ButtonLoading
-											formLoading={reclaimLoading}
+											formLoading={claimLoading}
 											color="primary"
 											loadingText="Claiming..."
 											onclick={() => claim(winnerPrizeIndex)}
