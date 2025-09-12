@@ -1745,14 +1745,18 @@
 												Entries count (<strong>{entries.length}</strong>) must be ≤ 200.
 											</li>
 										{/if}
-										{#if isOnTestnet && hasInsufficientBalance}
-											<li>
-												Wallet balance (<strong
-													>{formatMistToSuiCompact(suiBalance.value)} SUI</strong
-												>) is less than total required (<strong
-													>{formatMistToSuiCompact(totalDonationMist)} SUI</strong
-												>).
-											</li>
+										{#if hasInsufficientBalance}
+											{#if suiBalance.value < 1_000_000_000}
+												<li>Wallet balance needs to be more than 1 SUI.</li>
+											{:else}
+												<li>
+													Wallet balance (<strong
+														>{formatMistToSuiCompact(suiBalance.value)} SUI</strong
+													>) is less than total required (<strong
+														>{formatMistToSuiCompact(totalDonationMist)} SUI</strong
+													>).
+												</li>
+											{/if}
 										{/if}
 									</ul>
 								</div>
