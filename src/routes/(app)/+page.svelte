@@ -14,7 +14,7 @@
 		suiBalance,
 		suiBalanceLoading
 	} from 'sui-svelte-wallet-kit';
-	import { shortenAddress } from '$lib/utils/string.js';
+	import { shortenAddress, arraysShallowEqual, shuffleArray } from '$lib/utils/string.js';
 	import {
 		isValidSuiAddress,
 		parseSuiToMist,
@@ -1169,30 +1169,10 @@
 		spinToIndex(idx, opts);
 	}
 
-	function shuffle() {
-		if (entries.length < 2) return;
+	function handleShuffle() {
 		if (spinning) return;
 		selectedIndex = null;
-
-		// Create a copy of the current entries for comparison
-		const previousEntries = [...entries];
-
-		// Helper function for Fisher-Yates shuffle (unbiased random shuffle)
-		function fisherYatesShuffle(arr) {
-			const shuffled = [...arr];
-			for (let i = shuffled.length - 1; i > 0; i--) {
-				const j = Math.floor(Math.random() * (i + 1));
-				[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-			}
-			return shuffled;
-		}
-
-		// Shuffle until the result differs from the previous entries
-		do {
-			entries = fisherYatesShuffle(entries);
-		} while (arraysShallowEqual(entries, previousEntries));
-
-		// Update the text representation of entries for display
+		entries = shuffleArray(entries);
 		entriesText = entries.join('\n');
 	}
 
@@ -1202,17 +1182,6 @@
 		entries = [];
 		selectedIndex = null;
 		spinAngle = 0;
-	}
-
-	function arraysShallowEqual(a, b) {
-		// Compare two string arrays by value and order
-		if (a === b) return true;
-		if (!Array.isArray(a) || !Array.isArray(b)) return false;
-		if (a.length !== b.length) return false;
-		for (let i = 0; i < a.length; i++) {
-			if (a[i] !== b[i]) return false;
-		}
-		return true;
 	}
 
 	function onEntriesTextChange(text) {
@@ -1396,7 +1365,7 @@
 							class="btn btn-outline"
 							class:btn-disabled={spinning || entries.length < 2}
 							disabled={spinning || entries.length < 2}
-							onclick={shuffle}
+							onclick={handleShuffle}
 							aria-label="Shuffle entries">Shuffle</button
 						>
 						{#if !createdWheelId}
@@ -1516,7 +1485,9 @@
 								onclick={() => (activeTab = 'entries')}
 							/>
 							<div class="tab-content bg-base-100 border-base-300 p-6">
-								<h3 class="mb-4 text-lg font-semibold">Entries ({entriesOnChain.length})</h3>
+								<h3 class="mb-4 text-lg font-semibold">
+									Entries ({account.value ? entriesOnChain.length : entries.length})
+								</h3>
 
 								{#if createdWheelId && wheelFetched && !isEditing}
 									{#if entriesOnChain.length > 0}
