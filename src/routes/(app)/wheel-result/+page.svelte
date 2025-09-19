@@ -705,7 +705,7 @@
 					<h2 class="text-lg font-semibold">Non-winning entries</h2>
 
 					<div class="overflow-x-auto">
-						<table class="table-zebra table">
+						<table class="table">
 							<thead>
 								<tr>
 									<th>#</th>

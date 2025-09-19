@@ -1,7 +1,6 @@
 <script>
-	import { onMount, onDestroy } from 'svelte';
-	import { watch, IsIdle } from 'runed';
-	import { gsap } from 'gsap';
+	import { onMount } from 'svelte';
+	import { watch } from 'runed';
 	import { SuiClient } from '@mysten/sui/client';
 	import { Transaction } from '@mysten/sui/transactions';
 	import { goto } from '$app/navigation';
@@ -24,6 +23,8 @@
 	} from '$lib/utils/suiHelpers.js';
 
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
+	import Wheel from '$lib/components/Wheel.svelte';
+	import { wheelCtx } from '$lib/context/wheel.js';
 	import QRCode from 'qrcode';
 
 	import {
@@ -36,10 +37,10 @@
 		CLOCK_OBJECT_ID
 	} from '$lib/constants.js';
 
-	const idle = new IsIdle({ timeout: 15000 });
+	// Wheel's idle rotation moved into Wheel component
 
 	// Testnet Sui client for reading transaction details
-	const testnetClient = new SuiClient({ url: 'https://fullnode.testnet.sui.io' });
+	const suiClient = new SuiClient({ url: 'https://fullnode.testnet.sui.io' });
 
 	// State
 	let entries = $state([
@@ -107,42 +108,13 @@
 	});
 	let isOnTestnet = $derived.by(() => isTestnet(account));
 
-	const spinAnimationConfig = {
-		duration: 10000,
-		extraTurnsMin: 6,
-		extraTurnsMax: 10,
-		marginFraction: 0.05,
-		easePower: 3
-	};
-
 	// UI: active tab in settings (entries | prizes | others)
 	let activeTab = $state('entries');
 
-	let newEntry = $state('');
 	let entriesText = $state('');
-	let serverTargetIndex = $state(null);
 	let spinning = $state(false);
-	// Show pre-submission state while waiting for wallet signature / zkLogin
-	let progressing = $state(false);
-	let muted = $state(false);
-	let selectedIndex = $state(null);
-	let spinAngle = $state(0); // radians
-	let pointerIndex = $state(0);
-	let pointerColor = $state('#ef4444');
-	// If empty string -> auto color while spinning; if hex -> fixed color
-	let pointerColorOverride = $state('');
-	// Store last winner to display after removal
-	let lastWinner = $state('');
-	let secondaryWinner = $state('');
-	let usedCombinedSpin = $state(false);
 	// Duplicate entries tracking
 	let duplicateEntries = $state([]);
-	// GSAP animation state
-	let currentTween;
-	// Idle rotation state
-	let idleTween;
-	const idleAnimState = { angle: 0 };
-	const animState = { angle: 0 };
 
 	let totalDonationMist = $derived.by(() => {
 		try {
@@ -152,18 +124,21 @@
 		}
 	});
 
+	// Expose helpers to Wheel component via context
+	function setWheelSpinning(v) {
+		spinning = Boolean(v);
+	}
+
+	function removeEntryValue(value) {
+		const v = String(value ?? '').trim();
+		entries = entries.filter(entry => String(entry ?? '').trim() !== v);
+		entriesText = entries.join('\n');
+	}
+
 	// Remaining spins based on on-chain prizes and spun count
 	let remainingSpins = $derived.by(() =>
 		Math.max(0, (prizesOnChainMist.length || 0) - (spunCountOnChain || 0))
 	);
-
-	// Disable spin in both modes (off-chain and on-chain)
-	let isSpinDisabled = $derived.by(() => {
-		// On-chain: disable if no remaining spins
-		if (createdWheelId) return isCancelled || remainingSpins === 0;
-		// Off-chain: disable if wallet connected (requires on-chain flow) or not enough entries
-		return (Boolean(account.value) && !createdWheelId) || entries.length < 2;
-	});
 
 	let invalidEntriesCount = $derived.by(() => {
 		const lines = entries.map(s => String(s ?? '').trim()).filter(s => s.length > 0);
@@ -324,7 +299,7 @@
 			if (!digest) throw new Error('Failed to get transaction digest');
 
 			// Wait for the transaction to be available across RPCs, then read object changes
-			const txBlock = await testnetClient.waitForTransaction({
+			const txBlock = await suiClient.waitForTransaction({
 				digest,
 				options: { showObjectChanges: true }
 			});
@@ -370,7 +345,7 @@
 		if (!createdWheelId) return;
 		try {
 			wheelLoading = true;
-			const res = await testnetClient.getObject({
+			const res = await suiClient.getObject({
 				id: createdWheelId,
 				options: { showContent: true, showOwner: true, showType: true }
 			});
@@ -537,100 +512,17 @@
 		}
 	}
 
-	// Precomputed label layouts to avoid per-frame text measurement
-	let labelLayouts = $state([]); // [{ displayText: string, font: string }] aligned with entries
-
-	/** Canvas and layout refs */
-	let canvasEl = $state(null);
-	let canvasContainerEl = $state(null);
+	/** Entries textarea ref */
 	let entriesTextareaEl = $state(null);
-	let ctx;
-	let wheelSize = $state(0); // CSS px size (square)
-	// Offscreen canvas for pre-rendering the wheel
-	let offscreenCanvas;
-	let offscreenCtx;
-
-	/** Audio */
-	let winAudio;
-
-	/** Modal */
-	let winnerModal = $state(null);
-
-	// Angle tracking for multi-crossing detection
-	let lastAngle = 0;
-	onMount(() => {
-		winAudio = new Audio('/crowd-reaction.mp3');
-		winAudio.preload = 'auto';
-		winAudio.volume = 0.5;
-	});
 
 	watch(
 		() => entries,
 		() => {
-			recomputeLabelLayouts();
-			renderWheelBitmap();
-			drawStaticWheel();
-			updatePointerColor();
 			updateDuplicateEntries();
 		}
 	);
 
-	/** Resize handling */
-	let resizeObserver;
-	function setupCanvas() {
-		if (!canvasEl || !canvasContainerEl) return;
-		const dpr = Math.max(1, window.devicePixelRatio || 1);
-		const size = Math.min(canvasContainerEl.clientWidth, 560);
-		const newWidth = Math.floor(size * dpr);
-		const newHeight = Math.floor(size * dpr);
-
-		//canvas size unchanged, skipping resize
-		if (newWidth === canvasEl.width && newHeight === canvasEl.height) {
-			return;
-		}
-		wheelSize = size;
-
-		canvasEl.style.width = `${size}px`;
-		canvasEl.style.height = `${size}px`;
-		canvasEl.width = newWidth;
-		canvasEl.height = newHeight;
-		ctx = canvasEl.getContext('2d');
-		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-		ctx.imageSmoothingEnabled = true;
-		ctx.imageSmoothingQuality = 'high';
-
-		// initialize offscreen canvas for static wheel bitmap
-		offscreenCanvas = document.createElement('canvas');
-		offscreenCanvas.width = newWidth;
-		offscreenCanvas.height = newHeight;
-		offscreenCtx = offscreenCanvas.getContext('2d');
-		offscreenCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-		offscreenCtx.imageSmoothingEnabled = true;
-		offscreenCtx.imageSmoothingQuality = 'high';
-
-		recomputeLabelLayouts();
-		renderWheelBitmap();
-		drawStaticWheel();
-		if (canvasEl) {
-			canvasEl.style.transform = `rotate(${spinAngle}rad)`;
-		}
-		updatePointerColor();
-
-		// start idle rotation when not spinning
-		startIdleRotationIfNeeded();
-	}
-
 	onMount(() => {
-		resizeObserver = new ResizeObserver(() => setupCanvas());
-		if (canvasContainerEl) resizeObserver.observe(canvasContainerEl);
-		setupCanvas();
-		if (canvasEl) {
-			canvasEl.style.willChange = 'transform';
-			canvasEl.style.transformOrigin = '50% 50%';
-			canvasEl.style.backfaceVisibility = 'hidden';
-		}
-		// Also fetch wheel data if an id is preset
-		// Try to read wheelId from URL to restore state on reload
 		try {
 			const params = new URLSearchParams(window.location.search);
 			const w = params.get('wheelId');
@@ -641,537 +533,8 @@
 		}
 	});
 
-	onDestroy(() => {
-		if (resizeObserver && canvasContainerEl) resizeObserver.unobserve(canvasContainerEl);
-		// Kill GSAP tween on destroy to avoid leaks
-		if (currentTween) {
-			currentTween.kill();
-			currentTween = null;
-		}
-	});
-
-	/** Drawing */
-	const segmentColors = [
-		'#22c55e', // green-500
-		'#f59e0b', // amber-500
-		'#3b82f6', // blue-500
-		'#ef4444', // red-500
-		'#14b8a6', // teal-500
-		'#a855f7', // purple-500
-		'#eab308', // yellow-500
-		'#06b6d4' // cyan-500
-	];
-
-	let lastTickIndex = null;
-
-	function mod(v, n) {
-		return ((v % n) + n) % n;
-	}
-
-	function fireTickForIndex(idx) {
-		// console.log('Pointer passed entry:', entries[idx]);
-	}
-
-	function updatePointerColor() {
-		const n2 = Math.max(1, entries.length);
-		const arc2 = (Math.PI * 2) / n2;
-		const normalized = (((Math.PI / 2 - spinAngle) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-		const newIndex = Math.floor(normalized / arc2) % n2;
-
-		// update color (fixed override if provided)
-		if (pointerColorOverride && pointerColorOverride.trim() !== '') {
-			pointerColor = pointerColorOverride.trim();
-		} else {
-			pointerColor = segmentColors[newIndex % segmentColors.length];
-		}
-
-		// No tick calculation if not spinning
-		if (!spinning) {
-			pointerIndex = newIndex;
-			lastTickIndex = newIndex;
-			lastAngle = spinAngle;
-			return;
-		}
-
-		// Compute angle delta for direction and multi-crossing detection
-		const deltaAngle = spinAngle - lastAngle; // rad
-
-		// Initialize lastTickIndex on spin start
-		if (lastTickIndex === null) {
-			lastTickIndex = newIndex;
-			lastAngle = spinAngle;
-			pointerIndex = newIndex;
-			return;
-		}
-
-		if (newIndex !== lastTickIndex && deltaAngle !== 0) {
-			// Determine traversal direction: angle increases => pointer index decreases
-			const dir = deltaAngle > 0 ? -1 : 1;
-			// How many segment boundaries passed this frame along that direction
-			const steps = dir > 0 ? mod(newIndex - lastTickIndex, n2) : mod(lastTickIndex - newIndex, n2);
-
-			const MAX_TICKS_PER_FRAME = 12;
-			const toFire = Math.min(steps, MAX_TICKS_PER_FRAME);
-
-			for (let i = 0; i < toFire; i++) {
-				lastTickIndex = mod(lastTickIndex + dir, n2);
-				fireTickForIndex(lastTickIndex);
-			}
-		}
-
-		pointerIndex = newIndex;
-		lastAngle = spinAngle;
-	}
-
-	function renderWheelBitmap() {
-		if (!offscreenCtx || !wheelSize) return;
-
-		const n = Math.max(1, entries.length);
-		const radius = wheelSize / 2;
-		const centerX = radius;
-		const centerY = radius;
-		const arc = (Math.PI * 2) / n;
-
-		const ctx2 = offscreenCtx;
-		ctx2.clearRect(0, 0, wheelSize, wheelSize);
-
-		ctx2.save();
-		const baseStart = -Math.PI / 2; // start at top
-		for (let i = 0; i < n; i++) {
-			const start = baseStart + i * arc;
-			const end = start + arc;
-			ctx2.beginPath();
-			ctx2.moveTo(centerX, centerY);
-			ctx2.arc(centerX, centerY, radius - 4, start, end);
-			ctx2.closePath();
-			ctx2.fillStyle = segmentColors[i % segmentColors.length];
-			ctx2.fill();
-
-			// Separator line
-			ctx2.strokeStyle = 'rgba(0,0,0,0.06)';
-			ctx2.lineWidth = 2;
-			ctx2.stroke();
-
-			// Label rendering
-			const mid = (start + end) / 2;
-			const raw = String(entries[i]).trim();
-			const label = isValidSuiAddress(raw) ? shortenAddress(raw) : raw;
-			if (!label) continue;
-
-			const innerRadius = Math.max(30, radius * 0.2);
-			const outerRadius = radius - 10;
-			const available = outerRadius - innerRadius;
-			const padding = 10;
-			const layout = labelLayouts[i];
-			if (layout && layout.displayText) {
-				ctx2.font = layout.font;
-				ctx2.fillStyle = '#111827';
-				ctx2.textAlign = 'right';
-				ctx2.textBaseline = 'middle';
-				ctx2.save();
-				ctx2.translate(centerX, centerY);
-				ctx2.rotate(mid);
-				ctx2.fillText(layout.displayText, innerRadius + available - padding, 0);
-				ctx2.restore();
-			}
-		}
-
-		// Center circle
-		ctx2.beginPath();
-		ctx2.arc(centerX, centerY, Math.max(22, radius * 0.08), 0, Math.PI * 2);
-		ctx2.fillStyle = '#ffffff';
-		ctx2.fill();
-
-		ctx2.restore();
-	}
-
-	function drawStaticWheel() {
-		if (!ctx || !wheelSize) return;
-		ctx.clearRect(0, 0, wheelSize, wheelSize);
-		if (offscreenCanvas) {
-			ctx.drawImage(
-				offscreenCanvas,
-				0,
-				0,
-				offscreenCanvas.width,
-				offscreenCanvas.height,
-				0,
-				0,
-				wheelSize,
-				wheelSize
-			);
-		}
-	}
-
-	// Idle rotation helpers
-	function startIdleRotationIfNeeded() {
-		if (spinning || currentTween || idleTween || !idle.current) return;
-		// sync starting angle
-		idleAnimState.angle = spinAngle;
-		idleTween = gsap.to(idleAnimState, {
-			angle: idleAnimState.angle + Math.PI * 2,
-			duration: 40,
-			ease: 'linear',
-			repeat: -1,
-			onUpdate: () => {
-				if (!spinning && !currentTween) {
-					spinAngle = idleAnimState.angle;
-					if (canvasEl) canvasEl.style.transform = `rotate(${spinAngle}rad)`;
-				}
-			}
-		});
-	}
-
-	function stopIdleRotation() {
-		if (idleTween) {
-			idleTween.kill();
-			idleTween = null;
-		}
-	}
-
-	function recomputeLabelLayouts() {
-		const measureCtx = offscreenCtx || ctx;
-		if (!measureCtx || !wheelSize) {
-			labelLayouts = [];
-			return;
-		}
-		const n = Math.max(1, entries.length);
-		const radius = wheelSize / 2;
-		const arc = (Math.PI * 2) / n;
-		const innerRadius = Math.max(30, radius * 0.2);
-		const outerRadius = radius - 10;
-		const available = outerRadius - innerRadius;
-		const padding = 10;
-		const maxWidth = Math.max(0, available - padding);
-
-		const layouts = new Array(n);
-		for (let i = 0; i < n; i++) {
-			const raw = String(entries[i] ?? '').trim();
-			const baseLabel = isValidSuiAddress(raw) ? shortenAddress(raw) : raw;
-			if (!baseLabel) {
-				layouts[i] = { displayText: '', font: '' };
-				continue;
-			}
-			const arcDegrees = (arc * 180) / Math.PI;
-			let fontSize = Math.max(9, Math.min(17, arcDegrees * 0.75));
-			let displayText = baseLabel;
-			let font = `600 ${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"`;
-			measureCtx.font = font;
-			let measured = measureCtx.measureText(displayText).width;
-			if (measured > maxWidth && maxWidth > 0) {
-				const scale = maxWidth / measured;
-				fontSize = Math.max(9, Math.floor(fontSize * scale));
-				font = `600 ${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"`;
-				measureCtx.font = font;
-				measured = measureCtx.measureText(displayText).width;
-			}
-			if (measured > maxWidth && maxWidth > 0) {
-				const ellipsis = '…';
-				while (
-					displayText.length > 1 &&
-					measureCtx.measureText(displayText + ellipsis).width > maxWidth
-				) {
-					displayText = displayText.slice(0, -1);
-				}
-				displayText += ellipsis;
-			}
-			layouts[i] = { displayText, font };
-		}
-		labelLayouts = layouts;
-	}
-
-	/** Spin logic */
-	function getGsapEaseFromPower(power = 4) {
-		const p = Math.max(1, Math.min(4, Math.floor(Number(power) || 4)));
-		return `power${p}.out`;
-	}
-
-	function normalizeAngle(radians) {
-		const tau = Math.PI * 2;
-		return ((radians % tau) + tau) % tau;
-	}
-
-	function pickSelectedIndex() {
-		const n = Math.max(1, entries.length);
-		const arc = (Math.PI * 2) / n;
-		// Pointer at right (0 rad) stable after spin
-		const normalized = (((Math.PI / 2 - spinAngle) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-		const idx = Math.floor(normalized / arc) % n;
-		return idx;
-	}
-
-	async function spinOnChainAndAnimate() {
-		if (isSpinDisabled)
-			return toast.info('Please create a wheel first.', { showCloseButton: true });
-		if (!createdWheelId || spinning || isCancelled) return;
-		if (!account.value) return;
-		try {
-			// Mark as busy and show pre-submission progress while waiting for signature
-			spinning = true;
-			progressing = true;
-			secondaryWinner = '';
-			usedCombinedSpin = false;
-			// Build transaction and choose function depending on remaining unique entries
-			const tx = new Transaction();
-			let remainingEntriesList = createdWheelId ? entriesOnChain : entries;
-			try {
-				remainingEntriesList = remainingEntriesList
-					.map(s => String(s ?? '').trim())
-					.filter(s => s.length > 0);
-			} catch {}
-			const uniqueLeft = (() => {
-				try {
-					const set = new Set(
-						remainingEntriesList.map(s => s.toLowerCase()).filter(s => isValidSuiAddress(s))
-					);
-					return set.size;
-				} catch {
-					return Math.max(0, remainingEntriesList?.length || 0);
-				}
-			})();
-			// Use combined spin when before this spin there are exactly 2 unique entries and 2 prizes left
-			const shouldAssignLast = uniqueLeft === 2 && remainingSpins === 2 && !isCancelled;
-			usedCombinedSpin = shouldAssignLast;
-			const targetFn = shouldAssignLast
-				? WHEEL_FUNCTIONS.SPIN_AND_ASSIGN_LAST
-				: WHEEL_FUNCTIONS.SPIN;
-			tx.moveCall({
-				target: `${packageId}::${WHEEL_MODULE}::${targetFn}`,
-				arguments: [
-					tx.object(createdWheelId),
-					tx.object(RANDOM_OBJECT_ID),
-					tx.object(CLOCK_OBJECT_ID)
-				]
-			});
-			const res = await signAndExecuteTransaction(tx);
-			// After submission, switch to spinning state
-			progressing = false;
-			const digest = res?.digest ?? res?.effects?.transactionDigest;
-			if (!digest) throw new Error('Missing tx digest for spin');
-
-			// Try to read SpinEvent(s) from the transaction to get the exact winner(s)
-			let targetIdx = -1;
-			try {
-				const txBlock = await testnetClient.waitForTransaction({
-					digest,
-					options: { showEvents: true }
-				});
-				const spinEventType = `${packageId}::${WHEEL_MODULE}::SpinEvent`;
-				const spinEvents = (txBlock?.events || []).filter(e => {
-					const t = String(e?.type || '');
-					return t === spinEventType || t.endsWith(`::${WHEEL_MODULE}::SpinEvent`);
-				});
-				// When combined is used, there can be 2 SpinEvents; animate to the first winner
-				const firstEv = spinEvents?.[0];
-				const parsed = firstEv?.parsedJson || {};
-				const winnerAddr = String(
-					parsed?.winner ?? parsed?.winner_address ?? parsed?.winnerAddress ?? ''
-				).toLowerCase();
-				if (winnerAddr) {
-					// If the winner appears multiple times (duplicates), pick a random matching index for animation
-					const candidateIdxs = entries.reduce((acc, a, i) => {
-						if (String(a ?? '').toLowerCase() === winnerAddr) acc.push(i);
-						return acc;
-					}, []);
-					targetIdx = candidateIdxs.length
-						? candidateIdxs[Math.floor(Math.random() * candidateIdxs.length)]
-						: -1;
-				}
-				if (usedCombinedSpin && spinEvents.length > 1) {
-					const secondParsed = spinEvents[1]?.parsedJson || {};
-					const secondAddr = String(
-						secondParsed?.winner ??
-							secondParsed?.winner_address ??
-							secondParsed?.winnerAddress ??
-							''
-					).toLowerCase();
-					if (secondAddr) secondaryWinner = secondAddr;
-				}
-			} catch {}
-
-			if (
-				!Number.isFinite(targetIdx) ||
-				targetIdx < 0 ||
-				targetIdx >= Math.max(1, entries.length)
-			) {
-				// Fallback to a random index if event parsing fails
-				targetIdx = Math.floor(Math.random() * Math.max(1, entries.length));
-			}
-
-			// Fetch on-chain data after animation completes to avoid flicker
-			postSpinFetchRequested = true;
-			// Release busy flag so spinToIndex can start the animation
-			spinning = false;
-			spinToIndex(targetIdx, spinAnimationConfig);
-		} catch (e) {
-			setupError = e?.message || String(e);
-			spinning = false;
-			progressing = false;
-		}
-	}
-
-	function spin() {
-		if (spinning || entries.length < 2) return;
-		// Guard: in blockchain mode require created wheel id
-		if (account.value && !createdWheelId) return;
-		const n = Math.max(1, entries.length);
-		const idxValue = serverTargetIndex;
-		if (Number.isFinite(idxValue) && idxValue >= 0 && idxValue < n) {
-			spinToIndex(Math.floor(idxValue), spinAnimationConfig);
-			return;
-		}
-		const randomIndex = Math.floor(Math.random() * n);
-		spinToIndex(randomIndex, spinAnimationConfig);
-	}
-
-	function showConfetti() {
-		// trigger confetti
-		try {
-			const cf = typeof window !== 'undefined' ? window.confetti : undefined;
-			if (typeof cf === 'function') {
-				const duration = 3 * 1000,
-					animationEnd = Date.now() + duration,
-					defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 1000 };
-
-				function randomInRange(min, max) {
-					return Math.random() * (max - min) + min;
-				}
-
-				const interval = setInterval(function () {
-					const timeLeft = animationEnd - Date.now();
-
-					if (timeLeft <= 0) {
-						return clearInterval(interval);
-					}
-
-					const particleCount = 50 * (timeLeft / duration);
-
-					// since particles fall down, start a bit higher than random
-					cf(
-						Object.assign({}, defaults, {
-							particleCount,
-							origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
-						})
-					);
-					cf(
-						Object.assign({}, defaults, {
-							particleCount,
-							origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
-						})
-					);
-				}, 250);
-			}
-		} catch {}
-	}
-
-	function spinToIndex(targetIndex, opts = {}) {
-		const n = Math.max(1, entries.length);
-		if (spinning || n < 1) return;
-		const idx = Math.max(0, Math.min(n - 1, Number(targetIndex) | 0));
-		spinning = true;
-		selectedIndex = null;
-		// reset tick tracker for this spin
-		lastTickIndex = null;
-
-		const startAngle = spinAngle;
-		// sync angle for high-speed tick detection right at spin start
-		lastAngle = startAngle;
-		const arc = (Math.PI * 2) / n;
-		// Choose a random angle within the target segment (uniform, avoid edges)
-		const marginFraction = Math.max(0, Math.min(0.49, opts.marginFraction ?? 0.05));
-		const margin = arc * marginFraction;
-		const innerWidth = Math.max(0, arc - 2 * margin);
-		const randomWithin = margin + Math.random() * innerWidth;
-		const targetTheta = idx * arc + randomWithin;
-		const baseAligned = normalizeAngle(Math.PI / 2 - targetTheta);
-
-		const extraTurnsMin = opts.extraTurnsMin ?? 5;
-		const extraTurnsMax = opts.extraTurnsMax ?? 7;
-		const duration = opts.duration ?? 5200; // ms
-		const extraTurnsFloat =
-			extraTurnsMin + Math.random() * Math.max(0, extraTurnsMax - extraTurnsMin);
-		const extraTurns = Math.max(0, Math.ceil(extraTurnsFloat)); // ensure integer full turns for exact alignment
-
-		const tau = Math.PI * 2;
-		const kBase = Math.ceil((startAngle - baseAligned) / tau);
-		const targetAngle = baseAligned + (kBase + extraTurns) * tau;
-
-		// Kill any running tween
-		if (currentTween) {
-			currentTween.kill();
-			currentTween = null;
-		}
-		// stop idle rotation when starting a spin
-		stopIdleRotation();
-		// Sync animState with current angle
-		animState.angle = startAngle;
-		// Start GSAP tween
-		currentTween = gsap.to(animState, {
-			angle: targetAngle,
-			duration: duration / 1000,
-			ease: getGsapEaseFromPower(opts.easePower ?? 4),
-			onUpdate: () => {
-				spinAngle = animState.angle;
-				if (canvasEl) {
-					canvasEl.style.transform = `rotate(${spinAngle}rad)`;
-				}
-				updatePointerColor();
-			},
-			onComplete: () => {
-				currentTween = null;
-				spinning = false;
-				selectedIndex = pickSelectedIndex();
-				updatePointerColor();
-				if (!muted && winAudio) {
-					try {
-						winAudio.currentTime = 0;
-						winAudio.play();
-					} catch {}
-				}
-				// capture winner and remove from list
-				const winnerIndex = selectedIndex;
-				const winnerValue = entries[winnerIndex];
-				lastWinner = String(winnerValue ?? '');
-				// If combined spin used and we parsed secondary winner address, keep it for modal display
-				if (usedCombinedSpin && secondaryWinner) {
-					// Keep secondaryWinner as full address string; UI will shorten if needed
-				}
-				if (lastWinner) {
-					// do not remove winner from list if fetch is requested
-					if (!postSpinFetchRequested) {
-						entries = entries.filter(
-							entry => String(entry ?? '').trim() !== String(winnerValue ?? '').trim()
-						);
-						entriesText = entries.join('\n');
-					}
-					selectedIndex = null;
-					spinAngle = 0;
-					// show winner modal
-					if (winnerModal && !winnerModal.open) {
-						winnerModal.showModal();
-						showConfetti();
-					}
-				}
-				// Fetch wheel data if requested
-				if (postSpinFetchRequested) {
-					postSpinFetchRequested = false;
-					fetchWheelFromChain();
-				}
-			}
-		});
-	}
-
-	function spinToValue(value, opts = {}) {
-		const v = String(value ?? '').trim();
-		if (!v) return;
-		const idx = entries.findIndex(e => String(e ?? '').trim() === v);
-		if (idx === -1) return;
-		spinToIndex(idx, opts);
-	}
-
 	function handleShuffle() {
 		if (spinning) return;
-		selectedIndex = null;
 		entries = shuffleArray(entries);
 		entriesText = entries.join('\n');
 	}
@@ -1180,8 +543,6 @@
 		if (spinning) return;
 		entriesText = '';
 		entries = [];
-		selectedIndex = null;
-		spinAngle = 0;
 	}
 
 	function onEntriesTextChange(text) {
@@ -1194,8 +555,6 @@
 			return;
 		}
 		entries = list;
-		selectedIndex = null;
-		spinAngle = 0;
 	}
 
 	function updateDuplicateEntries() {
@@ -1223,22 +582,20 @@
 		}
 	});
 
-	$effect(() => {
-		// Keep CSS transform in sync when not animating (e.g., after reset)
-		void spinAngle;
-		if (!spinning && canvasEl) {
-			canvasEl.style.transform = `rotate(${spinAngle}rad)`;
-			updatePointerColor();
-		}
-	});
-
-	$effect(() => {
-		// Auto rotate wheel when user is idle
-		if (idle.current) {
-			startIdleRotationIfNeeded();
-		} else {
-			stopIdleRotation();
-		}
+	// Set wheel context for child component during initialization
+	wheelCtx.set({
+		signAndExecuteTransaction,
+		suiClient,
+		packageId,
+		WHEEL_MODULE,
+		WHEEL_FUNCTIONS,
+		RANDOM_OBJECT_ID,
+		CLOCK_OBJECT_ID,
+		fetchWheelFromChain,
+		setSpinning: setWheelSpinning,
+		onShuffle: handleShuffle,
+		onClear: clearAll,
+		removeEntry: removeEntryValue
 	});
 </script>
 
@@ -1278,102 +635,14 @@
 <section class="container mx-auto px-4 py-6">
 	<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 		<div class="w-full">
-			<div class="relative mx-auto max-w-[560px]">
-				<div class="rounded-box bg-base-200 p-3 shadow">
-					<div
-						bind:this={canvasContainerEl}
-						class="border-base-300 relative mx-auto aspect-square w-full rounded-full border-1 shadow-lg"
-					>
-						<!-- Voice toggle icon in top-right corner -->
-						<button
-							class="btn btn-circle btn-sm tooltip absolute top-2 right-2 z-20 bg-white/90 shadow-lg backdrop-blur-sm transition-all duration-200 hover:bg-white"
-							onclick={() => (muted = !muted)}
-							aria-label={muted ? 'Sound: off' : 'Sound: on'}
-							title={'Toggle sound'}
-							data-tip={muted ? 'Sound: off' : 'Sound: on'}
-						>
-							{#if muted}
-								<span class="icon-[lucide--volume-off] text-base text-gray-600"></span>
-							{:else}
-								<span class="icon-[lucide--volume-2] text-base text-gray-700"></span>
-							{/if}
-						</button>
-						<div
-							class="pointer-events-none absolute top-1/2 -right-6 z-10 -translate-y-1/2"
-							aria-hidden="true"
-						>
-							<!-- Outline triangle to create a subtle white border for contrast -->
-							<div
-								class="h-0 w-0 border-y-[24px] border-r-[48px] border-y-transparent"
-								style="border-right-color: #ffffff; filter: drop-shadow(0 0 6px rgba(0,0,0,0.12)); transform: translateX(6px)"
-							></div>
-
-							<!-- Colored pointer on top of outline -->
-							<div
-								class="absolute top-1/2 right-0 h-0 w-0 -translate-y-1/2 border-y-[20px] border-r-[40px] border-y-transparent"
-								style={`border-right-color: ${pointerColor}; filter: drop-shadow(0 0 12px ${pointerColor}80)`}
-							></div>
-						</div>
-						<canvas bind:this={canvasEl} class="rounded-box pointer-events-none mx-auto block"
-						></canvas>
-
-						<!-- Centered Spin Button overlay -->
-						<div
-							class="pointer-events-none absolute top-1/2 left-1/2 z-10 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center"
-						>
-							<ButtonLoading
-								formLoading={spinning}
-								color="primary"
-								size="lg"
-								loadingText={progressing ? 'Confirming...' : 'Spinning...'}
-								onclick={account?.value ? spinOnChainAndAnimate : spin}
-								aria-label="Spin the wheel"
-								moreClass={`w-full h-full bg-white rounded-full text-black pointer-events-auto shadow-lg`}
-							>
-								Spin
-							</ButtonLoading>
-						</div>
-					</div>
-
-					{#if selectedIndex !== null && entries[selectedIndex]}
-						<div class="mt-3 text-center">
-							<div class="badge badge-lg badge-success animate-pulse">🎯 Winner</div>
-							<div
-								class="text-success bg-success/10 border-success/20 mt-2 rounded-lg border px-4 py-2 text-lg font-bold break-words"
-							>
-								{entries[selectedIndex]}
-							</div>
-						</div>
-					{/if}
-
-					{#if createdWheelId}
-						<div class="mt-4 flex justify-center">
-							<div
-								class="badge badge-lg badge-primary rounded px-2 py-1 text-center text-xs font-medium shadow"
-							>
-								Remaining spins: {Math.max(
-									0,
-									(prizesOnChainMist.length || 0) - (spunCountOnChain || 0)
-								)}
-							</div>
-						</div>
-					{/if}
-
-					<!-- Wheel control buttons -->
-					<div class="mt-4 flex flex-wrap justify-center gap-2">
-						<button
-							class="btn btn-outline"
-							class:btn-disabled={spinning || entries.length < 2}
-							disabled={spinning || entries.length < 2}
-							onclick={handleShuffle}
-							aria-label="Shuffle entries">Shuffle</button
-						>
-						{#if !createdWheelId}
-							<button class="btn btn-warning" disabled={spinning} onclick={clearAll}>Clear</button>
-						{/if}
-					</div>
-				</div>
-			</div>
+			<Wheel
+				{entries}
+				{spinning}
+				{createdWheelId}
+				{remainingSpins}
+				{isCancelled}
+				accountConnected={Boolean(account?.value)}
+			/>
 		</div>
 
 		<div class="w-full">
@@ -1801,60 +1070,4 @@
 	</div>
 </section>
 
-<!-- Winner Modal -->
-<dialog bind:this={winnerModal} class="modal">
-	<div class="modal-box w-">
-		<h3 class="mb-6 text-center text-2xl font-bold">🎉 Congratulations!</h3>
-		<div class="text-center">
-			<!-- Winner's name is highlighted with enhanced visual effects -->
-			<div class="relative">
-				<!-- Glow effect background -->
-				<div
-					class="absolute inset-0 animate-pulse rounded-xl bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500 opacity-30 blur-xl"
-				></div>
-
-				<!-- Main winner display -->
-				<div
-					class="relative block transform rounded-xl border-4 border-yellow-400 bg-gradient-to-r from-green-500 to-emerald-600 px-8 py-4 text-3xl font-black text-white shadow-2xl transition-all duration-300 hover:scale-101"
-				>
-					<div class="flex items-center justify-center gap-3">
-						<span class="text-4xl">🏆</span>
-						<span class="drop-shadow-lg"
-							>{isValidSuiAddress(lastWinner) ? shortenAddress(lastWinner) : lastWinner}</span
-						>
-						<span class="text-4xl">🏆</span>
-					</div>
-				</div>
-
-				{#if usedCombinedSpin && secondaryWinner}
-					<div class="mt-3 text-center text-sm">
-						<span class="opacity-80">Also assigned:</span>
-						<strong class="ml-2 font-mono">
-							{isValidSuiAddress(secondaryWinner)
-								? shortenAddress(secondaryWinner)
-								: secondaryWinner}
-						</strong>
-					</div>
-				{/if}
-
-				<!-- Sparkle effects -->
-				<div class="absolute -top-2 -right-2 animate-ping text-2xl">✨</div>
-				<div class="absolute -bottom-2 -left-2 animate-ping text-2xl" style="animation-delay: 0.5s">
-					🌟
-				</div>
-				<div class="absolute top-1/2 -left-4 animate-pulse text-xl" style="animation-delay: 1s">
-					⭐
-				</div>
-				<div class="absolute top-1/2 -right-4 animate-pulse text-xl" style="animation-delay: 1.5s">
-					⭐
-				</div>
-			</div>
-			<small class="mt-5 block text-gray-500">
-				The winner will be automatically removed from the list.
-			</small>
-		</div>
-	</div>
-	<form method="dialog" class="modal-backdrop">
-		<button>Close</button>
-	</form>
-</dialog>
+<!-- Winner modal đã được di chuyển vào Wheel component -->
