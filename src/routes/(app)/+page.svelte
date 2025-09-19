@@ -1173,7 +1173,26 @@
 		if (entries.length < 2) return;
 		if (spinning) return;
 		selectedIndex = null;
-		entries = [...entries].sort(() => Math.random() - 0.5);
+
+		// Create a copy of the current entries for comparison
+		const previousEntries = [...entries];
+
+		// Helper function for Fisher-Yates shuffle (unbiased random shuffle)
+		function fisherYatesShuffle(arr) {
+			const shuffled = [...arr];
+			for (let i = shuffled.length - 1; i > 0; i--) {
+				const j = Math.floor(Math.random() * (i + 1));
+				[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+			}
+			return shuffled;
+		}
+
+		// Shuffle until the result differs from the previous entries
+		do {
+			entries = fisherYatesShuffle(entries);
+		} while (arraysShallowEqual(entries, previousEntries));
+
+		// Update the text representation of entries for display
 		entriesText = entries.join('\n');
 	}
 
