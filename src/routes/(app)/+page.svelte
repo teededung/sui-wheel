@@ -1162,7 +1162,8 @@
 		<fieldset class="fieldset">
 			<input
 				type="text"
-				class="input w-full"
+				class="input w-full text-base"
+				autocomplete="off"
 				placeholder="https://x.com/username/status/1234567890"
 				bind:value={xImportInput}
 				bind:this={xImportInputEl}
