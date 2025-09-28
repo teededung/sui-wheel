@@ -784,7 +784,7 @@
 											<span class="icon-[lucide--plus] h-4 w-4"></span>
 											<span>New wheel</span>
 										</button>
-									{:else}
+									{:else if account.value}
 										<ButtonLoading
 											formLoading={cancelLoading}
 											color="error"
@@ -1055,7 +1055,10 @@
 								<div class="alert alert-error mt-3 whitespace-pre-wrap">{setupError}</div>
 							{/if}
 							{#if setupSuccessMsg}
-								<div class="alert alert-success mt-3 break-words">{setupSuccessMsg}</div>
+								<div class="alert alert-success mt-3 break-words">
+									<span class="icon-[lucide--check-circle] h-4 w-4"></span>
+									{setupSuccessMsg}
+								</div>
 							{/if}
 
 							{#if shouldShowSetupWarnings}

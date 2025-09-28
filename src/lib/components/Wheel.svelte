@@ -34,7 +34,13 @@
 	let isSpinDisabled = $derived.by(() => {
 		if (spinning) return true;
 		// On-chain: disable if no remaining spins
-		if (createdWheelId) return isCancelled || remainingSpins === 0;
+		if (createdWheelId) {
+			if (accountConnected) {
+				return isCancelled || remainingSpins === 0;
+			} else {
+				return entries.length < 2;
+			}
+		}
 		// Off-chain: disable if not enough entries
 		if (accountConnected && !createdWheelId) return true;
 		// Not enough entries
@@ -698,7 +704,7 @@
 					loadingText={progressing ? 'Confirming...' : 'Spinning...'}
 					onclick={accountConnected ? spinOnChainAndAnimate : spin}
 					aria-label="Spin the wheel"
-					moreClass={`w-full h-full bg-white hover:bg-primary hover:text-white rounded-full text-black pointer-events-auto shadow-lg ${isSpinDisabled ? 'opacity-50' : ''}`}
+					moreClass={`w-full h-full bg-white hover:bg-primary hover:text-white rounded-full text-black pointer-events-auto shadow-lg ${!spinning && !isSpinDisabled ? 'zoom-attention' : ''} ${isSpinDisabled ? 'opacity-50' : ''}`}
 					disabled={isSpinDisabled}
 				>
 					Spin
@@ -717,7 +723,7 @@
 			</div>
 		{/if}
 
-		{#if createdWheelId}
+		{#if accountConnected && createdWheelId}
 			<div class="mt-4 flex justify-center">
 				<div
 					class="badge badge-lg badge-primary rounded px-2 py-1 text-center text-xs font-medium shadow"
@@ -793,3 +799,27 @@
 		<button>Close</button>
 	</form>
 </dialog>
+
+<style>
+	/* Subtle zoom loop for the enabled Spin button */
+	@keyframes zoom-attention {
+		0%,
+		100% {
+			transform: scale(1);
+		}
+		50% {
+			transform: scale(1.1);
+		}
+	}
+
+	:global(.zoom-attention) {
+		animation: zoom-attention 1.6s ease-in-out infinite;
+		will-change: transform;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		:global(.zoom-attention) {
+			animation: none;
+		}
+	}
+</style>
