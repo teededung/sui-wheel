@@ -518,14 +518,23 @@
 
 	// Import entries from X (Twitter) post
 	let xImportDialogEl = $state(null);
+	let xImportInputEl = $state(null);
 	let xImportInput = $state('');
 	let xImportLoading = $state(false);
 
-	function openXImportModal() {
+	async function openXImportModal() {
 		xImportInput = '';
 		try {
 			if (xImportDialogEl && typeof xImportDialogEl.showModal === 'function') {
 				xImportDialogEl.showModal();
+
+				// insert delay
+				await new Promise(resolve => setTimeout(resolve, 100));
+
+				// focus on input
+				if (xImportInputEl && typeof xImportInputEl.focus === 'function') {
+					xImportInputEl.focus();
+				}
 			}
 		} catch {}
 	}
@@ -834,25 +843,29 @@
 								{:else}
 									<div class="mb-3 flex items-center justify-between gap-2">
 										<div class="text-sm opacity-70">Entries</div>
-										<div class="dropdown dropdown-end">
-											<button class="btn btn-sm btn-primary btn-soft" aria-label="Import entries">
-												<span class="icon-[lucide--list-plus] h-4 w-4"></span>
-												<span>Import</span>
-											</button>
-											<ul
-												class="menu dropdown-content rounded-box bg-base-200 z-[1] w-56 p-2 shadow"
-											>
-												<li>
-													<button
-														class="justify-between"
-														onclick={openXImportModal}
-														aria-label="Import by X post"
-													>
-														Import by X post
-													</button>
-												</li>
-											</ul>
-										</div>
+
+										{#if account.value}
+											<div class="dropdown dropdown-end">
+												<button class="btn btn-sm btn-primary btn-soft" aria-label="Import entries">
+													<span class="icon-[lucide--list-plus] h-4 w-4"></span>
+													<span>Import</span>
+												</button>
+												<ul
+													class="menu dropdown-content rounded-box bg-base-200 z-[1] w-56 p-2 shadow"
+												>
+													<li>
+														<button onclick={openXImportModal} aria-label="Import by X post">
+															<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+																<path
+																	d="M13.317 10.774L20.28 2h-1.73l-6.32 7.353L8.29 2H2.115l7.33 10.638L2.115 22h1.73l6.707-7.783L15.315 22H21.59l-7.482-10.774z"
+																/>
+															</svg>
+															Import by X post
+														</button>
+													</li>
+												</ul>
+											</div>
+										{/if}
 									</div>
 									<textarea
 										class="textarea h-48 w-full text-base"
@@ -1141,21 +1154,27 @@
 </section>
 
 <!-- X Import Modal -->
-<dialog id="x_import_modal" class="modal modal-bottom sm:modal-middle" bind:this={xImportDialogEl}>
+<dialog id="x_import_modal" class="modal modal-middle" bind:this={xImportDialogEl}>
 	<div class="modal-box">
 		<h3 class="text-lg font-bold">Import entries by X post</h3>
 		<p class="py-3 text-sm opacity-80">Paste an X link or tweet ID.</p>
-		<div class="join w-full">
+
+		<fieldset class="fieldset">
 			<input
 				type="text"
-				class="input join-item w-full"
+				class="input w-full"
 				placeholder="https://x.com/username/status/1234567890"
 				bind:value={xImportInput}
+				bind:this={xImportInputEl}
 				aria-label="X post link or ID"
 			/>
+			<p class="label">Note: we only take the first 200 Sui addresses.</p>
+		</fieldset>
+
+		<div class="flex justify-end">
 			<ButtonLoading
 				type="button"
-				moreClass="join-item"
+				moreClass="mt-1"
 				size="md"
 				color="primary"
 				formLoading={xImportLoading}
@@ -1165,10 +1184,9 @@
 				Import
 			</ButtonLoading>
 		</div>
-		<div class="modal-action">
-			<form method="dialog">
-				<button class="btn">Close</button>
-			</form>
-		</div>
 	</div>
+
+	<form method="dialog" class="modal-backdrop">
+		<button>Close</button>
+	</form>
 </dialog>

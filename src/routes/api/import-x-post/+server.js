@@ -113,6 +113,11 @@ export async function POST({ request }) {
 				}
 			}
 
+			// Limit to first 200 addresses
+			if (addresses.length > 200) {
+				addresses.length = 200;
+			}
+
 			// Log summary before responding
 			console.log('[import-x-post] returning', {
 				id: tweetId,
