@@ -544,15 +544,16 @@
 				throw new Error(data?.message || data?.error || 'Failed to import X post');
 			}
 
-			if (data?.count === 0) {
-				toast.error('No entries found in X post', { position: 'bottom-right' });
+			if (data?.addresses.length === 0) {
+				toast.error('No entries found in X post', { position: 'top-right' });
 			} else {
-				toast.success(`Imported ${data?.count} entrie(s) from X post successfully!`, {
-					title: 'Imported'
+				toast.success(`Imported ${data?.addresses.length} entrie(s) from X post successfully!`, {
+					title: 'Imported',
+					position: 'top-right'
 				});
-				console.log('X post import result:', data);
+				// console.log('X post import result:', data);
 
-				entriesText = data?.addresses?.join('\n') || '';
+				entriesText = data?.addresses.join('\n') || '';
 				entries = data?.addresses || [];
 				entriesOnChain = data?.addresses || [];
 			}
@@ -561,7 +562,7 @@
 				xImportDialogEl?.close?.();
 			} catch {}
 		} catch (e) {
-			toast.error(e?.message || 'Failed to import X post', { position: 'bottom-right' });
+			toast.error(e?.message || 'Failed to import X post', { position: 'top-right' });
 		} finally {
 			xImportLoading = false;
 		}
