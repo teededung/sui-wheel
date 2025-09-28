@@ -516,6 +516,58 @@
 	/** Entries textarea ref */
 	let entriesTextareaEl = $state(null);
 
+	// Import entries from X (Twitter) post
+	let xImportDialogEl = $state(null);
+	let xImportInput = $state('');
+	let xImportLoading = $state(false);
+
+	function openXImportModal() {
+		xImportInput = '';
+		try {
+			if (xImportDialogEl && typeof xImportDialogEl.showModal === 'function') {
+				xImportDialogEl.showModal();
+			}
+		} catch {}
+	}
+
+	async function handleXImportSubmit() {
+		if (!xImportInput || xImportLoading) return;
+		xImportLoading = true;
+		try {
+			const res = await fetch('/api/import-x-post', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ input: xImportInput })
+			});
+			const data = await res.json().catch(() => ({}));
+			if (!res.ok || !data?.success) {
+				throw new Error(data?.message || data?.error || 'Failed to import X post');
+			}
+
+			if (data?.count === 0) {
+				toast.error('No entries found in X post', { position: 'bottom-right' });
+			} else {
+				toast.success(`Imported ${data?.count} entrie(s) from X post successfully!`, {
+					title: 'Imported'
+				});
+				console.log('X post import result:', data);
+
+				entriesText = data?.addresses?.join('\n') || '';
+				entries = data?.addresses || [];
+				entriesOnChain = data?.addresses || [];
+			}
+
+			try {
+				xImportDialogEl?.close?.();
+			} catch {}
+		} catch (e) {
+			toast.error(e?.message || 'Failed to import X post', { position: 'bottom-right' });
+		} finally {
+			xImportLoading = false;
+		}
+	}
+
+	// Watch for entries changes and update duplicate entries
 	watch(
 		() => entries,
 		() => {
@@ -675,7 +727,7 @@
 											spunCountOnChain = 0;
 											poolBalanceMistOnChain = 0n;
 
-											params.update({ wheelId: undefined });
+											params.update({ wheelId: '' });
 										}}>New wheel</button
 									>
 								{:else}
@@ -715,8 +767,11 @@
 												spunCountOnChain = 0;
 												poolBalanceMistOnChain = 0n;
 												goto('/');
-											}}>New wheel</button
+											}}
 										>
+											<span class="icon-[lucide--plus] h-4 w-4"></span>
+											<span>New wheel</span>
+										</button>
 									{:else}
 										<ButtonLoading
 											formLoading={cancelLoading}
@@ -776,6 +831,28 @@
 										<div class="text-center text-sm text-gray-500">No entries</div>
 									{/if}
 								{:else}
+									<div class="mb-3 flex items-center justify-between gap-2">
+										<div class="text-sm opacity-70">Entries</div>
+										<div class="dropdown dropdown-end">
+											<button class="btn btn-sm btn-primary btn-soft" aria-label="Import entries">
+												<span class="icon-[lucide--list-plus] h-4 w-4"></span>
+												<span>Import</span>
+											</button>
+											<ul
+												class="menu dropdown-content rounded-box bg-base-200 z-[1] w-56 p-2 shadow"
+											>
+												<li>
+													<button
+														class="justify-between"
+														onclick={openXImportModal}
+														aria-label="Import by X post"
+													>
+														Import by X post
+													</button>
+												</li>
+											</ul>
+										</div>
+									</div>
 									<textarea
 										class="textarea h-48 w-full text-base"
 										placeholder="One entry per line"
@@ -1062,4 +1139,35 @@
 	</div>
 </section>
 
-<!-- Winner modal đã được di chuyển vào Wheel component -->
+<!-- X Import Modal -->
+<dialog id="x_import_modal" class="modal modal-bottom sm:modal-middle" bind:this={xImportDialogEl}>
+	<div class="modal-box">
+		<h3 class="text-lg font-bold">Import entries by X post</h3>
+		<p class="py-3 text-sm opacity-80">Paste an X link or tweet ID.</p>
+		<div class="join w-full">
+			<input
+				type="text"
+				class="input join-item w-full"
+				placeholder="https://x.com/username/status/1234567890"
+				bind:value={xImportInput}
+				aria-label="X post link or ID"
+			/>
+			<ButtonLoading
+				type="button"
+				moreClass="join-item"
+				size="md"
+				color="primary"
+				formLoading={xImportLoading}
+				loadingText="Importing..."
+				onclick={handleXImportSubmit}
+			>
+				Import
+			</ButtonLoading>
+		</div>
+		<div class="modal-action">
+			<form method="dialog">
+				<button class="btn">Close</button>
+			</form>
+		</div>
+	</div>
+</dialog>

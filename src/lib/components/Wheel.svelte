@@ -682,7 +682,7 @@
 					loadingText={progressing ? 'Confirming...' : 'Spinning...'}
 					onclick={accountConnected ? spinOnChainAndAnimate : spin}
 					aria-label="Spin the wheel"
-					moreClass={`w-full h-full bg-white rounded-full text-black pointer-events-auto shadow-lg ${isSpinDisabled ? 'opacity-50' : ''}`}
+					moreClass={`w-full h-full bg-white hover:bg-primary hover:text-white rounded-full text-black pointer-events-auto shadow-lg ${isSpinDisabled ? 'opacity-50' : ''}`}
 					disabled={isSpinDisabled}
 				>
 					Spin
