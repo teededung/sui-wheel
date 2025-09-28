@@ -3,18 +3,23 @@
 	import { SuiClient } from '@mysten/sui/client';
 	import { Transaction } from '@mysten/sui/transactions';
 	import { account, signAndExecuteTransaction } from 'sui-svelte-wallet-kit';
-	import { page } from '$app/stores';
 	import { shortenAddress } from '$lib/utils/string.js';
 	import { formatMistToSuiCompact, isTestnet } from '$lib/utils/suiHelpers.js';
 	import { PACKAGE_ID, WHEEL_MODULE, WHEEL_FUNCTIONS, CLOCK_OBJECT_ID } from '$lib/constants.js';
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
 	import { toast } from 'svelte-daisy-toaster';
 	import { format, formatDistanceToNow } from 'date-fns';
+	import { watch } from 'runed';
+	import { useSearchParams } from 'runed/kit';
+	import { searchParamsSchema } from '$lib/paramSchema.js';
 
 	const client = new SuiClient({ url: 'https://fullnode.testnet.sui.io' });
 
 	let isOnTestnet = $derived.by(() => isTestnet(account));
-	let wheelId = $state('');
+
+	// Reactive URL search params
+	const params = useSearchParams(searchParamsSchema);
+	let wheelId = $derived(params.wheelId);
 
 	let loading = $state(true);
 	let reclaimLoading = $state(false);
@@ -77,29 +82,34 @@
 
 			// Parse type: "0xpackage::module::struct"
 			const type = objectData.data.type;
-			const packageId = type.split('::')[0];
-			return packageId;
+			return type.split('::')[0];
 		} catch (e) {
 			console.error('Error querying object:', e.message);
 			return null;
 		}
 	}
 
-	onMount(async () => {
-		wheelId = new URLSearchParams($page.url.search).get('wheelId') ?? '';
-		packageId = await getPackageIdFromWheelId(wheelId);
+	watch(
+		() => wheelId,
+		async () => {
+			packageId = await getPackageIdFromWheelId(wheelId);
 
-		await fetchData();
-		await fetchReclaimEvents();
-		await fetchClaimEventsForWinner(); // Initial fetch for lastClaim for winner
-		// Precompute static "Spun at" texts based on current time once
-		const base = Date.now();
-		spunAtTexts = (spinTimes || []).map(ts => formatRelativePreciseAt(ts, base));
-	});
+			// Run fetchData and event fetches in parallel
+			await Promise.all([
+				fetchData(wheelId),
+				fetchReclaimEvents(packageId, wheelId),
+				fetchClaimEventsForWinner(packageId, wheelId)
+			]);
+
+			// Precompute static "Spun at" texts based on current time once
+			const base = Date.now();
+			spunAtTexts = (spinTimes || []).map(ts => formatRelativePreciseAt(ts, base));
+		}
+	);
 
 	onDestroy(() => {});
 
-	async function fetchData() {
+	async function fetchData(wheelId) {
 		if (!wheelId) return;
 		loading = true;
 		error = '';
@@ -147,7 +157,7 @@
 		}
 	}
 
-	async function fetchReclaimEvents() {
+	async function fetchReclaimEvents(packageId, wheelId) {
 		try {
 			if (!packageId || !wheelId) return;
 			const eventType = `${packageId}::${WHEEL_MODULE}::ReclaimEvent`;
@@ -189,7 +199,7 @@
 		}
 	}
 
-	async function fetchClaimEvents() {
+	async function fetchClaimEvents(packageId, wheelId) {
 		try {
 			if (!packageId || !wheelId) return;
 			const eventType = `${packageId}::${WHEEL_MODULE}::ClaimEvent`;
@@ -231,7 +241,7 @@
 		}
 	}
 
-	async function fetchClaimEventsForWinner() {
+	async function fetchClaimEventsForWinner(packageId, wheelId) {
 		try {
 			if (!packageId || !wheelId || !account.value?.address) return;
 			const eventType = `${packageId}::${WHEEL_MODULE}::ClaimEvent`;
@@ -334,8 +344,8 @@
 			tx.transferObjects([claimedCoin], tx.pure.address(account.value.address));
 
 			await signAndExecuteTransaction(tx);
-			await fetchData();
-			await fetchClaimEventsForWinner();
+			await fetchData(wheelId);
+			await fetchClaimEventsForWinner(packageId, wheelId);
 		} catch (e) {
 			error = e?.message || String(e);
 		} finally {
@@ -411,8 +421,8 @@
 			});
 			tx.transferObjects([coin], tx.pure.address(account.value.address));
 			await signAndExecuteTransaction(tx);
-			await fetchData();
-			await fetchReclaimEvents();
+			await fetchData(wheelId);
+			await fetchReclaimEvents(packageId, wheelId);
 			if (lastReclaim.digest) {
 				toast.success('Reclaimed pool successfully', {
 					position: 'bottom-right',
@@ -736,8 +746,8 @@
 						<h3 class="mb-2 text-lg font-semibold">Your prize</h3>
 
 						{#if isCancelled}
-							<div class="alert alert-info mb-3 text-sm">
-								<span class="icon-[lucide--heart] h-4 w-4"></span>
+							<div class="alert alert-soft alert-info mb-3 text-sm">
+								<span class="icon-[lucide--info] h-4 w-4"></span>
 								<span>This wheel has been cancelled!</span>
 							</div>
 						{:else if !account.value}

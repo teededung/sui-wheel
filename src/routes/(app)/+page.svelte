@@ -1,6 +1,8 @@
 <script>
 	import { onMount } from 'svelte';
 	import { watch } from 'runed';
+	import { useSearchParams } from 'runed/kit';
+	import { searchParamsSchema } from '$lib/paramSchema.js';
 	import { SuiClient } from '@mysten/sui/client';
 	import { Transaction } from '@mysten/sui/transactions';
 	import { goto } from '$app/navigation';
@@ -24,7 +26,7 @@
 
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
 	import Wheel from '$lib/components/Wheel.svelte';
-	import { wheelCtx } from '$lib/context/wheel.js';
+	import { wheelContext } from '$lib/context/wheel.js';
 	import QRCode from 'qrcode';
 
 	import {
@@ -37,8 +39,6 @@
 		CLOCK_OBJECT_ID
 	} from '$lib/constants.js';
 
-	// Wheel's idle rotation moved into Wheel component
-
 	// Testnet Sui client for reading transaction details
 	const suiClient = new SuiClient({ url: 'https://fullnode.testnet.sui.io' });
 
@@ -49,6 +49,9 @@
 		'0xf4be218d73c57b9622de671b683221274f9f5a306a2825c470563249e2c718e5'
 	]);
 
+	// Reactive URL search params
+	const params = useSearchParams(searchParamsSchema);
+
 	// Blockchain setup state
 	let packageId = $state(PACKAGE_ID);
 	let prizeAmounts = $state(['']); // SUI amounts as strings (decimal supported)
@@ -57,7 +60,9 @@
 	let setupLoading = $state(false);
 	let setupError = $state('');
 	let setupSuccessMsg = $state('');
-	let createdWheelId = $state('');
+
+	// Reactive wheel ID from URL params
+	let createdWheelId = $derived(params.wheelId);
 
 	// View/Edit and on-chain fetched state
 	let isEditing = $state(false);
@@ -312,9 +317,6 @@
 			if (!finalWheelId) throw new Error('Wheel object id not found after creation');
 			createdWheelId = finalWheelId;
 
-			// Immediately fetch on-chain data to populate UI
-			await fetchWheelFromChain();
-
 			setupSuccessMsg = `Successfully created and funded. We can spin it now.`;
 
 			// Notify and update current URL with wheelId param so reload keeps context
@@ -329,7 +331,9 @@
 					}
 				}
 			});
-			goto(`?wheelId=${finalWheelId}`, { replaceState: true, keepfocus: true, noScroll: true });
+
+			// Update URL params reactively
+			params.update({ wheelId: finalWheelId });
 		} catch (e) {
 			setupError = e?.message || String(e);
 			toast.error(setupError || 'Failed to create wheel', { position: 'bottom-right' });
@@ -499,12 +503,10 @@
 					}
 				}
 			});
-			// Reset local state
-			createdWheelId = '';
+
+			// Fetch wheel from chain again
 			wheelFetched = false;
-			entriesOnChain = [];
-			prizesOnChainMist = [];
-			poolBalanceMistOnChain = 0n;
+			fetchWheelFromChain();
 		} catch (e) {
 			setupError = e?.message || String(e);
 		} finally {
@@ -522,16 +524,11 @@
 		}
 	);
 
-	onMount(() => {
-		try {
-			const params = new URLSearchParams(window.location.search);
-			const w = params.get('wheelId');
-			if (w && !createdWheelId) createdWheelId = w;
-		} catch {}
-		if (createdWheelId) {
-			fetchWheelFromChain();
-		}
-	});
+	// Watch for wheelId changes and fetch wheel data reactively
+	watch(
+		() => params.wheelId,
+		() => fetchWheelFromChain()
+	);
 
 	function handleShuffle() {
 		if (spinning) return;
@@ -539,7 +536,7 @@
 		entriesText = entries.join('\n');
 	}
 
-	function clearAll() {
+	function clearAllEntries() {
 		if (spinning) return;
 		entriesText = '';
 		entries = [];
@@ -583,7 +580,7 @@
 	});
 
 	// Set wheel context for child component during initialization
-	wheelCtx.set({
+	wheelContext.set({
 		signAndExecuteTransaction,
 		suiClient,
 		packageId,
@@ -594,7 +591,7 @@
 		fetchWheelFromChain,
 		setSpinning: setWheelSpinning,
 		onShuffle: handleShuffle,
-		onClear: clearAll,
+		onClearAllEntries: clearAllEntries,
 		removeEntry: removeEntryValue
 	});
 </script>
@@ -668,7 +665,6 @@
 										class="btn btn-primary btn-sm"
 										onclick={() => {
 											// reset to create new wheel
-											createdWheelId = '';
 											isEditing = false;
 											wheelFetched = false;
 											entriesText = '';
@@ -679,7 +675,8 @@
 											winnersOnChain = [];
 											spunCountOnChain = 0;
 											poolBalanceMistOnChain = 0n;
-											goto('/');
+
+											params.update({ wheelId: undefined });
 										}}>New wheel</button
 									>
 								{:else}
@@ -707,7 +704,7 @@
 										<button
 											class="btn btn-primary btn-sm"
 											onclick={() => {
-												createdWheelId = '';
+												params.update({ wheelId: undefined });
 												isEditing = false;
 												wheelFetched = false;
 												entriesText = '';
@@ -749,15 +746,11 @@
 								type="radio"
 								name="wheel_tabs"
 								class="tab"
-								aria-label="Entries"
+								aria-label={`Entries (${account.value ? entriesOnChain.length : entries.length})`}
 								checked={activeTab === 'entries'}
 								onclick={() => (activeTab = 'entries')}
 							/>
 							<div class="tab-content bg-base-100 border-base-300 p-6">
-								<h3 class="mb-4 text-lg font-semibold">
-									Entries ({account.value ? entriesOnChain.length : entries.length})
-								</h3>
-
 								{#if createdWheelId && wheelFetched && !isEditing}
 									{#if entriesOnChain.length > 0}
 										<div class="overflow-x-auto">

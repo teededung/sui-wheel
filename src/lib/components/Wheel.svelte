@@ -6,7 +6,7 @@
 	import { toast } from 'svelte-daisy-toaster';
 
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
-	import { wheelCtx } from '$lib/context/wheel.js';
+	import { wheelContext } from '$lib/context/wheel.js';
 	import { shortenAddress } from '$lib/utils/string.js';
 	import { isValidSuiAddress } from '$lib/utils/suiHelpers.js';
 
@@ -15,7 +15,7 @@
 		$props();
 
 	// Context deps/APIs from parent
-	const ctx = wheelCtx.get();
+	const ctx = wheelContext.get();
 	const {
 		signAndExecuteTransaction,
 		suiClient,
@@ -27,7 +27,7 @@
 		fetchWheelFromChain,
 		setSpinning,
 		onShuffle,
-		onClear,
+		onClearAllEntries,
 		removeEntry
 	} = ctx;
 
@@ -720,7 +720,9 @@
 				aria-label="Shuffle entries">Shuffle</button
 			>
 			{#if !createdWheelId}
-				<button class="btn btn-warning" disabled={spinning} onclick={onClear}>Clear</button>
+				<button class="btn btn-warning" disabled={spinning} onclick={onClearAllEntries}
+					>Clear</button
+				>
 			{/if}
 		</div>
 	</div>

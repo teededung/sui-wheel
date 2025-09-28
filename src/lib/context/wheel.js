@@ -16,4 +16,4 @@ import { Context } from 'runed';
 //   onClear?: () => void,
 //   removeEntry?: (value: string) => void
 // }
-export const wheelCtx = new Context('wheel');
+export const wheelContext = new Context('wheel');
