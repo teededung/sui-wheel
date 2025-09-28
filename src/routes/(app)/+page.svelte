@@ -315,7 +315,6 @@
 
 			const finalWheelId = created?.objectId;
 			if (!finalWheelId) throw new Error('Wheel object id not found after creation');
-			createdWheelId = finalWheelId;
 
 			setupSuccessMsg = `Successfully created and funded. We can spin it now.`;
 
