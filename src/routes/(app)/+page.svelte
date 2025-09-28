@@ -1169,7 +1169,7 @@
 				bind:this={xImportInputEl}
 				aria-label="X post link or ID"
 			/>
-			<p class="label">Note: we only take the first 200 Sui addresses.</p>
+			<p class="label">Note: we only take the first 200 Sui addresses from replies.</p>
 		</fieldset>
 
 		<div class="flex justify-end">
