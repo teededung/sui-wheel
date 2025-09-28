@@ -10,7 +10,7 @@
 
 	const client = new SuiClient({ url: 'https://fullnode.testnet.sui.io' });
 
-	let loadingWheels = $state(false);
+	let pageState = $state('initializing'); // initializing, loading, loaded
 	let errorMsg = $state('');
 	let wheels = $state([]); // [{ id, digest, timestampMs }]
 	let _pollInterval = $state(null);
@@ -19,7 +19,7 @@
 	async function loadWheelsFor(address, opts = {}) {
 		if (!address) return;
 		const isRefresh = Boolean(opts.isRefresh);
-		if (!isRefresh) loadingWheels = true;
+		if (!isRefresh) pageState = 'loading';
 		errorMsg = '';
 		try {
 			const resp = await client.queryTransactionBlocks({
@@ -99,16 +99,18 @@
 		} catch (e) {
 			errorMsg = e?.message || String(e);
 		} finally {
-			if (!isRefresh) loadingWheels = false;
+			if (!isRefresh) pageState = 'loaded';
 			refreshing = false;
 		}
 	}
 
 	const idle = new IsIdle({ timeout: 15000 });
 
+	// Watch for account changes
 	watch(
 		() => account.value?.address,
 		addr => {
+			pageState = 'loading';
 			if (addr) {
 				startPolling();
 				loadWheelsFor(addr);
@@ -118,6 +120,7 @@
 		}
 	);
 
+	// Watch for idle state
 	watch(
 		() => idle.current,
 		() => {
@@ -170,27 +173,22 @@
 				<h2 class="text-lg font-semibold">Your Wheels</h2>
 				<a href="/" class="btn btn-primary btn-sm" aria-label="Create new wheel">Create new</a>
 			</div>
-
-			{#if !account.value}
-				{#if accountLoading.value}
-					<div class="alert alert-info">
-						<span class="loading loading-spinner loading-sm"></span>
-						Account loading...
-					</div>
-				{:else}
-					<div class="alert alert-info">Please connect your wallet to view your wheels.</div>
-				{/if}
-			{:else}
-				{#if errorMsg}
-					<div class="alert alert-error break-words">{errorMsg}</div>
-				{/if}
-
-				{#if accountLoading.value || loadingWheels}
+			{#if pageState === 'initializing'}
+				<div class="flex items-center gap-2">
+					<span class="loading loading-spinner loading-sm"></span>
+					Loading...
+				</div>
+			{:else if pageState === 'loading'}
+				{#if accountLoading.value && !account.value}
 					<div class="space-y-3">
 						<div class="skeleton h-8 w-40"></div>
 						<div class="skeleton h-32 w-full"></div>
 					</div>
-				{:else if wheels.length === 0}
+				{:else if !account.value}
+					<div class="flex items-center gap-2">Please connect your wallet to view your wheels.</div>
+				{/if}
+			{:else if pageState === 'loaded'}
+				{#if wheels.length === 0}
 					<div class="text-sm opacity-70">No wheels found.</div>
 				{:else}
 					<div class="relative">

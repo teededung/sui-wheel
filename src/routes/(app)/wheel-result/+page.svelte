@@ -7,6 +7,7 @@
 	import { formatMistToSuiCompact, isTestnet } from '$lib/utils/suiHelpers.js';
 	import { PACKAGE_ID, WHEEL_MODULE, WHEEL_FUNCTIONS, CLOCK_OBJECT_ID } from '$lib/constants.js';
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
+	import ButtonCopy from '$lib/components/ButtonCopy.svelte';
 	import { toast } from 'svelte-daisy-toaster';
 	import { format, formatDistanceToNow } from 'date-fns';
 	import { watch } from 'runed';
@@ -567,27 +568,6 @@
 	{/if}
 	<div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 		<h1 class="text-xl font-bold">Wheel Results</h1>
-		{#if wheelId}
-			<div class="flex max-w-full items-center gap-2 text-sm">
-				<span class="mr-1 inline-block">Wheel ID:</span>
-				<a
-					class="link link-primary inline-block max-w-[12rem] truncate font-mono sm:max-w-[16rem]"
-					href={`https://testnet.suivision.xyz/object/${wheelId}`}
-					target="_blank"
-					rel="noopener noreferrer"
-					title={wheelId}>{shortenAddress(wheelId)}</a
-				>
-				<div class="flex flex-wrap items-center gap-2">
-					{#if isCancelled}
-						<span class="badge badge-warning badge-sm">Cancelled</span>
-					{:else if remainingSpins > 0}
-						<span class="badge badge-primary badge-sm">Running</span>
-					{:else}
-						<span class="badge badge-neutral badge-sm">Finished</span>
-					{/if}
-				</div>
-			</div>
-		{/if}
 	</div>
 
 	{#if error}
@@ -614,44 +594,6 @@
 	{:else}
 		<div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
 			<div class="order-2 overflow-x-auto lg:order-1 lg:col-span-2">
-				<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-					<div class="flex items-center gap-2">
-						<div class="text-sm opacity-80">
-							Pool balance: <span class="text-primary font-mono font-semibold"
-								>{formatMistToSuiCompact(poolBalanceMist)} SUI</span
-							>
-						</div>
-						{#if account.value && isOrganizer && canOrganizerReclaim() && poolBalanceMist > 0n}
-							<ButtonLoading
-								formLoading={reclaimLoading}
-								color="warning"
-								size="xs"
-								loadingText="Reclaiming..."
-								onclick={reclaimPool}
-								disabled={!isOnTestnet}>Reclaim</ButtonLoading
-							>
-						{/if}
-					</div>
-
-					{#if wheelCreatedAtMs > 0}
-						<div class="flex items-start text-sm opacity-80">
-							Created
-							<span title={new Date(wheelCreatedAtMs).toISOString()}>
-								{formatDistanceToNow(new Date(wheelCreatedAtMs), { addSuffix: true })}
-							</span>
-							{#if wheelCreatedTx}
-								<a
-									class="link link-primary ml-2"
-									href={`https://testnet.suivision.xyz/txblock/${wheelCreatedTx}`}
-									target="_blank"
-									rel="noopener noreferrer"
-									>Tx details <span class="icon-[lucide--external-link]"></span></a
-								>
-							{/if}
-						</div>
-					{/if}
-				</div>
-
 				{#if lastReclaim.timestampMs > 0 && isOrganizer}
 					<div class="text-base-content/70 mb-4 text-xs">
 						Last reclaim:
@@ -674,7 +616,7 @@
 					</div>
 				{/if}
 
-				<h2 class="text-lg font-semibold">Winners</h2>
+				<h2 class="mt-6 text-lg font-semibold">Winners</h2>
 				<div class="mb-6 overflow-x-auto">
 					<table class="table-zebra table">
 						<thead>
@@ -743,19 +685,18 @@
 			<div class="order-1 mb-4 lg:order-2 lg:mb-0">
 				<div class="card bg-base-200 shadow">
 					<div class="card-body">
-						<h3 class="mb-2 text-lg font-semibold">Your prize</h3>
-
 						{#if isCancelled}
-							<div class="alert alert-soft alert-info mb-3 text-sm">
+							<div class="alert alert-soft alert-warning text-sm">
 								<span class="icon-[lucide--info] h-4 w-4"></span>
 								<span>This wheel has been cancelled!</span>
 							</div>
 						{:else if !account.value}
-							<div class="alert alert-info mb-3 text-sm">
+							<div class="alert alert-soft alert-info text-sm">
 								<span class="icon-[lucide--info] h-4 w-4"></span>
 								<span>Connect your wallet to view your prize and claim it! 🔑</span>
 							</div>
 						{:else if winnerInfo}
+							<h3 class="mb-2 text-lg font-semibold">Your prize</h3>
 							{#if winnerInfo.claimed}
 								<div class="alert alert-success mb-3 text-sm">
 									<span class="icon-[lucide--party-popper] h-4 w-4"></span>
@@ -801,19 +742,19 @@
 								</div>
 							{/if}
 						{:else if remainingSpins > 0}
-							<div class="alert alert-info mb-3 text-sm">
+							<div class="alert alert-info text-sm">
 								<span class="icon-[lucide--clock] h-4 w-4"></span>
 								<span>The wheel is still running. Please come back later.</span>
 							</div>
 						{:else}
-							<div class="alert border-info alert-outline mb-3 text-sm">
+							<div class="alert border-info alert-outline text-sm">
 								<span class="icon-[lucide--circle-alert] h-4 w-4"></span>
 								<span>You are not a winner for this wheel.</span>
 							</div>
 						{/if}
 
 						{#if winnerInfo}
-							<div class="text-sm">
+							<div class="my-3 text-sm">
 								<span class="opacity-70">Winner:</span>
 								<span class="ml-1 font-mono">{shortenAddress(winnerInfo.addr)}</span>
 							</div>
@@ -869,6 +810,65 @@
 						{/if}
 					</div>
 				</div>
+
+				{#if wheelId}
+					<div class="card bg-base-200 mt-4 shadow">
+						<div class="card-body">
+							<div class="flex max-w-full items-center gap-2 text-sm">
+								<span class="mr-1 inline-block">Wheel ID:</span>
+								<span
+									class="inline-block max-w-[12rem] truncate font-mono text-xs sm:max-w-[16rem]"
+									title={wheelId}>{shortenAddress(wheelId)}</span
+								>
+								<ButtonCopy originText={wheelId} size="xs" className="ml-1 btn-soft" />
+								<a
+									class="btn btn-soft btn-xs flex items-center gap-1"
+									href={`https://testnet.suivision.xyz/object/${wheelId}`}
+									target="_blank"
+									rel="noopener noreferrer"
+									>Suivision <span class="icon-[lucide--external-link]"></span></a
+								>
+							</div>
+
+							<div class="mt-1 flex flex-wrap items-center gap-2 text-sm">
+								Status: {#if isCancelled}
+									<span class="badge badge-warning badge-sm">Cancelled</span>
+								{:else if remainingSpins > 0}
+									<span class="badge badge-primary badge-sm">Running</span>
+								{:else}
+									<span class="badge badge-neutral badge-sm">Finished</span>
+								{/if}
+							</div>
+
+							<div class="mt-1 flex items-center gap-2">
+								<div class="text-sm opacity-80">
+									Pool balance: <span class="text-primary font-mono font-semibold"
+										>{formatMistToSuiCompact(poolBalanceMist)} SUI</span
+									>
+								</div>
+								{#if account.value && isOrganizer && canOrganizerReclaim() && poolBalanceMist > 0n}
+									<ButtonLoading
+										formLoading={reclaimLoading}
+										color="warning"
+										size="xs"
+										loadingText="Reclaiming..."
+										onclick={reclaimPool}
+										disabled={!isOnTestnet}>Reclaim</ButtonLoading
+									>
+								{/if}
+							</div>
+
+							{#if wheelCreatedAtMs > 0}
+								<div class="mt-1 flex items-start text-sm opacity-80">
+									<span>Created</span>
+									<span title={new Date(wheelCreatedAtMs).toISOString()} class="ml-1">
+										{formatDistanceToNow(new Date(wheelCreatedAtMs), { addSuffix: true })}
+									</span>
+								</div>
+							{/if}
+						</div>
+					</div>
+				{/if}
 			</div>
 		</div>
 	{/if}

@@ -1,6 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { watch } from 'runed';
+	import { page } from '$app/state';
 	import { useSearchParams } from 'runed/kit';
 	import { searchParamsSchema } from '$lib/paramSchema.js';
 	import { SuiClient } from '@mysten/sui/client';
@@ -25,6 +26,7 @@
 	} from '$lib/utils/suiHelpers.js';
 
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
+	import ButtonCopy from '$lib/components/ButtonCopy.svelte';
 	import Wheel from '$lib/components/Wheel.svelte';
 	import { wheelContext } from '$lib/context/wheel.js';
 	import QRCode from 'qrcode';
@@ -1023,10 +1025,17 @@
 						</div>
 
 						{#if createdWheelId && remainingSpins === 0}
-							<div class="mt-3">
-								<a class="link link-primary" href={`/wheel-result?wheelId=${createdWheelId}`}>
-									View results and claim prizes →
-								</a>
+							<div class="mt-2">
+								<div class="alert alert-soft alert-info w-60">
+									<span class="icon-[lucide--info] h-4 w-4"></span>
+									<a class="link" href={`/wheel-result?wheelId=${createdWheelId}`}> Claim link </a>
+									<ButtonCopy
+										originText={`${page.url.origin}/wheel-result?wheelId=${createdWheelId}`}
+										size="xs"
+										className="btn-soft"
+									/>
+								</div>
+
 								{#if qrDataUrl}
 									<div class="mt-3 flex items-center gap-3">
 										<img
