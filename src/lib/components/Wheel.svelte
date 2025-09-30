@@ -233,6 +233,17 @@
 		const c = offscreenCtx;
 		c.clearRect(0, 0, wheelSize, wheelSize);
 		c.save();
+		// Clip all drawing operations to the wheel's circle so that shadows do not overflow
+		c.beginPath();
+		c.arc(centerX, centerY, radius - 4, 0, Math.PI * 2);
+		c.closePath();
+		c.clip();
+
+		// Pin size controller: 1 = default, >1 bigger, <1 smaller
+		const pinSizeScale = 0.5; // adjust if you want larger/smaller rivets
+
+		// Defer drawing of rim pins until after all slices are filled so they stay on top
+		const deferredPins = [];
 		const baseStart = -Math.PI / 2;
 		for (let i = 0; i < n; i++) {
 			const start = baseStart + i * arc;
@@ -241,13 +252,24 @@
 			c.moveTo(centerX, centerY);
 			c.arc(centerX, centerY, radius - 4, start, end);
 			c.closePath();
+			// Fine shadow along the tangent to make current slice look like it's on top of previous slice
+			const mid = (start + end) / 2;
+			c.shadowColor = 'rgba(0,0,0,0.18)';
+			c.shadowBlur = 8;
+			const off = Math.max(2, Math.min(6, radius * 0.012));
+			c.shadowOffsetX = Math.cos(mid - Math.PI / 2) * off;
+			c.shadowOffsetY = Math.sin(mid - Math.PI / 2) * off;
 			c.fillStyle = segmentColors[i % segmentColors.length];
 			c.fill();
+			// Reset shadow to not affect stroke/label
+			c.shadowColor = 'transparent';
+			c.shadowBlur = 0;
+			c.shadowOffsetX = 0;
+			c.shadowOffsetY = 0;
 			c.strokeStyle = 'rgba(0,0,0,0.06)';
 			c.lineWidth = 2;
 			c.stroke();
 
-			const mid = (start + end) / 2;
 			const raw = String(entries[i]).trim();
 			const label = isValidSuiAddress(raw) ? shortenAddress(raw) : raw;
 			if (!label) continue;
@@ -268,6 +290,44 @@
 				c.fillText(layout.displayText, innerRadius + available - padding, 0);
 				c.restore();
 			}
+
+			// Save pin position to draw later (so next slice won't cover it)
+			const pinAngle = end; // boundary end of current slice
+			const rimClip = radius - 4; // same as clip radius
+			const pinRadius = Math.max(3, Math.min(6, radius * 0.03 * pinSizeScale));
+			const pinDistance = rimClip - pinRadius - 1.5; // keep inside clip
+			const pinX = centerX + Math.cos(pinAngle) * pinDistance;
+			const pinY = centerY + Math.sin(pinAngle) * pinDistance;
+			deferredPins.push({ x: pinX, y: pinY, r: pinRadius });
+		}
+
+		// Draw pins on top of all slices/labels
+		for (const pin of deferredPins) {
+			c.save();
+			c.shadowColor = 'rgba(0,0,0,0.25)';
+			c.shadowBlur = 5;
+			c.shadowOffsetX = 0;
+			c.shadowOffsetY = 1.5;
+			const g = c.createRadialGradient(
+				pin.x - pin.r * 0.35,
+				pin.y - pin.r * 0.35,
+				0.5,
+				pin.x,
+				pin.y,
+				pin.r
+			);
+			g.addColorStop(0, 'rgba(255,255,255,0.96)');
+			g.addColorStop(1, 'rgba(172,172,172,0.95)');
+			c.fillStyle = g;
+			c.beginPath();
+			c.arc(pin.x, pin.y, pin.r, 0, Math.PI * 2);
+			c.fill();
+			c.shadowColor = 'transparent';
+			c.shadowBlur = 0;
+			c.lineWidth = 1;
+			c.strokeStyle = 'rgba(0,0,0,0.25)';
+			c.stroke();
+			c.restore();
 		}
 
 		c.beginPath();
@@ -646,8 +706,9 @@
 	<div class="rounded-box bg-base-200 p-3 shadow">
 		<div
 			bind:this={canvasContainerEl}
-			class="border-base-300 relative mx-auto aspect-square w-full rounded-full border-1 shadow-lg"
+			class="relative mx-auto aspect-square w-full rounded-full border-1 border-amber-300/60 shadow-lg"
 		>
+			<!-- Sound toggle -->
 			<button
 				class="btn btn-circle btn-sm tooltip absolute top-2 right-2 z-20 bg-white/90 shadow-lg backdrop-blur-sm transition-all duration-200 hover:bg-white"
 				onclick={() => (muted = !muted)}
@@ -662,6 +723,7 @@
 				{/if}
 			</button>
 
+			<!-- Pointer -->
 			<div
 				class="pointer-events-none absolute top-1/2 -right-9 z-10 -translate-y-1/2"
 				aria-hidden="true"
@@ -692,23 +754,26 @@
 				</svg>
 			</div>
 
+			<!-- Wheel -->
 			<canvas bind:this={canvasEl} class="rounded-box pointer-events-none mx-auto block"></canvas>
 
+			<!-- Spin button -->
 			<div
-				class="pointer-events-none absolute top-1/2 left-1/2 z-10 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center"
+				class="pointer-events-none absolute top-1/2 left-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center"
 			>
-				<ButtonLoading
-					formLoading={spinning}
-					color="primary"
-					size="lg"
-					loadingText={progressing ? 'Confirming...' : 'Spinning...'}
-					onclick={accountConnected ? spinOnChainAndAnimate : spin}
-					aria-label="Spin the wheel"
-					moreClass={`w-full h-full bg-white hover:bg-primary hover:text-white rounded-full text-black pointer-events-auto shadow-lg ${!spinning && !isSpinDisabled ? 'zoom-attention' : ''} ${isSpinDisabled ? 'opacity-50' : ''}`}
-					disabled={isSpinDisabled}
-				>
-					Spin
-				</ButtonLoading>
+				<div class="relative h-16 w-16 sm:h-18 sm:w-18">
+					<ButtonLoading
+						formLoading={spinning}
+						size="lg"
+						loadingText={progressing ? 'Confirming...' : 'Spinning...'}
+						onclick={accountConnected ? spinOnChainAndAnimate : spin}
+						aria-label="Spin the wheel"
+						className={`border-0 w-full h-full rounded-full disabled:!shadow-lg text-black pointer-events-auto shadow-lg ring-2 ring-amber-300/80 bg-gradient-to-b from-amber-200 to-amber-500 hover:from-amber-200 hover:to-amber-600 transition-all duration-200 font-extrabold tracking-wide uppercase ${isSpinDisabled ? 'text-xs' : ''}`}
+						disabled={isSpinDisabled}
+					>
+						Spin
+					</ButtonLoading>
+				</div>
 			</div>
 		</div>
 
@@ -799,27 +864,3 @@
 		<button>Close</button>
 	</form>
 </dialog>
-
-<style>
-	/* Subtle zoom loop for the enabled Spin button */
-	@keyframes zoom-attention {
-		0%,
-		100% {
-			transform: scale(1);
-		}
-		50% {
-			transform: scale(1.1);
-		}
-	}
-
-	:global(.zoom-attention) {
-		animation: zoom-attention 1.6s ease-in-out infinite;
-		will-change: transform;
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		:global(.zoom-attention) {
-			animation: none;
-		}
-	}
-</style>
