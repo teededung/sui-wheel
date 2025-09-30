@@ -1,13 +1,13 @@
 <script>
-	/** @type {{type: string, formLoading: boolean, disabled: boolean, size: string, loadingText: string, moreClass: string, buttonStyle: string, icon: string, children: any}} */
+	/** @type {{type: string, formLoading: boolean, disabled: boolean, size: string, loadingText: string, className: string, buttonStyle: string, icon: string, children: any}} */
 	let {
 		type = 'button',
 		formLoading = false,
 		disabled = false,
 		size = 'sm',
 		loadingText = 'Please wait',
-		moreClass = '',
-		color = 'success',
+		className = '',
+		color = '',
 		icon = '',
 		children,
 		onclick,
@@ -17,7 +17,7 @@
 
 <button
 	{type}
-	class={`btn btn-${size}${moreClass ? ` ${moreClass}` : ''}`}
+	class={`btn btn-${size}${className ? ` ${className}` : ''}`}
 	class:btn-primary={color === 'primary'}
 	class:btn-secondary={color === 'secondary'}
 	class:btn-accent={color === 'accent'}

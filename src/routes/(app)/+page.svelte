@@ -1187,7 +1187,7 @@
 		<div class="flex justify-end">
 			<ButtonLoading
 				type="button"
-				moreClass="mt-1"
+				className="mt-1"
 				size="md"
 				color="primary"
 				formLoading={xImportLoading}

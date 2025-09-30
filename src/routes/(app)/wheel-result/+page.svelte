@@ -774,7 +774,7 @@
 											loadingText="Claiming..."
 											onclick={() => claim(winnerPrizeIndex)}
 											disabled={!isOnTestnet}
-											moreClass="mb-2">Claim prize</ButtonLoading
+											className="mb-2">Claim prize</ButtonLoading
 										>
 									{/if}
 									{#if getClaimState(winnerPrizeIndex).state === 'too_early'}
