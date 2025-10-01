@@ -330,11 +330,6 @@
 			c.restore();
 		}
 
-		c.beginPath();
-		c.arc(centerX, centerY, Math.max(22, radius * 0.08), 0, Math.PI * 2);
-		c.fillStyle = '#ffffff';
-		c.fill();
-
 		c.restore();
 	}
 
@@ -768,7 +763,7 @@
 						loadingText={progressing ? 'Confirming...' : 'Spinning...'}
 						onclick={accountConnected ? spinOnChainAndAnimate : spin}
 						aria-label="Spin the wheel"
-						className={`border-0 w-full h-full rounded-full disabled:!shadow-lg text-black pointer-events-auto shadow-lg ring-2 ring-amber-300/80 bg-gradient-to-b from-amber-200 to-amber-500 hover:from-amber-200 hover:to-amber-600 transition-all duration-200 font-extrabold tracking-wide uppercase ${isSpinDisabled ? 'text-xs' : ''}`}
+						className={`border-0 w-full h-full rounded-full text-gray-800 !pointer-events-auto cursor-pointer disabled:cursor-not-allowed disabled:!shadow-lg disabled:opacity-70 disabled:text-gray-500 shadow-lg ring-2 ring-amber-300/80 bg-gradient-to-b from-amber-200 to-amber-500 hover:from-amber-200 hover:to-amber-600 transition-all duration-200 font-extrabold uppercase ${isSpinDisabled ? 'text-xs' : ''}`}
 						disabled={isSpinDisabled}
 					>
 						Spin
