@@ -13,7 +13,8 @@
 		suiBalance,
 		suiBalanceLoading,
 		suiNamesByAddress,
-		wallet
+		wallet,
+		refreshSuiBalance
 	} from 'sui-svelte-wallet-kit';
 	import { toast } from 'svelte-daisy-toaster';
 	import { shortenAddress } from '$lib/utils/string';
@@ -39,6 +40,22 @@
 	let bal = $derived(suiBalance?.value / 1_000_000_000);
 	let balLoading = $derived(Boolean(suiBalanceLoading?.value));
 	let isTestnet = $derived(Boolean(account?.chains[0] === 'sui:testnet'));
+
+	// track dropdown open state and refresh balance when opened
+	let dropdownOpen = $state(false);
+	$effect(() => {
+		if (dropdownOpen && accAddr) {
+			try {
+				// Call refresh when dropdown opens; ignore result
+				const maybePromise = refreshSuiBalance?.();
+				if (maybePromise && typeof maybePromise.then === 'function') {
+					maybePromise.catch(() => {});
+				}
+			} catch (e) {
+				// no-op if refresh throws
+			}
+		}
+	});
 
 	function display(acc) {
 		if (!acc) return '';
@@ -103,7 +120,11 @@
 		<!-- connected -->
 		{#if showSwitcher && (walletLabel || walletIcon)}
 			<!-- full dropdown / switcher as before -->
-			<div class="dropdown dropdown-end">
+			<div
+				class="dropdown dropdown-end"
+				onfocusin={() => (dropdownOpen = true)}
+				onfocusout={() => (dropdownOpen = false)}
+			>
 				<div class="btn" role="button" tabindex="0">
 					{#if walletIcon}
 						<img src={walletIcon} class="h-6 w-6" loading="lazy" alt={walletLabel || 'Wallet'} />
@@ -117,8 +138,25 @@
 
 				<div
 					tabindex="-1"
-					class="dropdown-content menu bg-base-100 rounded-box border-base-300 z-50 w-80 border p-0 shadow-xl"
+					class="dropdown-content menu bg-base-100 rounded-box border-base-300 relative z-50 w-80 border p-0 shadow-xl"
 				>
+					{#if hydrated && accAddr}
+						<div class="absolute top-2 right-2">
+							<div
+								class="tooltip badge badge-sm badge-soft badge-primary px-2 font-mono leading-none whitespace-nowrap"
+								aria-label={`Balance ${Number(bal ?? 0).toFixed(6)} SUI`}
+								data-tip={`${Number(bal ?? 0).toFixed(6)} SUI`}
+							>
+								{#if balLoading}
+									<span class="loading loading-dots loading-xs"></span>
+								{:else}
+									<span>{Number(bal ?? 0).toFixed(3)}</span>
+									<span class="opacity-80">SUI</span>
+								{/if}
+							</div>
+						</div>
+					{/if}
+
 					<!-- header -->
 					<div class="border-base-300 flex items-center gap-3 border-b px-4 py-3">
 						{#if walletIcon}
@@ -216,8 +254,12 @@
 					</div>
 				</div>
 
-				<!-- khi switcher bị tắt, vẫn có menu nhỏ để switch/disconnect -->
-				<div class="dropdown dropdown-end">
+				<!-- When the switcher is disabled, still show a small menu for switch/disconnect -->
+				<div
+					class="dropdown dropdown-end"
+					onfocusin={() => (dropdownOpen = true)}
+					onfocusout={() => (dropdownOpen = false)}
+				>
 					<button
 						tabindex="0"
 						class="btn btn-ghost btn-xs ml-1"
