@@ -2,19 +2,18 @@
 	import { onMount } from 'svelte';
 	import {
 		connectWithModal,
-		account,
+		useCurrentAccount,
+		useAccounts,
 		disconnect,
 		connect,
 		switchAccount,
 		switchWallet,
-		accounts,
-		wallet,
 		walletName,
 		walletIconUrl,
 		suiBalance,
 		suiBalanceLoading,
 		suiNamesByAddress,
-		refreshSuiBalance
+		wallet
 	} from 'sui-svelte-wallet-kit';
 	import { toast } from 'svelte-daisy-toaster';
 	import { shortenAddress } from '$lib/utils/string';
@@ -29,32 +28,17 @@
 	// ensure UI reacts to account changes reliably
 	let accAddr = $state(null);
 	$effect(() => {
-		accAddr = account.value?.address || null;
+		accAddr = account?.address || null;
 	});
 
-	// reactive mirrors (from wallet kit)
+	let account = $derived(useCurrentAccount());
+	let accounts = $derived(useAccounts());
+
 	let walletIcon = $derived(walletIconUrl?.value || null);
 	let walletLabel = $derived(wallet.value?.displayName || walletName?.value || '');
-	let accts = $derived(accounts?.value || []);
 	let bal = $derived(suiBalance?.value / 1_000_000_000);
 	let balLoading = $derived(Boolean(suiBalanceLoading?.value));
-	let isTestnet = $derived(Boolean(account.value?.chains?.[0] === 'sui:testnet'));
-
-	// track dropdown open state and refresh balance when opened
-	let dropdownOpen = $state(false);
-	$effect(() => {
-		if (dropdownOpen && accAddr) {
-			try {
-				// Call refresh when dropdown opens; ignore result
-				const maybePromise = refreshSuiBalance?.();
-				if (maybePromise && typeof maybePromise.then === 'function') {
-					maybePromise.catch(() => {});
-				}
-			} catch (e) {
-				// no-op if refresh throws
-			}
-		}
-	});
+	let isTestnet = $derived(Boolean(account?.chains[0] === 'sui:testnet'));
 
 	function display(acc) {
 		if (!acc) return '';
@@ -119,42 +103,22 @@
 		<!-- connected -->
 		{#if showSwitcher && (walletLabel || walletIcon)}
 			<!-- full dropdown / switcher as before -->
-			<div
-				class="dropdown dropdown-end"
-				onfocusin={() => (dropdownOpen = true)}
-				onfocusout={() => (dropdownOpen = false)}
-			>
+			<div class="dropdown dropdown-end">
 				<div class="btn" role="button" tabindex="0">
 					{#if walletIcon}
 						<img src={walletIcon} class="h-6 w-6" loading="lazy" alt={walletLabel || 'Wallet'} />
 					{/if}
 					<div class="flex flex-col items-start text-[11px] leading-tight">
 						<span class="font-semibold">{walletLabel || 'Wallet'}</span>
-						<span class="opacity-70">{display(account.value)}</span>
+						<span class="opacity-70">{display(account)}</span>
 					</div>
 					<span class="icon-[lucide--chevron-down] h-4 w-4"></span>
 				</div>
 
 				<div
 					tabindex="-1"
-					class="dropdown-content menu bg-base-100 rounded-box border-base-300 relative z-50 w-80 border p-0 shadow-xl"
+					class="dropdown-content menu bg-base-100 rounded-box border-base-300 z-50 w-80 border p-0 shadow-xl"
 				>
-					{#if hydrated && accAddr}
-						<div class="absolute top-2 right-2">
-							<div
-								class="tooltip badge badge-sm badge-soft badge-primary px-2 font-mono leading-none whitespace-nowrap"
-								aria-label={`Balance ${Number(bal ?? 0).toFixed(6)} SUI`}
-								data-tip={`${Number(bal ?? 0).toFixed(6)} SUI`}
-							>
-								{#if balLoading}
-									<span class="loading loading-dots loading-xs"></span>
-								{:else}
-									<span>{Number(bal ?? 0).toFixed(3)}</span>
-									<span class="opacity-80">SUI</span>
-								{/if}
-							</div>
-						</div>
-					{/if}
 					<!-- header -->
 					<div class="border-base-300 flex items-center gap-3 border-b px-4 py-3">
 						{#if walletIcon}
@@ -163,16 +127,16 @@
 						<div>
 							<h3 class="text-sm font-semibold">{walletLabel || 'Wallet'}</h3>
 							<p class="text-xs opacity-60">
-								{accts.length > 1 ? 'Select account to switch' : 'Connected account'}
+								{accounts.length > 1 ? 'Select account to switch' : 'Connected account'}
 							</p>
 						</div>
 					</div>
 
 					<!-- account list -->
 					<div class="max-h-64 overflow-y-auto">
-						{#each accts as acc (acc.address)}
+						{#each accounts as acc (acc.address)}
 							<div
-								class="hover:bg-base-200 px-4 py-3 {acc?.address === account.value?.address
+								class="hover:bg-base-200 px-4 py-3 {acc.address === account.address
 									? 'bg-primary/10'
 									: ''}"
 							>
@@ -180,7 +144,7 @@
 									<div class="min-w-0">
 										<div class="flex items-center gap-2">
 											<span class="text-sm font-medium">{display(acc)}</span>
-											{#if acc?.address === account.value?.address}
+											{#if acc.address === account.address}
 												<div class="badge badge-primary badge-xs">Active</div>
 											{/if}
 										</div>
@@ -209,7 +173,7 @@
 										>
 											<span class="icon-[lucide--external-link] h-3 w-3"></span>
 										</button>
-										{#if acc?.address !== account.value?.address}
+										{#if acc.address !== account.address}
 											<button
 												class="btn btn-primary btn-xs"
 												onclick={e => {
@@ -253,11 +217,7 @@
 				</div>
 
 				<!-- khi switcher bị tắt, vẫn có menu nhỏ để switch/disconnect -->
-				<div
-					class="dropdown dropdown-end"
-					onfocusin={() => (dropdownOpen = true)}
-					onfocusout={() => (dropdownOpen = false)}
-				>
+				<div class="dropdown dropdown-end">
 					<button
 						tabindex="0"
 						class="btn btn-ghost btn-xs ml-1"

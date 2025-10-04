@@ -4,13 +4,13 @@
 	import { page } from '$app/state';
 	import { useSearchParams } from 'runed/kit';
 	import { searchParamsSchema } from '$lib/paramSchema.js';
-	import { SuiClient } from '@mysten/sui/client';
 	import { Transaction } from '@mysten/sui/transactions';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-daisy-toaster';
 	import { formatDistanceToNow } from 'date-fns';
 	import {
-		account,
+		useSuiClient,
+		useCurrentAccount,
 		wallet,
 		signAndExecuteTransaction,
 		suiBalance,
@@ -41,8 +41,8 @@
 		CLOCK_OBJECT_ID
 	} from '$lib/constants.js';
 
-	// Testnet Sui client for reading transaction details
-	const suiClient = new SuiClient({ url: 'https://fullnode.testnet.sui.io' });
+	const suiClient = $derived(useSuiClient());
+	const account = $derived(useCurrentAccount());
 
 	// State
 	let entries = $state([
@@ -171,7 +171,7 @@
 
 	let hasInsufficientBalance = $derived.by(() => {
 		// Do not warn about balance until wallet and balance are fully loaded
-		if (!account.value) return false;
+		if (!account) return false;
 		if (suiBalanceLoading?.value) return false;
 		try {
 			return suiBalance.value - 1_000_000_000 < totalDonationMist;
@@ -231,7 +231,7 @@
 
 	function validateSetup() {
 		const errors = [];
-		if (!account.value) errors.push('Wallet is not connected.');
+		if (!account) errors.push('Wallet is not connected.');
 		if (!isOnTestnet) errors.push('Wallet must be on Testnet.');
 		if (!packageId || packageId.trim().length === 0) errors.push('Package ID is required.');
 		const addrList = getAddressEntries();
@@ -466,6 +466,7 @@
 		if (!createdWheelId) return;
 		cancelLoading = true;
 		setupError = '';
+
 		try {
 			const tx = new Transaction();
 
@@ -481,7 +482,7 @@
 			// Handle the optional reclaim by transferring to sender if present
 			tx.moveCall({
 				target: `${packageId}::${WHEEL_MODULE}::transfer_optional_reclaim`,
-				arguments: [optCoin, tx.pure.address(account.value.address)] // Assume walletAddress is the connected organizer's address
+				arguments: [optCoin, tx.pure.address(account.address)] // Assume walletAddress is the connected organizer's address
 			});
 
 			// Sign and execute the PTB
@@ -506,8 +507,7 @@
 			});
 
 			// Fetch wheel from chain again
-			wheelFetched = false;
-			fetchWheelFromChain();
+			isCancelled = true;
 		} catch (e) {
 			setupError = e?.message || String(e);
 		} finally {
@@ -644,8 +644,6 @@
 
 	// Set wheel context for child component during initialization
 	wheelContext.set({
-		signAndExecuteTransaction,
-		suiClient,
 		packageId,
 		WHEEL_MODULE,
 		WHEEL_FUNCTIONS,
@@ -711,6 +709,7 @@
 					<!-- Header actions for view/edit -->
 					{#if createdWheelId && wheelFetched}
 						<div class="mb-3 flex items-center justify-between gap-2">
+							<!-- Header info -->
 							<div class="flex items-center gap-2 text-sm opacity-70">
 								<span
 									>Wheel ID: <span class="font-mono">{shortenAddress(createdWheelId)}</span></span
@@ -722,13 +721,14 @@
 									<span class="badge badge-warning badge-sm">Cancelled</span>
 								{/if}
 							</div>
+
 							<div class="flex items-center gap-2">
-								{#if remainingSpins === 0}
+								<!-- New wheel button -->
+								{#if (!isEditing && remainingSpins === 0) || isCancelled}
 									<button
 										class="btn btn-primary btn-sm"
 										onclick={() => {
-											// reset to create new wheel
-											isEditing = false;
+											params.update({ wheelId: undefined });
 											wheelFetched = false;
 											entriesText = '';
 											entries = [];
@@ -738,61 +738,40 @@
 											winnersOnChain = [];
 											spunCountOnChain = 0;
 											poolBalanceMistOnChain = 0n;
-
-											params.update({ wheelId: '' });
 										}}>New wheel</button
 									>
+								{/if}
+
+								{#if isEditing}
+									<ButtonLoading
+										formLoading={updateLoading}
+										color="primary"
+										loadingText="Updating..."
+										onclick={updateWheel}>Update wheel</ButtonLoading
+									>
+									<button
+										class="btn"
+										onclick={() => (isEditing = false)}
+										disabled={spunCountOnChain > 0}>Cancel edit</button
+									>
 								{:else}
-									{#if isEditing}
-										<ButtonLoading
-											formLoading={updateLoading}
-											color="primary"
-											loadingText="Updating..."
-											onclick={updateWheel}>Update wheel</ButtonLoading
-										>
-										<button
-											class="btn"
-											onclick={() => (isEditing = false)}
-											disabled={spunCountOnChain > 0}>Cancel edit</button
-										>
-									{:else}
-										<!-- <button
+									<!-- Edit wheel button -->
+									<!-- <button
 											class="btn btn-sm btn-outline"
 											onclick={() => (isEditing = true)}
 											disabled={spunCountOnChain > 0 || isCancelled}>Edit wheel</button
 										> -->
-									{/if}
-									{#if isCancelled}
-										<!-- If cancelled, hide Cancel button and show New wheel instead -->
-										<button
-											class="btn btn-primary btn-sm"
-											onclick={() => {
-												params.update({ wheelId: undefined });
-												isEditing = false;
-												wheelFetched = false;
-												entriesText = '';
-												entries = [];
-												entriesOnChain = [];
-												prizeAmounts = [];
-												prizesOnChainMist = [];
-												winnersOnChain = [];
-												spunCountOnChain = 0;
-												poolBalanceMistOnChain = 0n;
-												goto('/');
-											}}
-										>
-											<span class="icon-[lucide--plus] h-4 w-4"></span>
-											<span>New wheel</span>
-										</button>
-									{:else if account.value}
-										<ButtonLoading
-											formLoading={cancelLoading}
-											color="error"
-											loadingText="Cancelling..."
-											onclick={cancelWheel}
-											disabled={spinning || spunCountOnChain > 0}>Cancel wheel</ButtonLoading
-										>
-									{/if}
+								{/if}
+
+								<!-- New/Cancel wheel button -->
+								{#if account && !isCancelled}
+									<ButtonLoading
+										formLoading={cancelLoading}
+										color="error"
+										loadingText="Cancelling..."
+										onclick={cancelWheel}
+										disabled={spinning || spunCountOnChain > 0}>Cancel wheel</ButtonLoading
+									>
 								{/if}
 							</div>
 						</div>
@@ -812,7 +791,7 @@
 								type="radio"
 								name="wheel_tabs"
 								class="tab"
-								aria-label={`Entries (${account.value ? entriesOnChain.length : entries.length})`}
+								aria-label={`Entries (${account ? entriesOnChain.length : entries.length})`}
 								checked={activeTab === 'entries'}
 								onclick={() => (activeTab = 'entries')}
 							/>
@@ -846,7 +825,7 @@
 									<div class="mb-3 flex items-center justify-between gap-2">
 										<div class="text-sm opacity-70">Entries</div>
 
-										{#if account.value}
+										{#if account}
 											<div class="dropdown dropdown-end">
 												<button class="btn btn-sm btn-primary btn-soft" aria-label="Import entries">
 													<span class="icon-[lucide--list-plus] h-4 w-4"></span>
@@ -882,7 +861,8 @@
 								{/if}
 							</div>
 
-							{#if account.value}
+							{#if account}
+								<!-- Prizes tab -->
 								<input
 									type="radio"
 									name="wheel_tabs"
@@ -972,6 +952,7 @@
 									{/if}
 								</div>
 
+								<!-- Others tab -->
 								<input
 									type="radio"
 									name="wheel_tabs"
@@ -1050,7 +1031,7 @@
 						{/if}
 
 						<!-- Common alerts and button (always visible) -->
-						{#if account.value}
+						{#if account}
 							{#if setupError}
 								<div class="alert alert-error mt-3 whitespace-pre-wrap">{setupError}</div>
 							{/if}

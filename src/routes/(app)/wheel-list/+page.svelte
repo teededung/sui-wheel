@@ -1,14 +1,14 @@
 <script>
 	import { onDestroy } from 'svelte';
 	import { fade } from 'svelte/transition';
-	import { SuiClient } from '@mysten/sui/client';
-	import { account, accountLoading } from 'sui-svelte-wallet-kit';
+	import { useSuiClient, useCurrentAccount, accountLoading } from 'sui-svelte-wallet-kit';
 	import { formatDistanceToNow } from 'date-fns';
 	import { shortenAddress } from '$lib/utils/string.js';
 	import { PACKAGE_ID, WHEEL_MODULE, WHEEL_FUNCTIONS, WHEEL_STRUCT } from '$lib/constants.js';
 	import { watch, IsIdle } from 'runed';
 
-	const client = new SuiClient({ url: 'https://fullnode.testnet.sui.io' });
+	const suiClient = $derived(useSuiClient());
+	const account = $derived(useCurrentAccount());
 
 	let pageState = $state('initializing'); // initializing, loading, loaded
 	let errorMsg = $state('');
@@ -22,7 +22,7 @@
 		if (!isRefresh) pageState = 'loading';
 		errorMsg = '';
 		try {
-			const resp = await client.queryTransactionBlocks({
+			const resp = await suiClient.queryTransactionBlocks({
 				filter: {
 					MoveFunction: {
 						package: PACKAGE_ID,
@@ -63,7 +63,7 @@
 			// Enrich items with on-chain status (Cancelled / Running / Finished)
 			if (items.length > 0) {
 				try {
-					const objs = await client.multiGetObjects({
+					const objs = await suiClient.multiGetObjects({
 						ids: items.map(i => i.id),
 						options: { showContent: true }
 					});
@@ -108,7 +108,7 @@
 
 	// Watch for account changes
 	watch(
-		() => account.value?.address,
+		() => account?.address,
 		addr => {
 			pageState = 'loading';
 			if (addr) {
@@ -127,7 +127,7 @@
 			if (idle.current) {
 				stopPolling();
 			} else {
-				if (account.value?.address && !_pollInterval) {
+				if (account?.address && !_pollInterval) {
 					startPolling();
 					refreshNow();
 				}
@@ -141,9 +141,9 @@
 	}
 
 	function refreshNow() {
-		if (!account.value?.address) return;
+		if (!account?.address) return;
 		refreshing = true;
-		loadWheelsFor(account.value?.address, { isRefresh: true });
+		loadWheelsFor(account?.address, { isRefresh: true });
 	}
 
 	function stopPolling() {
@@ -179,12 +179,12 @@
 					Loading...
 				</div>
 			{:else if pageState === 'loading'}
-				{#if accountLoading.value && !account.value}
+				{#if accountLoading.value && !account}
 					<div class="space-y-3">
 						<div class="skeleton h-8 w-40"></div>
 						<div class="skeleton h-32 w-full"></div>
 					</div>
-				{:else if !account.value}
+				{:else if !account}
 					<div class="flex items-center gap-2">Please connect your wallet to view your wheels.</div>
 				{/if}
 			{:else if pageState === 'loaded'}

@@ -1,8 +1,11 @@
 <script>
 	import { onMount, onDestroy } from 'svelte';
-	import { SuiClient } from '@mysten/sui/client';
 	import { Transaction } from '@mysten/sui/transactions';
-	import { account, signAndExecuteTransaction } from 'sui-svelte-wallet-kit';
+	import {
+		useSuiClient,
+		useCurrentAccount,
+		signAndExecuteTransaction
+	} from 'sui-svelte-wallet-kit';
 	import { shortenAddress } from '$lib/utils/string.js';
 	import { formatMistToSuiCompact, isTestnet } from '$lib/utils/suiHelpers.js';
 	import { PACKAGE_ID, WHEEL_MODULE, WHEEL_FUNCTIONS, CLOCK_OBJECT_ID } from '$lib/constants.js';
@@ -14,7 +17,8 @@
 	import { useSearchParams } from 'runed/kit';
 	import { searchParamsSchema } from '$lib/paramSchema.js';
 
-	const client = new SuiClient({ url: 'https://fullnode.testnet.sui.io' });
+	const suiClient = $derived(useSuiClient());
+	const account = $derived(useCurrentAccount());
 
 	let isOnTestnet = $derived.by(() => isTestnet(account));
 
@@ -51,7 +55,7 @@
 	let nonWinningEntries = $state([]);
 	let winnerInfo = $derived.by(() => {
 		try {
-			const addr = account.value?.address?.toLowerCase?.();
+			const addr = account?.address.toLowerCase();
 			if (!addr) return null;
 			return winners.find(w => String(w?.addr || '').toLowerCase() === addr) ?? null;
 		} catch {
@@ -72,7 +76,7 @@
 
 	async function getPackageIdFromWheelId(wheelId) {
 		try {
-			const objectData = await client.getObject({
+			const objectData = await suiClient.getObject({
 				id: wheelId,
 				options: { showType: true }
 			});
@@ -115,11 +119,12 @@
 		loading = true;
 		error = '';
 		try {
-			const res = await client.getObject({
+			const res = await suiClient.getObject({
 				id: wheelId,
 				options: { showContent: true, showPreviousTransaction: true }
 			});
 			const f = res?.data?.content?.fields ?? {};
+
 			isCancelled = Boolean(f.is_cancelled);
 			winners = (f.winners || []).map(w => ({
 				addr: String(w?.fields?.addr ?? w?.addr ?? ''),
@@ -149,6 +154,7 @@
 						if (val != null) pool = BigInt(val);
 					}
 				}
+
 				poolBalanceMist = pool;
 			} catch {}
 		} catch (e) {
@@ -162,7 +168,7 @@
 		try {
 			if (!packageId || !wheelId) return;
 			const eventType = `${packageId}::${WHEEL_MODULE}::ReclaimEvent`;
-			const res = await client.queryEvents({ query: { MoveEventType: eventType }, limit: 1 });
+			const res = await suiClient.queryEvents({ query: { MoveEventType: eventType }, limit: 1 });
 			const events = Array.isArray(res?.data) ? res.data : [];
 			const filtered = events.filter(e => {
 				const wid = String(e?.parsedJson?.wheel_id ?? e?.parsedJson?.wheelId ?? '').toLowerCase();
@@ -204,7 +210,7 @@
 		try {
 			if (!packageId || !wheelId) return;
 			const eventType = `${packageId}::${WHEEL_MODULE}::ClaimEvent`;
-			const res = await client.queryEvents({ query: { MoveEventType: eventType }, limit: 1 });
+			const res = await suiClient.queryEvents({ query: { MoveEventType: eventType }, limit: 1 });
 			const events = Array.isArray(res?.data) ? res.data : [];
 			const filtered = events.filter(e => {
 				const wid = String(e?.parsedJson?.wheel_id ?? e?.parsedJson?.wheelId ?? '').toLowerCase();
@@ -244,11 +250,11 @@
 
 	async function fetchClaimEventsForWinner(packageId, wheelId) {
 		try {
-			if (!packageId || !wheelId || !account.value?.address) return;
+			if (!packageId || !wheelId || !account?.address) return;
 			const eventType = `${packageId}::${WHEEL_MODULE}::ClaimEvent`;
-			const res = await client.queryEvents({ query: { MoveEventType: eventType }, limit: 50 });
+			const res = await suiClient.queryEvents({ query: { MoveEventType: eventType }, limit: 50 });
 			const events = Array.isArray(res?.data) ? res.data : [];
-			const who = String(account.value.address).toLowerCase();
+			const who = String(account?.address).toLowerCase();
 			const filtered = events.filter(e => {
 				const wid = String(e?.parsedJson?.wheel_id ?? e?.parsedJson?.wheelId ?? '').toLowerCase();
 				const winner = String(e?.parsedJson?.winner ?? '').toLowerCase();
@@ -327,7 +333,7 @@
 	}
 
 	async function claim(prizeIndex) {
-		if (!account.value) {
+		if (!account) {
 			error = 'Connect wallet to claim';
 			return;
 		}
@@ -342,7 +348,7 @@
 				arguments: [tx.object(wheelId), tx.object(CLOCK_OBJECT_ID)]
 			});
 			// Transfer the returned coin to the sender's address
-			tx.transferObjects([claimedCoin], tx.pure.address(account.value.address));
+			tx.transferObjects([claimedCoin], tx.pure.address(account?.address));
 
 			await signAndExecuteTransaction(tx);
 			await fetchData(wheelId);
@@ -375,7 +381,7 @@
 
 	// Derived flag: connected wallet is the organizer
 	let isOrganizer = $derived.by(() => {
-		const acc = account.value?.address?.toLowerCase?.();
+		const acc = account?.address.toLowerCase();
 		const org = String(organizer || '').toLowerCase();
 		return Boolean(acc && org && acc === org);
 	});
@@ -398,7 +404,7 @@
 	}
 
 	async function reclaimPool() {
-		if (!account.value) {
+		if (!account) {
 			error = 'Connect wallet to reclaim';
 			return;
 		}
@@ -420,7 +426,7 @@
 				target: `${packageId}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.RECLAIM}`,
 				arguments: [tx.object(wheelId), tx.object(CLOCK_OBJECT_ID)]
 			});
-			tx.transferObjects([coin], tx.pure.address(account.value.address));
+			tx.transferObjects([coin], tx.pure.address(account.address));
 			await signAndExecuteTransaction(tx);
 			await fetchData(wheelId);
 			await fetchReclaimEvents(packageId, wheelId);
@@ -455,7 +461,7 @@
 	}
 
 	function isYou(addr) {
-		return String(account.value?.address || '').toLowerCase() === String(addr).toLowerCase();
+		return String(account?.address || '').toLowerCase() === String(addr).toLowerCase();
 	}
 
 	async function fetchWheelCreationMeta() {
@@ -469,7 +475,7 @@
 
 				let cursorEv = null;
 				for (let page = 0; page < 10; page++) {
-					const evRes = await client.queryEvents({
+					const evRes = await suiClient.queryEvents({
 						query: { MoveEventType: eventType },
 						cursor: cursorEv,
 						limit: 10
@@ -491,7 +497,7 @@
 			} catch {}
 
 			// Fast path: Check if previous transaction created the wheel
-			const obj = await client.getObject({
+			const obj = await suiClient.getObject({
 				id: wheelId,
 				options: { showPreviousTransaction: true }
 			});
@@ -499,7 +505,7 @@
 			let digest = obj?.data?.previousTransaction || '';
 
 			if (digest) {
-				const txb = await client.getTransactionBlock({
+				const txb = await suiClient.getTransactionBlock({
 					digest,
 					options: { showObjectChanges: true }
 				});
@@ -521,7 +527,7 @@
 			let cursor = null;
 			let found = false;
 			while (!found) {
-				const res = await client.queryTransactionBlocks({
+				const res = await suiClient.queryTransactionBlocks({
 					filter: moveFilter,
 					options: { showObjectChanges: true },
 					limit: 50,
@@ -560,7 +566,7 @@
 </svelte:head>
 
 <section class="container mx-auto px-4 py-6">
-	{#if account.value && !isOnTestnet}
+	{#if account && !isOnTestnet}
 		<div class="alert alert-warning mb-4 text-sm">
 			<span class="icon-[lucide--triangle-alert] h-4 w-4"></span>
 			<span>This app runs on Sui Testnet. Please switch your wallet network to Testnet.</span>
@@ -690,7 +696,7 @@
 								<span class="icon-[lucide--info] h-4 w-4"></span>
 								<span>This wheel has been cancelled!</span>
 							</div>
-						{:else if !account.value}
+						{:else if !account}
 							<div class="alert alert-soft alert-info text-sm">
 								<span class="icon-[lucide--info] h-4 w-4"></span>
 								<span>Connect your wallet to view your prize and claim it! 🔑</span>
@@ -846,7 +852,7 @@
 										>{formatMistToSuiCompact(poolBalanceMist)} SUI</span
 									>
 								</div>
-								{#if account.value && isOrganizer && canOrganizerReclaim() && poolBalanceMist > 0n}
+								{#if account && isOrganizer && canOrganizerReclaim() && poolBalanceMist > 0n}
 									<ButtonLoading
 										formLoading={reclaimLoading}
 										color="warning"

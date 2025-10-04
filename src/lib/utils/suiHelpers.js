@@ -138,8 +138,8 @@ export function formatSui(balance = '0') {
  * @returns {boolean} True if the account is on the SUI testnet, false otherwise
  */
 export function isTestnet(account) {
-	if (!account.value) return true;
-	const chain = account.value?.chains?.[0];
+	if (!account) return true;
+	const chain = account?.chains[0];
 	if (!chain) return true;
 	return chain === 'sui:testnet';
 }

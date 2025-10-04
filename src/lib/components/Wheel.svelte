@@ -4,11 +4,14 @@
 	import { gsap } from 'gsap';
 	import { Transaction } from '@mysten/sui/transactions';
 	import { toast } from 'svelte-daisy-toaster';
+	import { useSuiClient, signAndExecuteTransaction } from 'sui-svelte-wallet-kit';
 
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
 	import { wheelContext } from '$lib/context/wheel.js';
 	import { shortenAddress } from '$lib/utils/string.js';
 	import { isValidSuiAddress } from '$lib/utils/suiHelpers.js';
+
+	const suiClient = $derived(useSuiClient());
 
 	// Props from parent
 	let { entries, spinning, createdWheelId, remainingSpins, isCancelled, accountConnected } =
@@ -17,8 +20,6 @@
 	// Context deps/APIs from parent
 	const ctx = wheelContext.get();
 	const {
-		signAndExecuteTransaction,
-		suiClient,
 		packageId,
 		WHEEL_MODULE,
 		WHEEL_FUNCTIONS,
