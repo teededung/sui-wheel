@@ -5124,9 +5124,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sui-svelte-wallet-kit@npm:^0.8.1":
-  version: 0.8.1
-  resolution: "sui-svelte-wallet-kit@npm:0.8.1"
+"sui-svelte-wallet-kit@npm:^0.8.2":
+  version: 0.8.2
+  resolution: "sui-svelte-wallet-kit@npm:0.8.2"
   dependencies:
     "@mysten/enoki": "npm:^0.12.2"
     "@mysten/sui": "npm:1.39.0"
@@ -5135,7 +5135,7 @@ __metadata:
     "@wallet-standard/core": "npm:^1.1.1"
   peerDependencies:
     svelte: ^5.0.0
-  checksum: 10c0/99a17197882d817c6df2953bbba8d243c30ca1e970589359507944c4eb734dc4487a74d0e93e25b979bc2f5d57a1417a785817b4385b74338c1da70391b38b4f
+  checksum: 10c0/08e1caca83bc6e0392d9429c96b94b97bbc54426b5811a323d46b517e7df8c42565b592b23b00c019beb3b545463482c159479b7056704dada26b707b539fb9a
   languageName: node
   linkType: hard
 
@@ -5166,7 +5166,7 @@ __metadata:
     qrcode: "npm:^1.5.4"
     rettiwt-api: "npm:^6.0.6"
     runed: "npm:^0.34.0"
-    sui-svelte-wallet-kit: "npm:^0.8.1"
+    sui-svelte-wallet-kit: "npm:^0.8.2"
     svelte: "npm:^5.39.8"
     svelte-check: "npm:^4.3.2"
     svelte-daisy-toaster: "npm:^0.5.5"

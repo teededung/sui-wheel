@@ -253,6 +253,7 @@
 			c.moveTo(centerX, centerY);
 			c.arc(centerX, centerY, radius - 4, start, end);
 			c.closePath();
+
 			// Fine shadow along the tangent to make current slice look like it's on top of previous slice
 			const mid = (start + end) / 2;
 			c.shadowColor = 'rgba(0,0,0,0.18)';
@@ -262,6 +263,7 @@
 			c.shadowOffsetY = Math.sin(mid - Math.PI / 2) * off;
 			c.fillStyle = segmentColors[i % segmentColors.length];
 			c.fill();
+
 			// Reset shadow to not affect stroke/label
 			c.shadowColor = 'transparent';
 			c.shadowBlur = 0;
@@ -699,7 +701,7 @@
 </script>
 
 <div class="relative mx-auto max-w-[560px]">
-	<div class="rounded-box bg-base-200 p-3 shadow">
+	<div class="rounded-box p-3">
 		<div
 			bind:this={canvasContainerEl}
 			class="relative mx-auto aspect-square w-full rounded-full border-1 border-amber-300/60 shadow-lg"

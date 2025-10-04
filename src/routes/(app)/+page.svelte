@@ -11,7 +11,7 @@
 	import {
 		useSuiClient,
 		useCurrentAccount,
-		wallet,
+		useCurrentWallet,
 		signAndExecuteTransaction,
 		suiBalance,
 		suiBalanceLoading
@@ -1043,7 +1043,7 @@
 							{/if}
 
 							{#if shouldShowSetupWarnings}
-								<div class="alert alert-soft alert-warning mt-3">
+								<div class="alert alert-soft alert-warning !border-warning mt-3">
 									<ul class="list-inside list-disc">
 										{#if !isOnTestnet}
 											<li>Please switch wallet to Testnet.</li>

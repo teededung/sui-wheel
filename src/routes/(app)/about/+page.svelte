@@ -335,9 +335,7 @@
 								</li>
 							</ul>
 
-							<p class="mt-12 text-center text-sm opacity-70">
-								Built with Svelte 5, Tailwind CSS 4 and daisyUI.
-							</p>
+							<p class="mt-12 text-center text-sm opacity-70">Built on SUI</p>
 						</div>
 					</div>
 

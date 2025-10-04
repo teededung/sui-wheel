@@ -48,7 +48,7 @@
 		"qrcode": "^1.5.4",
 		"rettiwt-api": "^6.0.6",
 		"runed": "^0.34.0",
-		"sui-svelte-wallet-kit": "^0.8.1",
+		"sui-svelte-wallet-kit": "^0.8.2",
 		"svelte-daisy-toaster": "^0.5.5",
 		"zod": "^4.1.11"
 	}

@@ -8,12 +8,10 @@
 		connect,
 		switchAccount,
 		switchWallet,
-		walletName,
-		walletIconUrl,
+		useCurrentWallet,
 		suiBalance,
 		suiBalanceLoading,
 		suiNamesByAddress,
-		wallet,
 		refreshSuiBalance
 	} from 'sui-svelte-wallet-kit';
 	import { toast } from 'svelte-daisy-toaster';
@@ -32,11 +30,12 @@
 		accAddr = account?.address || null;
 	});
 
-	let account = $derived(useCurrentAccount());
-	let accounts = $derived(useAccounts());
+	const account = $derived(useCurrentAccount());
+	const accounts = $derived(useAccounts());
+	const wallet = $derived(useCurrentWallet());
 
-	let walletIcon = $derived(walletIconUrl?.value || null);
-	let walletLabel = $derived(wallet.value?.displayName || walletName?.value || '');
+	let walletIcon = $derived(wallet?.iconUrl || null);
+	let walletLabel = $derived(wallet?.displayName || '');
 	let bal = $derived(suiBalance?.value / 1_000_000_000);
 	let balLoading = $derived(Boolean(suiBalanceLoading?.value));
 	let isTestnet = $derived(Boolean(account?.chains[0] === 'sui:testnet'));
