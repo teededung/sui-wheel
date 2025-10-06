@@ -5,13 +5,11 @@
 	import { useSearchParams } from 'runed/kit';
 	import { searchParamsSchema } from '$lib/paramSchema.js';
 	import { Transaction } from '@mysten/sui/transactions';
-	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-daisy-toaster';
 	import { formatDistanceToNow } from 'date-fns';
 	import {
 		useSuiClient,
 		useCurrentAccount,
-		useCurrentWallet,
 		signAndExecuteTransaction,
 		suiBalance,
 		suiBalanceLoading
@@ -21,7 +19,6 @@
 		isValidSuiAddress,
 		parseSuiToMist,
 		formatMistToSuiCompact,
-		formatMistToSui,
 		isTestnet
 	} from '$lib/utils/suiHelpers.js';
 
@@ -33,10 +30,11 @@
 
 	import {
 		PACKAGE_ID,
-		MIST_PER_SUI,
+		// MIST_PER_SUI,
 		WHEEL_MODULE,
 		WHEEL_FUNCTIONS,
 		MINIMUM_PRIZE_AMOUNT,
+		MAX_ENTRIES,
 		RANDOM_OBJECT_ID,
 		CLOCK_OBJECT_ID
 	} from '$lib/constants.js';
@@ -69,7 +67,6 @@
 	// View/Edit and on-chain fetched state
 	let isEditing = $state(false);
 	let wheelFetched = $state(false);
-	let wheelLoading = $state(false);
 	let entriesOnChain = $state([]);
 	let prizesOnChainMist = $state([]);
 	let spunCountOnChain = $state(0);
@@ -78,7 +75,6 @@
 	let poolBalanceMistOnChain = $state(0n);
 	let winnersOnChain = $state([]);
 	let spinTimesOnChain = $state([]);
-	let postSpinFetchRequested = $state(false);
 	// Cancellation state
 	let isCancelled = $state(false);
 
@@ -99,10 +95,39 @@
 		}
 	});
 
+	// QR code for entry form
+	let entryFormQRDataUrl = $state('');
+	$effect(() => {
+		try {
+			if (entryFormEnabled && typeof window !== 'undefined') {
+				// Use wheelTempId if wheel not created yet, otherwise use createdWheelId
+				const wheelId = createdWheelId || generateWheelTempId();
+				const nameParam = entryFormModalName
+					? `&name=${encodeURIComponent(entryFormModalName)}`
+					: '';
+				const url = `${window.location.origin}/entry-form?wheelId=${wheelId}&type=${entryFormType}${nameParam}`;
+				entryFormQRUrl = url;
+				QRCode.toDataURL(url, { width: 200, margin: 1 })
+					.then(u => (entryFormQRDataUrl = u))
+					.catch(() => (entryFormQRDataUrl = ''));
+			} else {
+				entryFormQRDataUrl = '';
+				entryFormQRUrl = '';
+			}
+		} catch {
+			entryFormQRDataUrl = '';
+			entryFormQRUrl = '';
+		}
+	});
+
 	// Action loading states
 	let updateLoading = $state(false);
 	let cancelLoading = $state(false);
 
+	// Real-time entry updates
+	let entryPollingInterval = $state(null);
+	let lastEntryCount = $state(0);
+	let onlineEntriesCount = $state(0);
 	// Compute additional SUI (in MIST) needed to top up the pool when editing
 	let topUpMist = $derived.by(() => {
 		try {
@@ -117,6 +142,12 @@
 
 	// UI: active tab in settings (entries | prizes | others)
 	let activeTab = $state('entries');
+
+	// Entry form settings
+	let entryFormEnabled = $state(false);
+	let entryFormType = $state('address'); // 'address' or 'name'
+	let entryFormQRUrl = $state('');
+	let wheelTempId = $state(''); // Temporary ID for online entries before wheel creation
 
 	let entriesText = $state('');
 	let spinning = $state(false);
@@ -188,7 +219,7 @@
 			prizesCount === 0 ||
 			prizesCount > uniqueValidEntriesCount ||
 			invalidPrizeAmountsCount > 0 ||
-			entries.length > 200 ||
+			entries.length > MAX_ENTRIES ||
 			hasInsufficientBalance ||
 			!isOnTestnet
 	);
@@ -236,7 +267,7 @@
 		if (!packageId || packageId.trim().length === 0) errors.push('Package ID is required.');
 		const addrList = getAddressEntries();
 		if (addrList.length < 2) errors.push('At least 2 valid addresses are required.');
-		if (addrList.length > 200) errors.push('Entries count must be ≤ 200.');
+		if (addrList.length > MAX_ENTRIES) errors.push(`Entries count must be ≤ ${MAX_ENTRIES}.`);
 		const prizesCount = prizeAmounts.filter(v => parseSuiToMist(v) > 0n).length;
 		if (prizesCount === 0) errors.push('Please add at least 1 prize with amount > 0.');
 		if (addrList.length < prizesCount)
@@ -349,7 +380,6 @@
 	async function fetchWheelFromChain() {
 		if (!createdWheelId) return;
 		try {
-			wheelLoading = true;
 			const res = await suiClient.getObject({
 				id: createdWheelId,
 				options: { showContent: true, showOwner: true, showType: true }
@@ -402,7 +432,7 @@
 			// Pool balance
 			let poolMist = 0n;
 			const poolCandidates = ['pool'];
-			for (const k of poolCandidates) {
+			for (const _k of poolCandidates) {
 				const v = f['pool'];
 				if (v == null) continue;
 				try {
@@ -418,7 +448,9 @@
 							break;
 						}
 					}
-				} catch {}
+				} catch {
+					// Ignore parsing errors
+				}
 			}
 			poolBalanceMistOnChain = poolMist;
 
@@ -433,7 +465,6 @@
 		} catch (e) {
 			console.error('Failed to fetch wheel:', e);
 		} finally {
-			wheelLoading = false;
 		}
 	}
 
@@ -524,6 +555,16 @@
 	let xImportInput = $state('');
 	let xImportLoading = $state(false);
 
+	// Online entry form modal
+	let entryFormModalEl = $state(null);
+	let entryFormModalType = $state('address'); // 'address', 'name', 'email'
+	let entryFormModalEnabled = $state(false);
+	let entryFormModalName = $state(''); // Wheel name for entry form
+	let entryFormModalDuration = $state(3); // Duration in minutes, default 3
+	let entryFormEndTime = $state(null); // End time timestamp
+	let entryFormTimer = $state(null); // Timer reference
+	let remainingTime = $state(0); // Remaining time in seconds
+
 	async function openXImportModal() {
 		xImportInput = '';
 		try {
@@ -538,7 +579,109 @@
 					xImportInputEl.focus();
 				}
 			}
-		} catch {}
+		} catch {
+			// Ignore modal errors
+		}
+	}
+
+	async function openEntryFormModal() {
+		try {
+			if (entryFormModalEl && typeof entryFormModalEl.showModal === 'function') {
+				entryFormModalEl.showModal();
+			}
+		} catch {
+			// Ignore modal errors
+		}
+	}
+
+	function handleEntryFormModalSubmit() {
+		entryFormEnabled = entryFormModalEnabled;
+		entryFormType = entryFormModalType;
+
+		// Set timer if enabled
+		if (entryFormEnabled && entryFormModalDuration > 0) {
+			entryFormEndTime = Date.now() + entryFormModalDuration * 60 * 1000;
+			startEntryFormTimer();
+
+			// Register wheel metadata with API for auto-cleanup
+			const wheelId = createdWheelId || wheelTempId;
+			if (wheelId) {
+				fetch(`/api/submit-entry?wheelId=${wheelId}&duration=${entryFormModalDuration}`).catch(
+					error => console.error('Error registering wheel metadata:', error)
+				);
+			}
+		}
+
+		try {
+			entryFormModalEl?.close?.();
+		} catch {
+			// Ignore close errors
+		}
+	}
+
+	function startEntryFormTimer() {
+		// Clear existing timer
+		if (entryFormTimer) {
+			clearInterval(entryFormTimer);
+		}
+
+		// Start new timer
+		entryFormTimer = setInterval(() => {
+			if (entryFormEndTime) {
+				const now = Date.now();
+				const timeLeft = Math.max(0, Math.floor((entryFormEndTime - now) / 1000));
+				remainingTime = timeLeft;
+
+				if (timeLeft <= 0) {
+					// Time's up - disable entry form and clear data
+					disableOnlineEntries();
+					clearEntryFormData();
+				}
+			}
+		}, 1000); // Check every second
+	}
+
+	function clearEntryFormData() {
+		const wheelId = createdWheelId || wheelTempId;
+		if (wheelId) {
+			// Clear data from API
+			fetch(`/api/submit-entry?wheelId=${wheelId}&clear=true`).catch(error =>
+				console.error('Error clearing entry data:', error)
+			);
+		}
+
+		// Clear local state
+		wheelTempId = '';
+		entryFormEndTime = null;
+		remainingTime = 0;
+
+		if (entryFormTimer) {
+			clearInterval(entryFormTimer);
+			entryFormTimer = null;
+		}
+	}
+
+	function disableOnlineEntries() {
+		entryFormEnabled = false;
+		stopEntryPolling();
+
+		// Clear timer if exists
+		if (entryFormTimer) {
+			clearInterval(entryFormTimer);
+			entryFormTimer = null;
+		}
+		entryFormEndTime = null;
+		remainingTime = 0;
+
+		toast.success('Online entries disabled', { position: 'top-right' });
+	}
+
+	function generateWheelTempId() {
+		// Generate a unique temporary ID for this session
+		if (!wheelTempId) {
+			wheelTempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+		}
+		return wheelTempId;
 	}
 
 	async function handleXImportSubmit() {
@@ -571,7 +714,9 @@
 
 			try {
 				xImportDialogEl?.close?.();
-			} catch {}
+			} catch {
+				// Ignore close errors
+			}
 		} catch (e) {
 			toast.error(e?.message || 'Failed to import X post', { position: 'top-right' });
 		} finally {
@@ -592,6 +737,133 @@
 		() => params.wheelId,
 		() => fetchWheelFromChain()
 	);
+
+	// Check for new entries from online form
+	async function checkForNewEntries() {
+		if (!entryFormEnabled) return;
+		if (!wheelTempId) return;
+		const wheelId = wheelTempId;
+
+		try {
+			const response = await fetch(`/api/submit-entry?wheelId=${wheelId}`);
+
+			if (!response.ok) {
+				console.error('API response not ok:', response.status, response.statusText);
+				return;
+			}
+
+			const data = await response.json().catch(error => {
+				console.error('Failed to parse JSON response:', error);
+				return { success: false, message: 'Invalid response format' };
+			});
+
+			if (data.success && data.entries) {
+				onlineEntriesCount = data.count;
+
+				// Check if there are new entries
+				if (onlineEntriesCount > lastEntryCount) {
+					// New entries detected, add them to the local entries list
+					const newEntries = data.entries.slice(lastEntryCount);
+					let addedCount = 0;
+
+					// Add new entries to local list (avoid duplicates and respect MAX_ENTRIES limit)
+					newEntries.forEach(newEntry => {
+						if (!entries.includes(newEntry) && entries.length < MAX_ENTRIES) {
+							entries = [...entries, newEntry];
+							addedCount++;
+						}
+					});
+
+					// Update entries text
+					entriesText = entries.join('\n');
+
+					// Show notification only if entries were actually added
+					if (addedCount > 0) {
+						const message = `${addedCount} new entr${addedCount === 1 ? 'y' : 'ies'} added!`;
+
+						toast.success(message, {
+							position: 'top-right',
+							durationMs: 3000
+						});
+					}
+
+					lastEntryCount = onlineEntriesCount;
+				}
+			} else if (!data.success && data.message === 'Entry form has expired') {
+				// Wheel has expired, disable entry form
+				console.log('Wheel has expired, disabling entry form');
+				disableOnlineEntries();
+				clearEntryFormData();
+			}
+		} catch (error) {
+			console.error('Error checking for new entries:', error);
+			// If there's a network error, don't disable the form
+			// It might be a temporary issue
+		}
+	}
+
+	// Start/stop polling for new entries
+	function startEntryPolling() {
+		if (entryPollingInterval) return;
+		if (!entryFormEnabled) return;
+
+		// Generate wheelTempId if not exists
+		if (!createdWheelId && !wheelTempId) {
+			generateWheelTempId();
+		}
+
+		// Initialize lastEntryCount to 0 to catch all existing entries
+		lastEntryCount = 0;
+		entryPollingInterval = setInterval(checkForNewEntries, 5000); // Check every 5 seconds
+	}
+
+	function stopEntryPolling() {
+		if (entryPollingInterval) {
+			clearInterval(entryPollingInterval);
+			entryPollingInterval = null;
+		}
+	}
+
+	// Watch for entry form enable/disable
+	watch(
+		() => entryFormEnabled,
+		() => {
+			if (entryFormEnabled) {
+				startEntryPolling();
+			} else {
+				stopEntryPolling();
+			}
+		}
+	);
+
+	// Cleanup on component destroy
+	onMount(() => {
+		// Handle browser close/refresh
+		const handleBeforeUnload = () => {
+			if (entryFormEnabled) {
+				const wheelId = createdWheelId || wheelTempId;
+				if (wheelId) {
+					// Send cleanup request (may not complete if browser closes)
+					fetch(`/api/submit-entry?wheelId=${wheelId}&clear=true`, {
+						keepalive: true // Try to send even if page is closing
+					}).catch(() => {
+						// Ignore errors - browser might be closing
+					});
+				}
+			}
+		};
+
+		window.addEventListener('beforeunload', handleBeforeUnload);
+
+		return () => {
+			stopEntryPolling();
+			if (entryFormTimer) {
+				clearInterval(entryFormTimer);
+				entryFormTimer = null;
+			}
+			window.removeEventListener('beforeunload', handleBeforeUnload);
+		};
+	});
 
 	function handleShuffle() {
 		if (spinning) return;
@@ -826,25 +1098,50 @@
 										<div class="text-sm opacity-70">Entries</div>
 
 										{#if account}
-											<div class="dropdown dropdown-end">
-												<button class="btn btn-sm btn-primary btn-soft" aria-label="Import entries">
-													<span class="icon-[lucide--list-plus] h-4 w-4"></span>
-													<span>Import</span>
-												</button>
-												<ul
-													class="menu dropdown-content rounded-box bg-base-200 z-[1] w-56 p-2 shadow"
-												>
-													<li>
-														<button onclick={openXImportModal} aria-label="Import by X post">
-															<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-																<path
-																	d="M13.317 10.774L20.28 2h-1.73l-6.32 7.353L8.29 2H2.115l7.33 10.638L2.115 22h1.73l6.707-7.783L15.315 22H21.59l-7.482-10.774z"
-																/>
-															</svg>
-															Import by X post
-														</button>
-													</li>
-												</ul>
+											<div class="flex items-center gap-2">
+												{#if entryFormEnabled}
+													<button
+														class="btn btn-sm btn-outline"
+														onclick={checkForNewEntries}
+														aria-label="Sync online entries"
+													>
+														<span class="icon-[lucide--refresh-cw] h-4 w-4"></span>
+														Sync
+													</button>
+												{/if}
+
+												<div class="dropdown dropdown-end">
+													<button
+														class="btn btn-sm btn-primary btn-soft"
+														aria-label="Import entries"
+													>
+														<span class="icon-[lucide--list-plus] h-4 w-4"></span>
+														<span>Import</span>
+													</button>
+													<ul
+														class="menu dropdown-content rounded-box bg-base-200 z-[1] w-56 p-2 shadow"
+													>
+														<li>
+															<button
+																onclick={openEntryFormModal}
+																aria-label="Setup online entry form"
+															>
+																<span class="icon-[lucide--qr-code] h-4 w-4"></span>
+																Online Entry Form
+															</button>
+														</li>
+														<li>
+															<button onclick={openXImportModal} aria-label="Import by X post">
+																<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+																	<path
+																		d="M13.317 10.774L20.28 2h-1.73l-6.32 7.353L8.29 2H2.115l7.33 10.638L2.115 22h1.73l6.707-7.783L15.315 22H21.59l-7.482-10.774z"
+																	/>
+																</svg>
+																Import by X post
+															</button>
+														</li>
+													</ul>
+												</div>
 											</div>
 										{/if}
 									</div>
@@ -1030,6 +1327,52 @@
 							</div>
 						{/if}
 
+						{#if entryFormEnabled}
+							<div class="mt-2">
+								<div class="alert alert-soft alert-success">
+									<span class="icon-[lucide--qr-code] h-4 w-4"></span>
+									<span>Online Entry Form. Scan to join the wheel.</span>
+									<ButtonCopy originText={entryFormQRUrl} size="xs" className="btn-soft" />
+								</div>
+
+								{#if entryFormQRDataUrl}
+									<div class="mt-3 flex items-center gap-3">
+										<img
+											src={entryFormQRDataUrl}
+											alt="Entry Form QR"
+											class="rounded-box border-base-300 bg-base-100 mb-3 h-60 w-60 border p-2 shadow"
+										/>
+										<div class="flex w-full flex-col items-center gap-2">
+											{#if remainingTime > 0}
+												<div
+													class="text-base-content/70 flex items-center gap-2 text-center text-lg"
+												>
+													<span class="icon-[lucide--clock] h-4 w-4"></span>
+													Time remaining:
+													<span class="text-primary font-mono font-bold"
+														>{Math.floor(remainingTime / 60)}:{(remainingTime % 60)
+															.toString()
+															.padStart(2, '0')}</span
+													>
+												</div>
+											{/if}
+										</div>
+									</div>
+								{/if}
+
+								<div class="mt-2">
+									<button
+										class="btn btn-sm btn-outline btn-error"
+										onclick={disableOnlineEntries}
+										aria-label="Disable online entries"
+									>
+										<span class="icon-[lucide--x] h-4 w-4"></span>
+										Disable Online Entries
+									</button>
+								</div>
+							</div>
+						{/if}
+
 						<!-- Common alerts and button (always visible) -->
 						{#if account}
 							{#if setupError}
@@ -1082,9 +1425,9 @@
 												SUI.
 											</li>
 										{/if}
-										{#if entries.length > 200}
+										{#if entries.length > MAX_ENTRIES}
 											<li>
-												Entries count (<strong>{entries.length}</strong>) must be ≤ 200.
+												Entries count (<strong>{entries.length}</strong>) must be ≤ {MAX_ENTRIES}.
 											</li>
 										{/if}
 										{#if hasInsufficientBalance}
@@ -1118,7 +1461,7 @@
 											prizesCount === 0 ||
 											prizesCount > uniqueValidEntriesCount ||
 											invalidPrizeAmountsCount > 0 ||
-											entries.length > 200 ||
+											entries.length > MAX_ENTRIES ||
 											getAddressEntries().length < 2 ||
 											hasInsufficientBalance}
 									>
@@ -1162,7 +1505,7 @@
 				bind:this={xImportInputEl}
 				aria-label="X post link or ID"
 			/>
-			<p class="label">Note: we only take the first 200 Sui addresses from replies.</p>
+			<p class="label">Note: we only take the first {MAX_ENTRIES} Sui addresses from replies.</p>
 		</fieldset>
 
 		<div class="flex justify-end">
@@ -1177,6 +1520,125 @@
 			>
 				Import
 			</ButtonLoading>
+		</div>
+	</div>
+
+	<form method="dialog" class="modal-backdrop">
+		<button>Close</button>
+	</form>
+</dialog>
+
+<!-- Entry Form Modal -->
+<dialog id="entry_form_modal" class="modal modal-middle" bind:this={entryFormModalEl}>
+	<div class="modal-box">
+		<h3 class="text-lg font-bold">Online Entry Form Settings</h3>
+		<p class="py-3 text-sm opacity-80">Configure how participants can join your wheel online.</p>
+
+		<div class="mb-3 space-y-4">
+			<div class="form-control">
+				<label class="label cursor-pointer justify-start gap-3">
+					<input
+						type="checkbox"
+						class="checkbox checkbox-primary"
+						bind:checked={entryFormModalEnabled}
+					/>
+					<span class="label-text">Enable online entry form</span>
+				</label>
+				<p class="text-base-content/70 ml-8 text-xs">
+					Allow participants to join by scanning QR code
+				</p>
+			</div>
+
+			{#if entryFormModalEnabled}
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Wheel Name</legend>
+					<input
+						type="text"
+						class="input w-full text-base"
+						placeholder="Enter wheel name (optional)"
+						bind:value={entryFormModalName}
+						autocomplete="off"
+					/>
+					<p class="label text-base-content/70 mt-1 text-xs">
+						This name will be displayed to participants
+					</p>
+				</fieldset>
+
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Duration (minutes)</legend>
+					<input
+						type="number"
+						class="input w-full text-base"
+						placeholder="3"
+						min="1"
+						max="60"
+						bind:value={entryFormModalDuration}
+						autocomplete="off"
+					/>
+					<p class="label text-base-content/70 mt-1 text-xs">
+						Entry form will automatically close after this time (1-60 minutes)
+					</p>
+				</fieldset>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Entry Type</legend>
+					<div class="flex flex-col gap-2">
+						<label class="label cursor-pointer gap-2">
+							<input
+								type="radio"
+								name="entryFormModalType"
+								class="radio radio-primary"
+								value="address"
+								bind:group={entryFormModalType}
+							/>
+							<span class="label-text">Sui Wallet Address</span>
+						</label>
+						<label class="label cursor-pointer gap-2">
+							<input
+								type="radio"
+								name="entryFormModalType"
+								class="radio radio-primary"
+								value="name"
+								bind:group={entryFormModalType}
+							/>
+							<span class="label-text">Name (Any text)</span>
+						</label>
+						<label class="label cursor-pointer gap-2">
+							<input
+								type="radio"
+								name="entryFormModalType"
+								class="radio radio-primary"
+								value="email"
+								bind:group={entryFormModalType}
+							/>
+							<span class="label-text">Email Address</span>
+						</label>
+					</div>
+				</fieldset>
+			{/if}
+		</div>
+
+		<div class="flex justify-end gap-2">
+			<button
+				type="button"
+				class="btn"
+				onclick={() => {
+					try {
+						entryFormModalEl?.close?.();
+					} catch {
+						// Ignore close errors
+					}
+				}}
+			>
+				Cancel
+			</button>
+			<button
+				type="button"
+				class="btn btn-primary"
+				onclick={handleEntryFormModalSubmit}
+				disabled={!entryFormModalEnabled}
+			>
+				OK
+			</button>
 		</div>
 	</div>
 

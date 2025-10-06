@@ -17,6 +17,11 @@ export const MINIMUM_PRIZE_AMOUNT = {
 };
 
 /**
+ * Maximum number of entries allowed per wheel
+ */
+export const MAX_ENTRIES = 200;
+
+/**
  * Default package id placeholder. Replace with your actual package id on testnet.
  */
 export const PACKAGE_ID = '0x63f33b3a73432b1ecd625cdb5827376d9a58c7130aab56ea7c89a83a9f3671c0';
