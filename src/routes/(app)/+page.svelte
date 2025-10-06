@@ -84,7 +84,7 @@
 		try {
 			if (createdWheelId && remainingSpins === 0 && typeof window !== 'undefined') {
 				const url = `${window.location.origin}/wheel-result?wheelId=${createdWheelId}`;
-				QRCode.toDataURL(url, { width: 220, margin: 1 })
+				QRCode.toDataURL(url, { width: 256, margin: 1 })
 					.then(u => (qrDataUrl = u))
 					.catch(() => (qrDataUrl = ''));
 			} else {
@@ -107,7 +107,7 @@
 					: '';
 				const url = `${window.location.origin}/entry-form?wheelId=${wheelId}&type=${entryFormType}${nameParam}`;
 				entryFormQRUrl = url;
-				QRCode.toDataURL(url, { width: 220, margin: 1 })
+				QRCode.toDataURL(url, { width: 256, margin: 1 })
 					.then(u => (entryFormQRDataUrl = u))
 					.catch(() => (entryFormQRDataUrl = ''));
 			} else {
