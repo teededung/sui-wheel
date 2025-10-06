@@ -73,6 +73,10 @@
 
 	// Audio
 	let winAudio;
+	let audioContext;
+	let tickBuffer;
+	let tickGainNode;
+	let tickSourceIndex = 0;
 
 	// Modal
 	let winnerModal = $state(null);
@@ -96,10 +100,25 @@
 		'#06b6d4'
 	];
 
-	onMount(() => {
+	onMount(async () => {
 		winAudio = new Audio('/crowd-reaction.mp3');
 		winAudio.preload = 'auto';
 		winAudio.volume = 0.5;
+
+		// Initialize Web Audio API for instant tick sounds
+		try {
+			audioContext = new (window.AudioContext || window.webkitAudioContext)();
+			tickGainNode = audioContext.createGain();
+			tickGainNode.connect(audioContext.destination);
+			tickGainNode.gain.value = 1; // Volume control
+
+			// Load tick sound as AudioBuffer for instant playback
+			const response = await fetch('/tick.mp3');
+			const arrayBuffer = await response.arrayBuffer();
+			tickBuffer = await audioContext.decodeAudioData(arrayBuffer);
+		} catch (e) {
+			console.warn('Web Audio API not supported or failed to load tick sound:', e);
+		}
 	});
 
 	// Watch entries for layout updates
@@ -177,7 +196,26 @@
 		return ((v % n) + n) % n;
 	}
 
-	function fireTickForIndex(idx) {}
+	function fireTickForIndex(idx) {
+		// Play a short tick sound when the pointer passes an entry boundary
+		if (muted) return;
+		if (!audioContext || !tickBuffer || !tickGainNode) return;
+
+		try {
+			// Resume audio context if suspended (required by some browsers)
+			if (audioContext.state === 'suspended') {
+				audioContext.resume();
+			}
+
+			// Create a new AudioBufferSourceNode for each tick
+			const source = audioContext.createBufferSource();
+			source.buffer = tickBuffer;
+			source.connect(tickGainNode);
+			source.start(0); // Start immediately
+		} catch (e) {
+			console.warn('Failed to play tick sound:', e);
+		}
+	}
 
 	function updatePointerColor() {
 		const n2 = Math.max(1, entries.length);

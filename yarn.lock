@@ -1464,9 +1464,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sveltejs/kit@npm:^2.43.8":
-  version: 2.43.8
-  resolution: "@sveltejs/kit@npm:2.43.8"
+"@sveltejs/kit@npm:^2.44.0":
+  version: 2.44.0
+  resolution: "@sveltejs/kit@npm:2.44.0"
   dependencies:
     "@standard-schema/spec": "npm:^1.0.0"
     "@sveltejs/acorn-typescript": "npm:^1.0.5"
@@ -1491,7 +1491,7 @@ __metadata:
       optional: true
   bin:
     svelte-kit: svelte-kit.js
-  checksum: 10c0/45455eb3b5ee597836ce0496e21e2ecee4ea4c53fb350fb47e02d4f5d30ada3bf70bd918c64df41b9e5292638f757ff2a3f7a91f0ae5fb97b50a0080a1c8e32c
+  checksum: 10c0/c8547c132e27886817c19021321c2884571197b725b41c77dae59bc9f741119e5d4c903a1fa2fcb4032378281797a4b6d094a669868728896c29b022235764b2
   languageName: node
   linkType: hard
 
@@ -5149,7 +5149,7 @@ __metadata:
     "@iconify/tailwind4": "npm:^1.0.6"
     "@mysten/sui": "npm:^1.39.0"
     "@sveltejs/adapter-netlify": "npm:^5.2.4"
-    "@sveltejs/kit": "npm:^2.43.8"
+    "@sveltejs/kit": "npm:^2.44.0"
     "@sveltejs/vite-plugin-svelte": "npm:^6.2.1"
     "@tailwindcss/typography": "npm:^0.5.19"
     "@tailwindcss/vite": "npm:^4.1.14"
@@ -5167,7 +5167,7 @@ __metadata:
     rettiwt-api: "npm:^6.0.6"
     runed: "npm:^0.34.0"
     sui-svelte-wallet-kit: "npm:^0.8.2"
-    svelte: "npm:^5.39.8"
+    svelte: "npm:^5.39.9"
     svelte-check: "npm:^4.3.2"
     svelte-daisy-toaster: "npm:^0.5.5"
     tailwindcss: "npm:^4.1.14"
@@ -5242,9 +5242,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"svelte@npm:^5.39.8":
-  version: 5.39.8
-  resolution: "svelte@npm:5.39.8"
+"svelte@npm:^5.39.9":
+  version: 5.39.9
+  resolution: "svelte@npm:5.39.9"
   dependencies:
     "@jridgewell/remapping": "npm:^2.3.4"
     "@jridgewell/sourcemap-codec": "npm:^1.5.0"
@@ -5260,7 +5260,7 @@ __metadata:
     locate-character: "npm:^3.0.0"
     magic-string: "npm:^0.30.11"
     zimmerframe: "npm:^1.1.2"
-  checksum: 10c0/761617791bb47cd71cc88aafc1c5ab8da8d35a229324faa557d9873bc4f51ef5e3912ddc29c147958c24e9eb4262e90b08b9bec6c12aa7ba3f99a97573486816
+  checksum: 10c0/6fd549991d94aa91431190d3fe78dc61211f249e7861b9df2862d41b6b68a14bd436decb97202688d33d386c143a89a1826ec76e264f03759786e6d014c9cb0e
   languageName: node
   linkType: hard
 
