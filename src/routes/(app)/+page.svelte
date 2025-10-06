@@ -1201,9 +1201,9 @@
 										<!-- View mode toggle -->
 										<div class="join">
 											<button
-												class="btn btn-sm join-item"
+												class="btn btn-xs join-item"
 												class:btn-primary={entriesViewMode === 'textarea'}
-												class:btn-outline={entriesViewMode !== 'textarea'}
+												class:btn-soft={entriesViewMode !== 'textarea'}
 												onclick={() => (entriesViewMode = 'textarea')}
 												aria-label="Textarea view"
 											>
@@ -1211,9 +1211,9 @@
 												Text
 											</button>
 											<button
-												class="btn btn-sm join-item"
+												class="btn btn-xs join-item"
 												class:btn-primary={entriesViewMode === 'table'}
-												class:btn-outline={entriesViewMode !== 'table'}
+												class:btn-soft={entriesViewMode !== 'table'}
 												onclick={() => (entriesViewMode = 'table')}
 												aria-label="Table view"
 											>
@@ -1226,7 +1226,7 @@
 											<div class="flex items-center gap-2">
 												{#if entryFormEnabled}
 													<button
-														class="btn btn-sm btn-outline"
+														class="btn btn-xs btn-outline"
 														onclick={checkForNewEntries}
 														aria-label="Sync online entries"
 													>
@@ -1237,7 +1237,7 @@
 
 												<div class="dropdown dropdown-end">
 													<button
-														class="btn btn-sm btn-primary btn-soft"
+														class="btn btn-xs btn-primary btn-soft"
 														aria-label="Import entries"
 													>
 														<span class="icon-[lucide--list-plus] h-4 w-4"></span>
