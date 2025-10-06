@@ -107,7 +107,7 @@
 					: '';
 				const url = `${window.location.origin}/entry-form?wheelId=${wheelId}&type=${entryFormType}${nameParam}`;
 				entryFormQRUrl = url;
-				QRCode.toDataURL(url, { width: 200, margin: 1 })
+				QRCode.toDataURL(url, { width: 220, margin: 1 })
 					.then(u => (entryFormQRDataUrl = u))
 					.catch(() => (entryFormQRDataUrl = ''));
 			} else {
@@ -1286,7 +1286,7 @@
 											<span>Claim window (minutes)</span>
 										</label>
 									</div>
-									<div class="alert alert-info alert-soft">
+									<div class="alert alert-soft alert-info light:!border-info">
 										<ul class="list-inside list-disc">
 											<li class="mb-1">
 												<strong>Delay (minutes):</strong> Time to wait after spinning completes before
@@ -1304,7 +1304,7 @@
 
 						{#if createdWheelId && remainingSpins === 0}
 							<div class="mt-2">
-								<div class="alert alert-soft alert-info w-60">
+								<div class="alert alert-soft alert-info light:!border-info w-60">
 									<span class="icon-[lucide--info] h-4 w-4"></span>
 									<a class="link" href={`/wheel-result?wheelId=${createdWheelId}`}> Claim link </a>
 									<ButtonCopy
@@ -1319,7 +1319,7 @@
 										<img
 											src={qrDataUrl}
 											alt="Result QR"
-											class="rounded-box border-base-300 bg-base-100 mb-3 h-60 w-60 border p-2 shadow"
+											class="rounded-box border-base-300 bg-base-100 mb-3 h-64 w-64 border p-2 shadow"
 										/>
 									</div>
 									<div class="opacity-80">Scan to open results on your phone</div>
@@ -1329,7 +1329,7 @@
 
 						{#if entryFormEnabled}
 							<div class="mt-2">
-								<div class="alert alert-soft alert-success">
+								<div class="alert alert-soft light:!border-success alert-success">
 									<span class="icon-[lucide--qr-code] h-4 w-4"></span>
 									<span>Online Entry Form. Scan to join the wheel.</span>
 									<ButtonCopy originText={entryFormQRUrl} size="xs" className="btn-soft" />
@@ -1340,7 +1340,7 @@
 										<img
 											src={entryFormQRDataUrl}
 											alt="Entry Form QR"
-											class="rounded-box border-base-300 bg-base-100 mb-3 h-60 w-60 border p-2 shadow"
+											class="rounded-box border-base-300 bg-base-100 mb-3 h-64 w-64 border p-2 shadow"
 										/>
 										<div class="flex w-full flex-col items-center gap-2">
 											{#if remainingTime > 0}
@@ -1376,17 +1376,19 @@
 						<!-- Common alerts and button (always visible) -->
 						{#if account}
 							{#if setupError}
-								<div class="alert alert-error mt-3 whitespace-pre-wrap">{setupError}</div>
+								<div class="alert alert-error light:!border-error mt-3 whitespace-pre-wrap">
+									{setupError}
+								</div>
 							{/if}
 							{#if setupSuccessMsg}
-								<div class="alert alert-success mt-3 break-words">
+								<div class="alert alert-success light:!border-success mt-3 break-words">
 									<span class="icon-[lucide--check-circle] h-4 w-4"></span>
 									{setupSuccessMsg}
 								</div>
 							{/if}
 
 							{#if shouldShowSetupWarnings}
-								<div class="alert alert-soft alert-warning !border-warning mt-3">
+								<div class="alert alert-soft light:!border-warning alert-warning mt-3">
 									<ul class="list-inside list-disc">
 										{#if !isOnTestnet}
 											<li>Please switch wallet to Testnet.</li>
@@ -1476,7 +1478,7 @@
 								</div>
 							{/if}
 						{:else}
-							<div class="alert alert-info alert-soft mt-3">
+							<div class="alert alert-info alert-soft light:!border-info mt-3">
 								<span class="icon-[lucide--info] h-5 w-5"></span>
 								Connect your Sui wallet to create and spin the wheel on-chain. You can still try spinning
 								off-chain without connecting your wallet.
