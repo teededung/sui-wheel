@@ -674,7 +674,7 @@
 	{#if duplicateEntries.length > 0}
 		<div class="mt-4">
 			<h4 class="text-base-content/70 mb-2 text-sm font-semibold">Duplicate Entries:</h4>
-			<div class="bg-base-300 max-h-32 overflow-y-auto rounded-lg p-2">
+			<div class="bg-base-300 flex max-h-32 flex-col gap-1 overflow-y-auto rounded-lg p-2">
 				{#each duplicateEntries as duplicate}
 					<div class="flex items-center justify-between gap-2 text-sm">
 						<span class="flex-1 truncate font-medium">
