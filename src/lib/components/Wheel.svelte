@@ -61,6 +61,7 @@
 	let secondaryWinner = $state('');
 	let usedCombinedSpin = $state(false);
 	let postSpinFetchRequested = $state(false);
+	let pointerBounce = $state(false);
 
 	// Canvas/layout
 	let labelLayouts = $state([]);
@@ -215,6 +216,25 @@
 		} catch (e) {
 			console.warn('Failed to play tick sound:', e);
 		}
+
+		// Trigger pointer bounce animation
+		triggerPointerBounce();
+	}
+
+	function triggerPointerBounce() {
+		if (pointerBounce) return; // Prevent overlapping animations
+
+		pointerBounce = true;
+		gsap.to(
+			{},
+			{
+				duration: 0.15,
+				ease: 'power2.out',
+				onComplete: () => {
+					pointerBounce = false;
+				}
+			}
+		);
 	}
 
 	function updatePointerColor() {
@@ -762,6 +782,7 @@
 			<!-- Pointer -->
 			<div
 				class="pointer-events-none absolute top-1/2 -right-9 z-10 -translate-y-1/2"
+				class:bounce={pointerBounce}
 				aria-hidden="true"
 			>
 				<svg
@@ -900,3 +921,21 @@
 		<button>Close</button>
 	</form>
 </dialog>
+
+<style>
+	.bounce {
+		animation: pointerBounce 0.2s ease-out;
+	}
+
+	@keyframes pointerBounce {
+		0% {
+			transform: rotate(-20deg);
+		}
+		70% {
+			transform: rotate(5deg);
+		}
+		100% {
+			transform: rotate(-20deg);
+		}
+	}
+</style>
