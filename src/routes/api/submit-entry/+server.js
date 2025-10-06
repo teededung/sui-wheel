@@ -22,7 +22,7 @@ setInterval(
 		}
 	},
 	30 * 60 * 1000
-); // 30 minutes
+);
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, url }) {

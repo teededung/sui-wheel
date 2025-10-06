@@ -75,6 +75,7 @@
 	let poolBalanceMistOnChain = $state(0n);
 	let winnersOnChain = $state([]);
 	let spinTimesOnChain = $state([]);
+
 	// Cancellation state
 	let isCancelled = $state(false);
 
@@ -128,6 +129,7 @@
 	let entryPollingInterval = $state(null);
 	let lastEntryCount = $state(0);
 	let onlineEntriesCount = $state(0);
+
 	// Compute additional SUI (in MIST) needed to top up the pool when editing
 	let topUpMist = $derived.by(() => {
 		try {
@@ -138,6 +140,15 @@
 			return 0n;
 		}
 	});
+
+	let totalDonationMist = $derived.by(() => {
+		try {
+			return prizeAmounts.reduce((acc, v) => acc + parseSuiToMist(v), 0n);
+		} catch {
+			return 0n;
+		}
+	});
+
 	let isOnTestnet = $derived.by(() => isTestnet(account));
 
 	// UI: active tab in settings (entries | prizes | others)
@@ -149,24 +160,19 @@
 	let entryFormQRUrl = $state('');
 	let wheelTempId = $state(''); // Temporary ID for online entries before wheel creation
 
-	let entriesText = $state('');
 	let spinning = $state(false);
+	let entriesTextareaEl = $state(null);
+	let entriesText = $state('');
+
 	// Duplicate entries tracking
 	let duplicateEntries = $state([]);
-
-	let totalDonationMist = $derived.by(() => {
-		try {
-			return prizeAmounts.reduce((acc, v) => acc + parseSuiToMist(v), 0n);
-		} catch {
-			return 0n;
-		}
-	});
 
 	// Expose helpers to Wheel component via context
 	function setWheelSpinning(v) {
 		spinning = Boolean(v);
 	}
 
+	// Remove entry value from entries array
 	function removeEntryValue(value) {
 		const v = String(value ?? '').trim();
 		entries = entries.filter(entry => String(entry ?? '').trim() !== v);
@@ -546,9 +552,6 @@
 		}
 	}
 
-	/** Entries textarea ref */
-	let entriesTextareaEl = $state(null);
-
 	// Import entries from X (Twitter) post
 	let xImportDialogEl = $state(null);
 	let xImportInputEl = $state(null);
@@ -738,6 +741,25 @@
 		() => fetchWheelFromChain()
 	);
 
+	// Watch for entry form enable/disable
+	watch(
+		() => entryFormEnabled,
+		() => {
+			if (entryFormEnabled) {
+				startEntryPolling();
+			} else {
+				stopEntryPolling();
+			}
+		}
+	);
+
+	// Update entries text when entries change
+	$effect(() => {
+		if (!entriesTextareaEl || document.activeElement !== entriesTextareaEl) {
+			entriesText = entries.join('\n');
+		}
+	});
+
 	// Check for new entries from online form
 	async function checkForNewEntries() {
 		if (!entryFormEnabled) return;
@@ -779,11 +801,20 @@
 
 					// Show notification only if entries were actually added
 					if (addedCount > 0) {
-						const message = `${addedCount} new entr${addedCount === 1 ? 'y' : 'ies'} added!`;
+						// Format new entries for display
+						const formattedEntries = newEntries.slice(0, addedCount).map(entry => {
+							return isValidSuiAddress(entry) ? shortenAddress(entry) : entry;
+						});
 
-						toast.success(message, {
+						const entriesList =
+							formattedEntries.length <= 3
+								? formattedEntries.join(', ')
+								: `${formattedEntries.slice(0, 3).join(', ')} and ${formattedEntries.length - 3} more`;
+
+						toast.success(entriesList, {
+							title: `${addedCount} new entr${addedCount === 1 ? 'y' : 'ies'} added`,
 							position: 'top-right',
-							durationMs: 3000
+							durationMs: 5000
 						});
 					}
 
@@ -823,18 +854,6 @@
 			entryPollingInterval = null;
 		}
 	}
-
-	// Watch for entry form enable/disable
-	watch(
-		() => entryFormEnabled,
-		() => {
-			if (entryFormEnabled) {
-				startEntryPolling();
-			} else {
-				stopEntryPolling();
-			}
-		}
-	);
 
 	// Cleanup on component destroy
 	onMount(() => {
@@ -906,13 +925,6 @@
 
 		duplicateEntries = duplicates;
 	}
-
-	$effect(() => {
-		// If the entries textarea is focused, don't overwrite user edits
-		if (!entriesTextareaEl || document.activeElement !== entriesTextareaEl) {
-			entriesText = entries.join('\n');
-		}
-	});
 
 	// Set wheel context for child component during initialization
 	wheelContext.set({
