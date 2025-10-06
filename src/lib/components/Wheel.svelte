@@ -14,8 +14,15 @@
 	const suiClient = $derived(useSuiClient());
 
 	// Props from parent
-	let { entries, spinning, createdWheelId, remainingSpins, isCancelled, accountConnected } =
-		$props();
+	let {
+		entries,
+		spinning,
+		createdWheelId,
+		remainingSpins,
+		isCancelled,
+		entryFormEnabled,
+		accountConnected
+	} = $props();
 
 	// Context deps/APIs from parent
 	const ctx = wheelContext.get();
@@ -34,6 +41,8 @@
 
 	let isSpinDisabled = $derived.by(() => {
 		if (spinning) return true;
+		// Disable if online entry form is active
+		if (entryFormEnabled) return true;
 		// On-chain: disable if no remaining spins
 		if (createdWheelId) {
 			if (accountConnected) {

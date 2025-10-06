@@ -613,7 +613,7 @@
 			startEntryFormTimer();
 
 			// Register wheel metadata with API for auto-cleanup
-			const wheelId = createdWheelId || wheelTempId;
+			const wheelId = wheelTempId;
 			if (wheelId) {
 				fetch(`/api/submit-entry?wheelId=${wheelId}&duration=${entryFormModalDuration}`).catch(
 					error => console.error('Error registering wheel metadata:', error)
@@ -651,7 +651,7 @@
 	}
 
 	function clearEntryFormData() {
-		const wheelId = createdWheelId || wheelTempId;
+		const wheelId = wheelTempId;
 		if (wheelId) {
 			// Clear data from API
 			fetch(`/api/submit-entry?wheelId=${wheelId}&clear=true`).catch(error =>
@@ -866,7 +866,7 @@
 		// Handle browser close/refresh
 		const handleBeforeUnload = () => {
 			if (entryFormEnabled) {
-				const wheelId = createdWheelId || wheelTempId;
+				const wheelId = wheelTempId;
 				if (wheelId) {
 					// Send cleanup request (may not complete if browser closes)
 					fetch(`/api/submit-entry?wheelId=${wheelId}&clear=true`, {
@@ -980,7 +980,7 @@
 	{/if}
 {/snippet}
 
-{#snippet entriesTable(entriesList, showActions = false)}
+{#snippet entriesTable(entriesList, showActions = false, shortAddress = true)}
 	{#if entriesList.length > 0}
 		<div class="overflow-x-auto">
 			<div class="relative">
@@ -1004,7 +1004,11 @@
 								<tr>
 									<td class="w-12">{i + 1}</td>
 									<td class="font-mono">
-										{isValidSuiAddress(addr) ? shortenAddress(addr) : addr}
+										{#if shortAddress}
+											{shortenAddress(addr)}
+										{:else}
+											{addr}
+										{/if}
 									</td>
 									{#if showActions}
 										<td>
@@ -1059,6 +1063,7 @@
 				{createdWheelId}
 				{remainingSpins}
 				{isCancelled}
+				{entryFormEnabled}
 				accountConnected={Boolean(account?.value)}
 			/>
 		</div>
@@ -1098,6 +1103,7 @@
 											winnersOnChain = [];
 											spunCountOnChain = 0;
 											poolBalanceMistOnChain = 0n;
+											entriesViewMode = 'textarea';
 										}}>New wheel</button
 									>
 								{/if}
@@ -1158,35 +1164,35 @@
 							<div class="tab-content bg-base-100 border-base-300 p-6">
 								{#if createdWheelId && wheelFetched && !isEditing}
 									<div class="mb-3 flex items-center justify-between gap-2">
-										<div class="text-sm opacity-70">Entries ({entriesOnChain.length})</div>
+										<div class="text-sm opacity-70">Entries</div>
 										<div class="flex items-center gap-2">
 											<div class="join">
 												<button
-													class="btn btn-sm join-item"
-													class:btn-primary={entriesViewMode === 'table'}
-													class:btn-outline={entriesViewMode !== 'table'}
-													onclick={() => (entriesViewMode = 'table')}
-													aria-label="Table view"
-												>
-													<span class="icon-[lucide--table] h-4 w-4"></span>
-													Table
-												</button>
-												<button
-													class="btn btn-sm join-item"
+													class="btn btn-xs join-item"
 													class:btn-primary={entriesViewMode === 'textarea'}
-													class:btn-outline={entriesViewMode !== 'textarea'}
+													class:btn-soft={entriesViewMode !== 'textarea'}
 													onclick={() => (entriesViewMode = 'textarea')}
 													aria-label="Textarea view"
 												>
 													<span class="icon-[lucide--edit] h-4 w-4"></span>
 													Text
 												</button>
+												<button
+													class="btn btn-xs join-item"
+													class:btn-primary={entriesViewMode === 'table'}
+													class:btn-soft={entriesViewMode !== 'table'}
+													onclick={() => (entriesViewMode = 'table')}
+													aria-label="Table view"
+												>
+													<span class="icon-[lucide--table] h-4 w-4"></span>
+													Table
+												</button>
 											</div>
 										</div>
 									</div>
 
 									{#if entriesViewMode === 'table'}
-										{@render entriesTable(entriesOnChain, false)}
+										{@render entriesTable(entriesOnChain, false, false)}
 									{:else}
 										<textarea
 											class="textarea h-48 w-full text-base"
@@ -1475,15 +1481,16 @@
 										<div class="flex w-full flex-col items-center gap-2">
 											{#if remainingTime > 0}
 												<div
-													class="text-base-content/70 flex items-center gap-2 text-center text-lg"
+													class="text-base-content/70 flex flex-col items-center gap-2 text-center"
 												>
-													<span class="icon-[lucide--clock] h-4 w-4"></span>
-													Time remaining:
-													<span class="text-primary font-mono font-bold"
-														>{Math.floor(remainingTime / 60)}:{(remainingTime % 60)
+													<span class="icon-[lucide--clock] h-6 w-6"></span>
+													<span>Time remaining</span>
+
+													<span class="prose text-primary font-mono text-3xl font-bold">
+														{Math.floor(remainingTime / 60)}:{(remainingTime % 60)
 															.toString()
-															.padStart(2, '0')}</span
-													>
+															.padStart(2, '0')}
+													</span>
 												</div>
 											{/if}
 										</div>
