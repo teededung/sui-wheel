@@ -154,6 +154,12 @@
 	// UI: active tab in settings (entries | prizes | others)
 	let activeTab = $state('entries');
 
+	// UI: view mode for entries (table | textarea)
+	let entriesViewMode = $state('textarea');
+
+	// UI: table expanded state
+	let tableExpanded = $state(false);
+
 	// Entry form settings
 	let entryFormEnabled = $state(false);
 	let entryFormType = $state('address'); // 'address' or 'name'
@@ -974,6 +980,76 @@
 	{/if}
 {/snippet}
 
+{#snippet entriesTable(entriesList, showActions = false)}
+	{#if entriesList.length > 0}
+		<div class="overflow-x-auto">
+			<div class="relative">
+				<div
+					class="overflow-y-auto"
+					class:max-h-64={!tableExpanded}
+					class:max-h-none={tableExpanded}
+				>
+					<table class="table-zebra table-sm table">
+						<thead>
+							<tr>
+								<th>#</th>
+								<th>Address</th>
+								{#if showActions}
+									<th>Actions</th>
+								{/if}
+							</tr>
+						</thead>
+						<tbody>
+							{#each entriesList as addr, i}
+								<tr>
+									<td class="w-12">{i + 1}</td>
+									<td class="font-mono">
+										{isValidSuiAddress(addr) ? shortenAddress(addr) : addr}
+									</td>
+									{#if showActions}
+										<td>
+											<button
+												class="btn btn-xs btn-error btn-soft"
+												onclick={() => removeEntryValue(addr)}
+												disabled={spinning}
+												aria-label="Remove entry"
+											>
+												<span class="icon-[lucide--x] h-3 w-3"></span>
+											</button>
+										</td>
+									{/if}
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+
+				{#if entriesList.length > 8}
+					<div class="absolute right-0 bottom-0 left-0 flex justify-center pb-2">
+						<button
+							class="btn btn-xs btn-primary btn-soft shadow-lg"
+							onclick={() => (tableExpanded = !tableExpanded)}
+							aria-label={tableExpanded ? 'Collapse table' : 'Expand table'}
+						>
+							{#if tableExpanded}
+								<span class="icon-[lucide--chevron-up] h-3 w-3"></span>
+								Collapse
+							{:else}
+								<span class="icon-[lucide--chevron-down] h-3 w-3"></span>
+								Show all ({entriesList.length})
+							{/if}
+						</button>
+					</div>
+				{/if}
+			</div>
+
+			{@render showDuplicateEntries()}
+		</div>
+	{:else}
+		<div class="text-center text-sm text-gray-500">No entries</div>
+	{/if}
+{/snippet}
+
 <section class="container mx-auto px-4 py-6">
 	<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 		<div class="w-full">
@@ -1075,39 +1151,76 @@
 								type="radio"
 								name="wheel_tabs"
 								class="tab"
-								aria-label={`Entries (${account ? entriesOnChain.length : entries.length})`}
+								aria-label={`Entries (${createdWheelId ? entriesOnChain.length : entries.length})`}
 								checked={activeTab === 'entries'}
 								onclick={() => (activeTab = 'entries')}
 							/>
 							<div class="tab-content bg-base-100 border-base-300 p-6">
 								{#if createdWheelId && wheelFetched && !isEditing}
-									{#if entriesOnChain.length > 0}
-										<div class="overflow-x-auto">
-											<table class="table-zebra table">
-												<thead>
-													<tr>
-														<th>#</th>
-														<th>Address</th>
-													</tr>
-												</thead>
-												<tbody>
-													{#each entriesOnChain as addr, i}
-														<tr>
-															<td class="w-12">{i + 1}</td>
-															<td class="font-mono">{shortenAddress(String(addr))}</td>
-														</tr>
-													{/each}
-												</tbody>
-											</table>
-
-											{@render showDuplicateEntries()}
+									<div class="mb-3 flex items-center justify-between gap-2">
+										<div class="text-sm opacity-70">Entries ({entriesOnChain.length})</div>
+										<div class="flex items-center gap-2">
+											<div class="join">
+												<button
+													class="btn btn-sm join-item"
+													class:btn-primary={entriesViewMode === 'table'}
+													class:btn-outline={entriesViewMode !== 'table'}
+													onclick={() => (entriesViewMode = 'table')}
+													aria-label="Table view"
+												>
+													<span class="icon-[lucide--table] h-4 w-4"></span>
+													Table
+												</button>
+												<button
+													class="btn btn-sm join-item"
+													class:btn-primary={entriesViewMode === 'textarea'}
+													class:btn-outline={entriesViewMode !== 'textarea'}
+													onclick={() => (entriesViewMode = 'textarea')}
+													aria-label="Textarea view"
+												>
+													<span class="icon-[lucide--edit] h-4 w-4"></span>
+													Text
+												</button>
+											</div>
 										</div>
+									</div>
+
+									{#if entriesViewMode === 'table'}
+										{@render entriesTable(entriesOnChain, false)}
 									{:else}
-										<div class="text-center text-sm text-gray-500">No entries</div>
+										<textarea
+											class="textarea h-48 w-full text-base"
+											placeholder="One entry per line"
+											value={entriesOnChain.join('\n')}
+											readonly
+											aria-label="Entries list (read-only)"
+										></textarea>
 									{/if}
 								{:else}
 									<div class="mb-3 flex items-center justify-between gap-2">
-										<div class="text-sm opacity-70">Entries</div>
+										<!-- View mode toggle -->
+										<div class="join">
+											<button
+												class="btn btn-sm join-item"
+												class:btn-primary={entriesViewMode === 'textarea'}
+												class:btn-outline={entriesViewMode !== 'textarea'}
+												onclick={() => (entriesViewMode = 'textarea')}
+												aria-label="Textarea view"
+											>
+												<span class="icon-[lucide--edit] h-4 w-4"></span>
+												Text
+											</button>
+											<button
+												class="btn btn-sm join-item"
+												class:btn-primary={entriesViewMode === 'table'}
+												class:btn-outline={entriesViewMode !== 'table'}
+												onclick={() => (entriesViewMode = 'table')}
+												aria-label="Table view"
+											>
+												<span class="icon-[lucide--table] h-4 w-4"></span>
+												Table
+											</button>
+										</div>
 
 										{#if account}
 											<div class="flex items-center gap-2">
@@ -1157,16 +1270,21 @@
 											</div>
 										{/if}
 									</div>
-									<textarea
-										class="textarea h-48 w-full text-base"
-										placeholder="One entry per line"
-										bind:value={entriesText}
-										oninput={() => onEntriesTextChange(entriesText)}
-										bind:this={entriesTextareaEl}
-										disabled={spinning}
-									></textarea>
 
-									{@render showDuplicateEntries()}
+									{#if entriesViewMode === 'table'}
+										{@render entriesTable(entries, true)}
+									{:else}
+										<textarea
+											class="textarea h-48 w-full text-base"
+											placeholder="One entry per line"
+											bind:value={entriesText}
+											oninput={() => onEntriesTextChange(entriesText)}
+											bind:this={entriesTextareaEl}
+											disabled={spinning}
+										></textarea>
+
+										{@render showDuplicateEntries()}
+									{/if}
 								{/if}
 							</div>
 
