@@ -4,7 +4,13 @@
 	import { useSuiClient, useCurrentAccount, accountLoading } from 'sui-svelte-wallet-kit';
 	import { formatDistanceToNow } from 'date-fns';
 	import { shortenAddress } from '$lib/utils/string.js';
-	import { PACKAGE_ID, WHEEL_MODULE, WHEEL_FUNCTIONS, WHEEL_STRUCT } from '$lib/constants.js';
+	import {
+		PACKAGE_ID,
+		ALL_PACKAGE_IDS,
+		WHEEL_MODULE,
+		WHEEL_FUNCTIONS,
+		WHEEL_STRUCT
+	} from '$lib/constants.js';
 	import { watch, IsIdle } from 'runed';
 
 	const suiClient = $derived(useSuiClient());
@@ -22,27 +28,35 @@
 		if (!isRefresh) pageState = 'loading';
 		errorMsg = '';
 		try {
-			const resp = await suiClient.queryTransactionBlocks({
-				filter: {
-					MoveFunction: {
-						package: PACKAGE_ID,
-						module: WHEEL_MODULE,
-						function: WHEEL_FUNCTIONS.CREATE
-					}
-				},
-				options: {
-					showObjectChanges: true,
-					showInput: true,
-					showEffects: false,
-					showEvents: false
-				},
-				order: 'descending',
-				limit: 50
-			});
+			// Query transactions for all package IDs (current and legacy)
+			const allResponses = await Promise.all(
+				ALL_PACKAGE_IDS.map(packageId =>
+					suiClient.queryTransactionBlocks({
+						filter: {
+							MoveFunction: {
+								package: packageId,
+								module: WHEEL_MODULE,
+								function: WHEEL_FUNCTIONS.CREATE
+							}
+						},
+						options: {
+							showObjectChanges: true,
+							showInput: true,
+							showEffects: false,
+							showEvents: false
+						},
+						order: 'descending',
+						limit: 50
+					})
+				)
+			);
+
+			// Combine all responses
+			const allTransactions = allResponses.flatMap(resp => resp?.data || []);
 
 			const senderLc = String(address).toLowerCase();
 			const items = [];
-			for (const tx of resp?.data || []) {
+			for (const tx of allTransactions) {
 				const txSender = String(
 					tx?.transaction?.data?.sender || tx?.transaction?.sender || ''
 				).toLowerCase();
@@ -53,13 +67,17 @@
 						String(ch?.objectType || '').endsWith(`::${WHEEL_MODULE}::${WHEEL_STRUCT}`)
 				);
 				if (created?.objectId) {
+					// Determine which package ID this wheel belongs to
+					const wheelPackageId = String(created?.objectType || '').split('::')[0];
 					items.push({
 						id: created.objectId,
 						digest: tx?.digest,
-						timestampMs: Number(tx?.timestampMs || 0)
+						timestampMs: Number(tx?.timestampMs || 0),
+						packageId: wheelPackageId
 					});
 				}
 			}
+
 			// Enrich items with on-chain status (Cancelled / Running / Finished)
 			if (items.length > 0) {
 				try {

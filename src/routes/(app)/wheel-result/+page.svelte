@@ -1,5 +1,5 @@
 <script>
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { Transaction } from '@mysten/sui/transactions';
 	import {
 		useSuiClient,
@@ -8,14 +8,22 @@
 	} from 'sui-svelte-wallet-kit';
 	import { shortenAddress } from '$lib/utils/string.js';
 	import { formatMistToSuiCompact, isTestnet } from '$lib/utils/suiHelpers.js';
-	import { PACKAGE_ID, WHEEL_MODULE, WHEEL_FUNCTIONS, CLOCK_OBJECT_ID } from '$lib/constants.js';
-	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
-	import ButtonCopy from '$lib/components/ButtonCopy.svelte';
+	import {
+		PACKAGE_ID,
+		WHEEL_MODULE,
+		WHEEL_FUNCTIONS,
+		CLOCK_OBJECT_ID,
+		WHEEL_EVENTS
+	} from '$lib/constants.js';
 	import { toast } from 'svelte-daisy-toaster';
 	import { format, formatDistanceToNow } from 'date-fns';
 	import { watch } from 'runed';
 	import { useSearchParams } from 'runed/kit';
 	import { searchParamsSchema } from '$lib/paramSchema.js';
+
+	// Components
+	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
+	import ButtonCopy from '$lib/components/ButtonCopy.svelte';
 
 	const suiClient = $derived(useSuiClient());
 	const account = $derived(useCurrentAccount());
@@ -24,14 +32,17 @@
 
 	// Reactive URL search params
 	const params = useSearchParams(searchParamsSchema);
-	let wheelId = $derived(params.wheelId);
 
 	let loading = $state(true);
 	let reclaimLoading = $state(false);
 	let claimLoading = $state(false);
-
 	let error = $state('');
+
+	let wheelId = $derived(params.wheelId);
 	let packageId = $state(PACKAGE_ID);
+	let eventType = $state('');
+	let previousTransaction = $state('');
+
 	let winners = $state([]);
 	let prizeAmounts = $state([]);
 	let spinTimes = $state([]);
@@ -41,15 +52,14 @@
 	let organizer = $state('');
 	let nowMs = $state(Date.now());
 
+	// Wheel meta
+	let wheelCreatedAtMs = $state(0);
+	let isCancelled = $state(false);
+
 	let ticker;
 	let poolBalanceMist = $state(0n);
 	let lastReclaim = $state({ amount: 0n, timestampMs: 0, digest: '' });
 	let lastClaim = $state({ amount: 0n, timestampMs: 0, digest: '' });
-	let isCancelled = $state(false);
-
-	// Wheel meta
-	let wheelCreatedAtMs = $state(0);
-	let wheelCreatedTx = $state('');
 
 	// Non-winning entries (remaining entries on chain)
 	let nonWinningEntries = $state([]);
@@ -74,30 +84,44 @@
 		}
 	});
 
-	async function getPackageIdFromWheelId(wheelId) {
+	async function getPackageIdFromObjectId(objectId) {
 		try {
 			const objectData = await suiClient.getObject({
-				id: wheelId,
-				options: { showType: true }
+				id: objectId,
+				options: { showType: true, showPreviousTransaction: true, showContent: true }
 			});
 
-			if (!objectData.data?.type) {
-				throw new Error('Object not found or invalid type');
+			if (!objectData.data?.previousTransaction) {
+				throw new Error('Object has no previous transaction');
 			}
 
-			// Parse type: "0xpackage::module::struct"
-			const type = objectData.data.type;
-			return type.split('::')[0];
+			previousTransaction = objectData.data.previousTransaction;
+
+			const eventsResult = await suiClient.queryEvents({
+				query: { Transaction: previousTransaction }
+			});
+
+			// Fallback to current package ID
+			if (eventsResult.data.length === 0) {
+				return PACKAGE_ID;
+			}
+
+			// console.log('eventsResult', eventsResult);
+			wheelCreatedAtMs = Number(eventsResult.data[0].timestampMs);
+			console.log('wheelCreatedAtMs', wheelCreatedAtMs);
+			eventType = eventsResult.data[0].type;
+
+			return eventsResult.data[0].packageId;
 		} catch (e) {
 			console.error('Error querying object:', e.message);
-			return null;
+			return PACKAGE_ID;
 		}
 	}
 
 	watch(
 		() => wheelId,
 		async () => {
-			packageId = await getPackageIdFromWheelId(wheelId);
+			packageId = await getPackageIdFromObjectId(wheelId);
 
 			// Run fetchData and event fetches in parallel
 			await Promise.all([
@@ -112,18 +136,18 @@
 		}
 	);
 
-	onDestroy(() => {});
-
 	async function fetchData(wheelId) {
 		if (!wheelId) return;
 		loading = true;
 		error = '';
 		try {
-			const res = await suiClient.getObject({
+			const wheelContent = await suiClient.getObject({
 				id: wheelId,
 				options: { showContent: true, showPreviousTransaction: true }
 			});
-			const f = res?.data?.content?.fields ?? {};
+
+			previousTransaction = wheelContent?.data?.previousTransaction || '';
+			const f = wheelContent?.data?.content?.fields ?? {};
 
 			isCancelled = Boolean(f.is_cancelled);
 			winners = (f.winners || []).map(w => ({
@@ -136,11 +160,10 @@
 			delayMs = Number(f.delay_ms || 0);
 			claimWindowMs = Number(f.claim_window_ms || 0);
 			organizer = String(f.organizer || '');
+
 			// Remaining entries represent non-winners
 			nonWinningEntries = (f.remaining_entries || []).map(v => String(v));
 
-			// Wheel creation timestamp from the transaction that created this object
-			await fetchWheelCreationMeta();
 			// Parse pool balance from nested balance field variants
 			try {
 				let pool = 0n;
@@ -167,7 +190,7 @@
 	async function fetchReclaimEvents(packageId, wheelId) {
 		try {
 			if (!packageId || !wheelId) return;
-			const eventType = `${packageId}::${WHEEL_MODULE}::ReclaimEvent`;
+			const eventType = `${packageId}::${WHEEL_MODULE}::${WHEEL_EVENTS.RECLAIM}`;
 			const res = await suiClient.queryEvents({ query: { MoveEventType: eventType }, limit: 1 });
 			const events = Array.isArray(res?.data) ? res.data : [];
 			const filtered = events.filter(e => {
@@ -209,7 +232,7 @@
 	async function fetchClaimEvents(packageId, wheelId) {
 		try {
 			if (!packageId || !wheelId) return;
-			const eventType = `${packageId}::${WHEEL_MODULE}::ClaimEvent`;
+			const eventType = `${packageId}::${WHEEL_MODULE}::${WHEEL_EVENTS.CLAIM}`;
 			const res = await suiClient.queryEvents({ query: { MoveEventType: eventType }, limit: 1 });
 			const events = Array.isArray(res?.data) ? res.data : [];
 			const filtered = events.filter(e => {
@@ -251,7 +274,7 @@
 	async function fetchClaimEventsForWinner(packageId, wheelId) {
 		try {
 			if (!packageId || !wheelId || !account?.address) return;
-			const eventType = `${packageId}::${WHEEL_MODULE}::ClaimEvent`;
+			const eventType = `${packageId}::${WHEEL_MODULE}::${WHEEL_EVENTS.CLAIM}`;
 			const res = await suiClient.queryEvents({ query: { MoveEventType: eventType }, limit: 50 });
 			const events = Array.isArray(res?.data) ? res.data : [];
 			const who = String(account?.address).toLowerCase();
@@ -462,96 +485,6 @@
 
 	function isYou(addr) {
 		return String(account?.address || '').toLowerCase() === String(addr).toLowerCase();
-	}
-
-	async function fetchWheelCreationMeta() {
-		try {
-			wheelCreatedAtMs = 0;
-			wheelCreatedTx = '';
-
-			// Preferred: read CreateEvent for this wheel id
-			try {
-				const eventType = `${PACKAGE_ID}::${WHEEL_MODULE}::CreateEvent`;
-
-				let cursorEv = null;
-				for (let page = 0; page < 10; page++) {
-					const evRes = await suiClient.queryEvents({
-						query: { MoveEventType: eventType },
-						cursor: cursorEv,
-						limit: 10
-					});
-
-					const list = Array.isArray(evRes?.data) ? evRes.data : [];
-					const match = list.find(
-						e =>
-							String(e?.parsedJson?.wheel_id || '').toLowerCase() === String(wheelId).toLowerCase()
-					);
-					if (match) {
-						wheelCreatedAtMs = Number(match?.timestampMs || 0);
-						wheelCreatedTx = String(match?.id?.txDigest || match?.transactionDigest || '');
-						return;
-					}
-					if (!evRes?.hasNextPage) break;
-					cursorEv = evRes?.nextCursor || null;
-				}
-			} catch {}
-
-			// Fast path: Check if previous transaction created the wheel
-			const obj = await suiClient.getObject({
-				id: wheelId,
-				options: { showPreviousTransaction: true }
-			});
-
-			let digest = obj?.data?.previousTransaction || '';
-
-			if (digest) {
-				const txb = await suiClient.getTransactionBlock({
-					digest,
-					options: { showObjectChanges: true }
-				});
-
-				const created = (txb?.objectChanges || []).some(
-					ch => ch?.type === 'created' && ch.objectId === wheelId
-				);
-				if (created) {
-					wheelCreatedTx = digest;
-					wheelCreatedAtMs = Number(txb?.timestampMs || 0);
-					return;
-				}
-			}
-
-			// Fallback: Query transactions by Move function and find the creation tx
-			const moveFilter = {
-				MoveFunction: { package: packageId, module: 'sui_wheel', function: 'create_wheel' }
-			};
-			let cursor = null;
-			let found = false;
-			while (!found) {
-				const res = await suiClient.queryTransactionBlocks({
-					filter: moveFilter,
-					options: { showObjectChanges: true },
-					limit: 50,
-					order: 'ascending',
-					cursor
-				});
-
-				for (const tx of res?.data || []) {
-					const created = (tx?.objectChanges || []).some(
-						ch => ch?.type === 'created' && ch.objectId === wheelId
-					);
-					if (created) {
-						wheelCreatedTx = tx.digest;
-						wheelCreatedAtMs = Number(tx?.timestampMs || 0);
-						found = true;
-						break;
-					}
-				}
-				if (!res?.hasNextPage || found) break;
-				cursor = res.nextCursor;
-			}
-		} catch {
-			// Silently fail, keep defaults
-		}
 	}
 </script>
 
@@ -864,7 +797,7 @@
 								{/if}
 							</div>
 
-							{#if wheelCreatedAtMs > 0}
+							{#if wheelCreatedAtMs > 0 && !isNaN(new Date(wheelCreatedAtMs).getTime())}
 								<div class="mt-1 flex items-start text-sm opacity-80">
 									<span>Created</span>
 									<span title={new Date(wheelCreatedAtMs).toISOString()} class="ml-1">
