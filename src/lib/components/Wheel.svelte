@@ -864,20 +864,22 @@
 			</div>
 		{/if}
 
-		<div class="mt-4 flex flex-wrap justify-center gap-2">
-			<button
-				class="btn btn-outline"
-				class:btn-disabled={spinning || entries.length < 2}
-				disabled={spinning || entries.length < 2}
-				onclick={onShuffle}
-				aria-label="Shuffle entries">Shuffle</button
-			>
-			{#if !createdWheelId}
-				<button class="btn btn-warning" disabled={spinning} onclick={onClearAllEntries}
-					>Clear</button
+		{#if !createdWheelId || (createdWheelId && remainingSpins > 0)}
+			<div class="mt-4 flex flex-wrap justify-center gap-2">
+				<button
+					class="btn btn-outline"
+					class:btn-disabled={spinning || entries.length < 2}
+					disabled={spinning || entries.length < 2}
+					onclick={onShuffle}
+					aria-label="Shuffle entries">Shuffle</button
 				>
-			{/if}
-		</div>
+				{#if !createdWheelId}
+					<button class="btn btn-warning" disabled={spinning} onclick={onClearAllEntries}
+						>Clear</button
+					>
+				{/if}
+			</div>
+		{/if}
 	</div>
 </div>
 

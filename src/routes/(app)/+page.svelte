@@ -1080,10 +1080,14 @@
 									>Wheel ID: <span class="font-mono">{shortenAddress(createdWheelId)}</span></span
 								>
 								{#if remainingSpins === 0}
-									<span class="badge badge-neutral badge-sm">Finished</span>
+									<span class="badge badge-success badge-sm"
+										><span class="icon-[lucide--check]"></span> Finished</span
+									>
 								{/if}
 								{#if isCancelled}
-									<span class="badge badge-warning badge-sm">Cancelled</span>
+									<span class="badge badge-warning badge-sm"
+										><span class="icon-[lucide--circle-x]"></span> Cancelled</span
+									>
 								{/if}
 							</div>
 
@@ -1130,7 +1134,7 @@
 								{/if}
 
 								<!-- New/Cancel wheel button -->
-								{#if account && !isCancelled}
+								{#if account && !isCancelled && remainingSpins > 0}
 									<ButtonLoading
 										formLoading={cancelLoading}
 										color="error"
