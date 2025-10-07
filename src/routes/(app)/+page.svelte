@@ -1064,7 +1064,7 @@
 				{remainingSpins}
 				{isCancelled}
 				{entryFormEnabled}
-				accountConnected={Boolean(account?.value)}
+				accountConnected={Boolean(account)}
 			/>
 		</div>
 
@@ -1457,8 +1457,12 @@
 											alt="Result QR"
 											class="rounded-box border-base-300 bg-base-100 mb-3 h-64 w-64 border p-2 shadow"
 										/>
+
+										<div class="flex w-full flex-col items-center gap-2 text-center opacity-80">
+											<span class="icon-[lucide--smartphone] h-8 w-8"></span>
+											<span class="text-lg">Scan with your phone</span>
+										</div>
 									</div>
-									<div class="opacity-80">Scan to open results on your phone</div>
 								{/if}
 							</div>
 						{/if}

@@ -39,9 +39,6 @@
 	let error = $state('');
 
 	let wheelId = $derived(params.wheelId);
-	let packageId = $state(PACKAGE_ID);
-	let eventType = $state('');
-	let previousTransaction = $state('');
 
 	let winners = $state([]);
 	let prizeAmounts = $state([]);
@@ -84,50 +81,14 @@
 		}
 	});
 
-	async function getPackageIdFromObjectId(objectId) {
-		try {
-			const objectData = await suiClient.getObject({
-				id: objectId,
-				options: { showType: true, showPreviousTransaction: true, showContent: true }
-			});
-
-			if (!objectData.data?.previousTransaction) {
-				throw new Error('Object has no previous transaction');
-			}
-
-			previousTransaction = objectData.data.previousTransaction;
-
-			const eventsResult = await suiClient.queryEvents({
-				query: { Transaction: previousTransaction }
-			});
-
-			// Fallback to current package ID
-			if (eventsResult.data.length === 0) {
-				return PACKAGE_ID;
-			}
-
-			// console.log('eventsResult', eventsResult);
-			wheelCreatedAtMs = Number(eventsResult.data[0].timestampMs);
-			console.log('wheelCreatedAtMs', wheelCreatedAtMs);
-			eventType = eventsResult.data[0].type;
-
-			return eventsResult.data[0].packageId;
-		} catch (e) {
-			console.error('Error querying object:', e.message);
-			return PACKAGE_ID;
-		}
-	}
-
 	watch(
 		() => wheelId,
 		async () => {
-			packageId = await getPackageIdFromObjectId(wheelId);
-
 			// Run fetchData and event fetches in parallel
 			await Promise.all([
 				fetchData(wheelId),
-				fetchReclaimEvents(packageId, wheelId),
-				fetchClaimEventsForWinner(packageId, wheelId)
+				fetchReclaimEvents(wheelId),
+				fetchClaimEventsForWinner(wheelId)
 			]);
 
 			// Precompute static "Spun at" texts based on current time once
@@ -143,10 +104,9 @@
 		try {
 			const wheelContent = await suiClient.getObject({
 				id: wheelId,
-				options: { showContent: true, showPreviousTransaction: true }
+				options: { showContent: true }
 			});
 
-			previousTransaction = wheelContent?.data?.previousTransaction || '';
 			const f = wheelContent?.data?.content?.fields ?? {};
 
 			isCancelled = Boolean(f.is_cancelled);
@@ -187,10 +147,10 @@
 		}
 	}
 
-	async function fetchReclaimEvents(packageId, wheelId) {
+	async function fetchReclaimEvents(wheelId) {
 		try {
-			if (!packageId || !wheelId) return;
-			const eventType = `${packageId}::${WHEEL_MODULE}::${WHEEL_EVENTS.RECLAIM}`;
+			if (!wheelId || !account) return;
+			const eventType = `${PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_EVENTS.RECLAIM}`;
 			const res = await suiClient.queryEvents({ query: { MoveEventType: eventType }, limit: 1 });
 			const events = Array.isArray(res?.data) ? res.data : [];
 			const filtered = events.filter(e => {
@@ -229,10 +189,10 @@
 		}
 	}
 
-	async function fetchClaimEvents(packageId, wheelId) {
+	async function fetchClaimEvents(wheelId) {
 		try {
-			if (!packageId || !wheelId) return;
-			const eventType = `${packageId}::${WHEEL_MODULE}::${WHEEL_EVENTS.CLAIM}`;
+			if (!wheelId || !account) return;
+			const eventType = `${PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_EVENTS.CLAIM}`;
 			const res = await suiClient.queryEvents({ query: { MoveEventType: eventType }, limit: 1 });
 			const events = Array.isArray(res?.data) ? res.data : [];
 			const filtered = events.filter(e => {
@@ -271,10 +231,10 @@
 		}
 	}
 
-	async function fetchClaimEventsForWinner(packageId, wheelId) {
+	async function fetchClaimEventsForWinner(wheelId) {
 		try {
-			if (!packageId || !wheelId || !account?.address) return;
-			const eventType = `${packageId}::${WHEEL_MODULE}::${WHEEL_EVENTS.CLAIM}`;
+			if (!wheelId || !account) return;
+			const eventType = `${PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_EVENTS.CLAIM}`;
 			const res = await suiClient.queryEvents({ query: { MoveEventType: eventType }, limit: 50 });
 			const events = Array.isArray(res?.data) ? res.data : [];
 			const who = String(account?.address).toLowerCase();
@@ -367,7 +327,7 @@
 			const tx = new Transaction();
 			// Call claim to get a Coin<SUI> back in the PTB
 			const claimedCoin = tx.moveCall({
-				target: `${packageId}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.CLAIM}`,
+				target: `${PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.CLAIM}`,
 				arguments: [tx.object(wheelId), tx.object(CLOCK_OBJECT_ID)]
 			});
 			// Transfer the returned coin to the sender's address
@@ -375,7 +335,7 @@
 
 			await signAndExecuteTransaction(tx);
 			await fetchData(wheelId);
-			await fetchClaimEventsForWinner(packageId, wheelId);
+			await fetchClaimEventsForWinner(wheelId);
 		} catch (e) {
 			error = e?.message || String(e);
 		} finally {
@@ -446,13 +406,13 @@
 			const tx = new Transaction();
 			// Call reclaim_pool to get Coin<SUI> and transfer to organizer (sender)
 			const coin = tx.moveCall({
-				target: `${packageId}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.RECLAIM}`,
+				target: `${PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.RECLAIM}`,
 				arguments: [tx.object(wheelId), tx.object(CLOCK_OBJECT_ID)]
 			});
 			tx.transferObjects([coin], tx.pure.address(account.address));
 			await signAndExecuteTransaction(tx);
 			await fetchData(wheelId);
-			await fetchReclaimEvents(packageId, wheelId);
+			await fetchReclaimEvents(wheelId);
 			if (lastReclaim.digest) {
 				toast.success('Reclaimed pool successfully', {
 					position: 'bottom-right',
@@ -531,7 +491,7 @@
 			</div>
 		</div>
 	{:else}
-		<div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+		<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
 			<div class="order-2 overflow-x-auto lg:order-1 lg:col-span-2">
 				{#if lastReclaim.timestampMs > 0 && isOrganizer}
 					<div class="text-base-content/70 mb-4 text-xs">
@@ -555,69 +515,83 @@
 					</div>
 				{/if}
 
-				<h2 class="mt-6 text-lg font-semibold">Winners</h2>
-				<div class="mb-6 overflow-x-auto">
-					<table class="table-zebra table">
-						<thead>
-							<tr>
-								<th>#</th>
-								<th>Amount</th>
-								<th>Winner</th>
-								<th>Spun at</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each prizeAmounts as m, i}
-								<tr>
-									<td class="w-12">{i + 1}</td>
-									<td class="font-mono">{formatMistToSuiCompact(m)}</td>
-									<td class="font-mono"
-										>{findWinner(i) ? shortenAddress(findWinner(i).addr) : '—'}
-										{#if findWinner(i) && isYou(findWinner(i).addr)}
-											<span class="badge badge-neutral badge-sm ml-2 text-xs opacity-70">You</span>
-										{/if}
-									</td>
-									<td class="text-sm opacity-80">
-										{#if Number(spinTimes[i] || 0) > 0}
-											<span title={new Date(spinTimes[i]).toISOString()}>
-												{spunAtTexts[i]}
-											</span>
-										{:else}
-											<span class="opacity-60">—</span>
-										{/if}
-									</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
+				<h2 class="mt-6 mb-3 text-lg font-semibold">Winners</h2>
+				<div class="card bg-base-100 border-base-300 mb-6 border shadow-sm">
+					<div class="card-body p-0">
+						<div class="overflow-x-auto">
+							<table class="table-zebra table">
+								<thead>
+									<tr>
+										<th>#</th>
+										<th>Amount</th>
+										<th>Winner</th>
+										<th>Spun at</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each prizeAmounts as m, i}
+										<tr>
+											<td class="w-12">{i + 1}</td>
+											<td class="flex items-center gap-1">
+												<span class="text-primary font-mono">{formatMistToSuiCompact(m)}</span>
+												<span class="text-base-content/80 text-xs">SUI</span>
+											</td>
+											<td class="font-mono"
+												>{findWinner(i) ? shortenAddress(findWinner(i).addr) : '—'}
+												{#if findWinner(i) && isYou(findWinner(i).addr)}
+													<span class="badge badge-neutral badge-sm ml-2 text-xs opacity-70"
+														>You</span
+													>
+												{/if}
+											</td>
+											<td class="text-sm opacity-80">
+												{#if Number(spinTimes[i] || 0) > 0}
+													<span title={new Date(spinTimes[i]).toISOString()}>
+														{spunAtTexts[i]}
+													</span>
+												{:else}
+													<span class="opacity-60">—</span>
+												{/if}
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					</div>
 				</div>
 
 				{#if nonWinningEntries.length > 0}
-					<h2 class="text-lg font-semibold">Non-winning entries</h2>
+					<h2 class="mt-6 mb-3 text-lg font-semibold">Non-winning entries</h2>
 
-					<div class="overflow-x-auto">
-						<table class="table">
-							<thead>
-								<tr>
-									<th>#</th>
-									<th>Address</th>
-								</tr>
-							</thead>
-							<tbody>
-								{#each nonWinningEntries as addr, idx}
-									<tr class:active={isYou(addr)}>
-										<td class="w-12">{idx + 1}</td>
-										<td class="flex items-center font-mono"
-											>{shortenAddress(addr)}
-											{#if isYou(addr)}
-												<span class="badge badge-neutral badge-sm ml-2 text-xs opacity-70">You</span
-												>
-											{/if}
-										</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
+					<div class="card bg-base-100 border-base-300 mb-6 border shadow-sm">
+						<div class="card-body p-0">
+							<div class="overflow-x-auto">
+								<table class="table-zebra table">
+									<thead>
+										<tr>
+											<th>#</th>
+											<th>Address</th>
+										</tr>
+									</thead>
+									<tbody>
+										{#each nonWinningEntries as addr, idx}
+											<tr class:active={isYou(addr)}>
+												<td class="w-12">{idx + 1}</td>
+												<td class="flex items-center font-mono"
+													>{shortenAddress(addr)}
+													{#if isYou(addr)}
+														<span class="badge badge-neutral badge-sm ml-2 text-xs opacity-70"
+															>You</span
+														>
+													{/if}
+												</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							</div>
+						</div>
 					</div>
 				{/if}
 			</div>
@@ -771,19 +745,26 @@
 
 							<div class="mt-1 flex flex-wrap items-center gap-2 text-sm">
 								Status: {#if isCancelled}
-									<span class="badge badge-warning badge-sm">Cancelled</span>
+									<span class="badge badge-warning badge-sm"
+										><span class="icon-[lucide--circle-x]"></span> Cancelled</span
+									>
 								{:else if remainingSpins > 0}
-									<span class="badge badge-primary badge-sm">Running</span>
+									<span class="badge badge-primary badge-sm"
+										><span class="icon-[lucide--clock]"></span> Running</span
+									>
 								{:else}
-									<span class="badge badge-neutral badge-sm">Finished</span>
+									<span class="badge badge-success badge-sm"
+										><span class="icon-[lucide--check]"></span> Finished</span
+									>
 								{/if}
 							</div>
 
 							<div class="mt-1 flex items-center gap-2">
-								<div class="text-sm opacity-80">
-									Pool balance: <span class="text-primary font-mono font-semibold"
-										>{formatMistToSuiCompact(poolBalanceMist)} SUI</span
-									>
+								<div class="flex gap-2 text-sm opacity-80">
+									Pool balance: <div class="flex items-center gap-1 font-mono font-semibold">
+										<span class="text-primary">{formatMistToSuiCompact(poolBalanceMist)}</span>
+										<span class="text-base-content/80 text-xs">SUI</span>
+									</div>
 								</div>
 								{#if account && isOrganizer && canOrganizerReclaim() && poolBalanceMist > 0n}
 									<ButtonLoading
