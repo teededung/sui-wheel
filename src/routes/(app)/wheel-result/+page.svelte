@@ -760,8 +760,10 @@
 							</div>
 
 							<div class="mt-1 flex items-center gap-2">
-								<div class="flex gap-2 text-sm opacity-80">
-									Pool balance: <div class="flex items-center gap-1 font-mono font-semibold">
+								<div class="flex gap-2 text-sm">
+									Remaining pool balance: <div
+										class="flex items-center gap-1 font-mono font-semibold"
+									>
 										<span class="text-primary">{formatMistToSuiCompact(poolBalanceMist)}</span>
 										<span class="text-base-content/80 text-xs">SUI</span>
 									</div>

@@ -33,8 +33,9 @@ export const WHEEL_FUNCTIONS = {
 	CREATE: 'create_wheel',
 	DONATE: 'donate_to_pool',
 	SPIN: 'spin_wheel',
-	SPIN_WITH_ORDER: 'spin_wheel_with_order',
 	SPIN_AND_ASSIGN_LAST: 'spin_wheel_and_assign_last_prize',
+	SPIN_WITH_ORDER: 'spin_wheel_with_order',
+	SPIN_AND_ASSIGN_LAST_WITH_ORDER: 'spin_wheel_and_assign_last_prize_with_order',
 	CANCEL: 'cancel_wheel_and_reclaim_pool',
 	CLAIM: 'claim_prize',
 	RECLAIM: 'reclaim_pool'
