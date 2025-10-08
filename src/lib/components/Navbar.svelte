@@ -7,23 +7,12 @@
 	<div class="navbar-start">
 		<!-- Mobile dropdown menu -->
 		<div class="dropdown lg:hidden">
-			<div tabindex="0" role="button" class="btn btn-ghost" aria-label="Open navigation menu">
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					class="h-5 w-5"
-					fill="none"
-					viewBox="0 0 24 24"
-					stroke="currentColor"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M4 6h16M4 12h8m-8 6h16"
-					/>
-				</svg>
+			<div tabindex="0" role="button" class="btn btn-ghost pl-1" aria-label="Open navigation menu">
+				<span class="icon-[lucide--menu] h-7 w-7"></span>
 			</div>
-			<ul class="menu menu-sm dropdown-content bg-base-100 rounded-box z-10 mt-3 w-52 p-2 shadow">
+			<ul
+				class="menu sm:menu-sm dropdown-content bg-base-200 rounded-box z-10 mt-3 w-52 p-2 shadow"
+			>
 				<li><a href="/wheel-list" aria-label="Go to Wheel List">Wheel List</a></li>
 				<li><a href="/about" aria-label="Go to About">About</a></li>
 			</ul>

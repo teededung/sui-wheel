@@ -787,7 +787,7 @@
 </script>
 
 <div class="relative mx-auto max-w-[560px]">
-	<div class="rounded-box p-3">
+	<div class="rounded-box p-6 sm:p-3">
 		<div
 			bind:this={canvasContainerEl}
 			class="relative mx-auto aspect-square w-full rounded-full border-1 border-amber-300/60 shadow-lg"
@@ -809,7 +809,7 @@
 
 			<!-- Pointer -->
 			<div
-				class="pointer-events-none absolute top-1/2 -right-9 z-10 -translate-y-1/2"
+				class="pointer-events-none absolute top-1/2 -right-7 z-10 -translate-y-1/2 sm:-right-9"
 				class:bounce={pointerBounce}
 				aria-hidden="true"
 			>
@@ -818,7 +818,7 @@
 					height="52"
 					viewBox="0 0 96 123"
 					xmlns="http://www.w3.org/2000/svg"
-					class="block"
+					class="block h-10 w-10 sm:h-[52px] sm:w-[52px]"
 					style={`transform: rotate(-90deg); filter: drop-shadow(0 0 12px ${pointerColor}80)`}
 					aria-hidden="true"
 				>

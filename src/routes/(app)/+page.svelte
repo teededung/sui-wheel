@@ -1445,42 +1445,39 @@
 								<div class="tab-content bg-base-100 border-base-300 p-6">
 									<h3 class="mb-4 text-lg font-semibold">Settings</h3>
 									<div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-										<label class="floating-label">
-											<input
-												type="number"
-												class="input"
-												min="0"
-												step="1"
+										<fieldset class="fieldset border-base-300 rounded-box border p-4">
+											<legend class="fieldset-legend">Claim Delay</legend>
+											<select
+												class="select"
 												bind:value={delayMs}
-												aria-label="Delay (minutes)"
+												aria-label="Delay"
 												disabled={createdWheelId && wheelFetched && !isEditing}
-											/>
-											<span>Delay (minutes)</span>
-										</label>
-										<label class="floating-label">
-											<input
-												type="number"
-												class="input"
-												min="0"
-												step="1"
+											>
+												<option value={0}>0 minute (default)</option>
+												<option value={15}>15 minutes</option>
+												<option value={30}>30 minutes</option>
+												<option value={60}>1 hour</option>
+												<option value={120}>2 hours</option>
+											</select>
+											<span class="label">Wait time before claiming prize</span>
+										</fieldset>
+
+										<fieldset class="fieldset border-base-300 rounded-box border p-4">
+											<legend class="fieldset-legend">Claim Period</legend>
+											<select
+												class="select"
 												bind:value={claimWindowMs}
-												aria-label="Claim window (minutes)"
+												aria-label="Claim window"
 												disabled={createdWheelId && wheelFetched && !isEditing}
-											/>
-											<span>Claim window (minutes)</span>
-										</label>
-									</div>
-									<div class="alert alert-soft alert-info light:!border-info">
-										<ul class="list-inside list-disc">
-											<li class="mb-1">
-												<strong>Delay (minutes):</strong> Time to wait after spinning completes before
-												claiming the prize.
-											</li>
-											<li>
-												<strong>Claim window (minutes):</strong> Deadline time to claim the prize. After
-												this time, the prize cannot be claimed (minimum 1 hour, default 24 hours).
-											</li>
-										</ul>
+											>
+												<option value={60}>1 hour</option>
+												<option value={1440}>24 hours (default)</option>
+												<option value={2880}>2 days</option>
+												<option value={4320}>3 days</option>
+												<option value={10080}>1 week</option>
+											</select>
+											<span class="label">Deadline to claim prize</span>
+										</fieldset>
 									</div>
 								</div>
 							{/if}
