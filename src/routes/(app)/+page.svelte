@@ -867,6 +867,13 @@
 		}
 	}
 
+	onMount(() => {
+		if (remainingSpins === 0 && createdWheelId) {
+			// open tab prize
+			activeTab = 'prizes';
+		}
+	});
+
 	// Cleanup on component destroy
 	onMount(() => {
 		// Handle browser close/refresh
