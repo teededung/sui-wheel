@@ -9,7 +9,7 @@
 	import { shortenAddress } from '$lib/utils/string.js';
 	import { formatMistToSuiCompact, isTestnet } from '$lib/utils/suiHelpers.js';
 	import {
-		PACKAGE_ID,
+		LATEST_PACKAGE_ID,
 		WHEEL_MODULE,
 		WHEEL_FUNCTIONS,
 		CLOCK_OBJECT_ID,
@@ -150,7 +150,7 @@
 	async function fetchReclaimEvents(wheelId) {
 		try {
 			if (!wheelId || !account) return;
-			const eventType = `${PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_EVENTS.RECLAIM}`;
+			const eventType = `${LATEST_PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_EVENTS.RECLAIM}`;
 			const res = await suiClient.queryEvents({ query: { MoveEventType: eventType }, limit: 1 });
 			const events = Array.isArray(res?.data) ? res.data : [];
 			const filtered = events.filter(e => {
@@ -192,7 +192,7 @@
 	async function fetchClaimEvents(wheelId) {
 		try {
 			if (!wheelId || !account) return;
-			const eventType = `${PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_EVENTS.CLAIM}`;
+			const eventType = `${LATEST_PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_EVENTS.CLAIM}`;
 			const res = await suiClient.queryEvents({ query: { MoveEventType: eventType }, limit: 1 });
 			const events = Array.isArray(res?.data) ? res.data : [];
 			const filtered = events.filter(e => {
@@ -234,7 +234,7 @@
 	async function fetchClaimEventsForWinner(wheelId) {
 		try {
 			if (!wheelId || !account) return;
-			const eventType = `${PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_EVENTS.CLAIM}`;
+			const eventType = `${LATEST_PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_EVENTS.CLAIM}`;
 			const res = await suiClient.queryEvents({ query: { MoveEventType: eventType }, limit: 50 });
 			const events = Array.isArray(res?.data) ? res.data : [];
 			const who = String(account?.address).toLowerCase();
@@ -327,7 +327,7 @@
 			const tx = new Transaction();
 			// Call claim to get a Coin<SUI> back in the PTB
 			const claimedCoin = tx.moveCall({
-				target: `${PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.CLAIM}`,
+				target: `${LATEST_PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.CLAIM}`,
 				arguments: [tx.object(wheelId), tx.object(CLOCK_OBJECT_ID)]
 			});
 			// Transfer the returned coin to the sender's address
@@ -406,7 +406,7 @@
 			const tx = new Transaction();
 			// Call reclaim_pool to get Coin<SUI> and transfer to organizer (sender)
 			const coin = tx.moveCall({
-				target: `${PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.RECLAIM}`,
+				target: `${LATEST_PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.RECLAIM}`,
 				arguments: [tx.object(wheelId), tx.object(CLOCK_OBJECT_ID)]
 			});
 			tx.transferObjects([coin], tx.pure.address(account.address));
@@ -516,7 +516,7 @@
 				{/if}
 
 				<h2 class="mt-6 mb-3 text-lg font-semibold">Winners</h2>
-				<div class="card bg-base-100 border-base-300 mb-6 border shadow-sm">
+				<div class="card bg-base-200 border-base-300 mb-6 border shadow-sm">
 					<div class="card-body p-0">
 						<div class="overflow-x-auto">
 							<table class="table-zebra table">
@@ -564,7 +564,7 @@
 				{#if nonWinningEntries.length > 0}
 					<h2 class="mt-6 mb-3 text-lg font-semibold">Non-winning entries</h2>
 
-					<div class="card bg-base-100 border-base-300 mb-6 border shadow-sm">
+					<div class="card bg-base-200 border-base-300 mb-6 border shadow-sm">
 						<div class="card-body p-0">
 							<div class="overflow-x-auto">
 								<table class="table-zebra table">
@@ -599,12 +599,12 @@
 				<div class="card bg-base-200 shadow">
 					<div class="card-body">
 						{#if isCancelled}
-							<div class="alert alert-soft alert-warning text-sm">
+							<div class="alert alert-soft dark:!border-warning alert-warning text-sm">
 								<span class="icon-[lucide--info] h-4 w-4"></span>
 								<span>This wheel has been cancelled!</span>
 							</div>
 						{:else if !account}
-							<div class="alert alert-soft alert-info text-sm">
+							<div class="alert alert-soft dark:!border-info alert-info text-sm">
 								<span class="icon-[lucide--info] h-4 w-4"></span>
 								<span>Connect your wallet to view your prize and claim it! 🔑</span>
 							</div>
@@ -612,25 +612,26 @@
 							<h3 class="mb-2 text-lg font-semibold">Your prize</h3>
 							{#if winnerInfo.claimed}
 								<div class="alert alert-success mb-3 text-sm">
-									<span class="icon-[lucide--party-popper] h-4 w-4"></span>
+									<span class="icon-[lucide--party-popper] h-6 w-6"></span>
 									<p>
-										<span class="mb-1 block">Congratulations on your win! 🎉</span>
+										<strong class="mb-1 block">Congratulations on your win!</strong>
 										{#if lastClaim.timestampMs > 0}
 											<span class="block text-xs">
-												Claimed at
+												<span>Claimed at</span>
 												<span
 													class="text-primary"
 													title={new Date(lastClaim.timestampMs).toISOString()}
 												>
 													{format(new Date(lastClaim.timestampMs), 'PPpp')}</span
 												>
-												({formatDistanceToNow(new Date(lastClaim.timestampMs), {
-													addSuffix: true
-												})}) .
-
+												<span>
+													({formatDistanceToNow(new Date(lastClaim.timestampMs), {
+														addSuffix: true
+													})}).</span
+												>
 												{#if lastClaim.digest}
 													<a
-														class="link link-primary hover:link-primary flex items-center"
+														class="link link-primary hover:link-primary mt-1 flex items-center"
 														href={`https://testnet.suivision.xyz/txblock/${lastClaim.digest}`}
 														target="_blank"
 														rel="noopener noreferrer"
@@ -667,17 +668,6 @@
 						{/if}
 
 						{#if winnerInfo}
-							<div class="my-3 text-sm">
-								<span class="opacity-70">Winner:</span>
-								<span class="ml-1 font-mono">{shortenAddress(winnerInfo.addr)}</span>
-							</div>
-							<div class="mb-3 text-sm">
-								<span class="opacity-70">Prize:</span>
-								<strong class="text-primary ml-1"
-									>{formatMistToSuiCompact(prizeAmounts[winnerPrizeIndex] ?? 0n)} SUI</strong
-								>
-							</div>
-
 							{#if !winnerInfo.claimed}
 								{#if winnerPrizeIndex >= 0}
 									{#if getClaimState(winnerPrizeIndex).state === 'claimable'}
@@ -687,7 +677,8 @@
 											loadingText="Claiming..."
 											onclick={() => claim(winnerPrizeIndex)}
 											disabled={!isOnTestnet}
-											className="mb-2">Claim prize</ButtonLoading
+											className="mb-2"
+											>Claim {formatMistToSuiCompact(prizeAmounts[winnerPrizeIndex] ?? 0n)} SUI</ButtonLoading
 										>
 									{/if}
 									{#if getClaimState(winnerPrizeIndex).state === 'too_early'}

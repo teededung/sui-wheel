@@ -4,7 +4,12 @@
 	import { useSuiClient, useCurrentAccount, accountLoading } from 'sui-svelte-wallet-kit';
 	import { formatDistanceToNow } from 'date-fns';
 	import { shortenAddress } from '$lib/utils/string.js';
-	import { PACKAGE_ID, WHEEL_MODULE, WHEEL_FUNCTIONS, WHEEL_STRUCT } from '$lib/constants.js';
+	import {
+		LATEST_PACKAGE_ID,
+		WHEEL_MODULE,
+		WHEEL_FUNCTIONS,
+		WHEEL_STRUCT
+	} from '$lib/constants.js';
 	import { watch, IsIdle } from 'runed';
 
 	const suiClient = $derived(useSuiClient());
@@ -25,7 +30,7 @@
 			const response = await suiClient.queryTransactionBlocks({
 				filter: {
 					MoveFunction: {
-						package: PACKAGE_ID,
+						package: LATEST_PACKAGE_ID,
 						module: WHEEL_MODULE,
 						function: WHEEL_FUNCTIONS.CREATE
 					}

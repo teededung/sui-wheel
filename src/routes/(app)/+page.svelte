@@ -29,7 +29,7 @@
 	import QRCode from 'qrcode';
 
 	import {
-		PACKAGE_ID,
+		LATEST_PACKAGE_ID,
 		// MIST_PER_SUI,
 		WHEEL_MODULE,
 		WHEEL_FUNCTIONS,
@@ -53,7 +53,7 @@
 	const params = useSearchParams(searchParamsSchema);
 
 	// Blockchain setup state
-	let packageId = $state(PACKAGE_ID);
+	let packageId = $state(LATEST_PACKAGE_ID);
 	let prizeAmounts = $state(['']); // SUI amounts as strings (decimal supported)
 	let delayMs = $state(0);
 	let claimWindowMs = $state(1440); // 24 hours
@@ -172,6 +172,9 @@
 
 	// Duplicate entries tracking
 	let duplicateEntries = $state([]);
+
+	// Index order state: maps current `entries` positions -> original indices in `entriesOnChain`
+	let shuffledIndexOrder = $state([]);
 
 	// Expose helpers to Wheel component via context
 	function setWheelSpinning(v) {
@@ -474,6 +477,9 @@
 			claimWindowMs = claimWindowMsOnChain;
 
 			wheelFetched = true;
+
+			// Initialize shuffled index order to identity mapping
+			shuffledIndexOrder = computeShuffledIndexOrder(entriesOnChain, entries);
 		} catch (e) {
 			console.error('Failed to fetch wheel:', e);
 		} finally {
@@ -894,12 +900,17 @@
 		if (spinning) return;
 		entries = shuffleArray(entries);
 		entriesText = entries.join('\n');
+		// Update index order vs on-chain list and log
+		if (createdWheelId && wheelFetched) {
+			shuffledIndexOrder = computeShuffledIndexOrder(entriesOnChain, entries);
+		}
 	}
 
 	function clearAllEntries() {
 		if (spinning) return;
 		entriesText = '';
 		entries = [];
+		shuffledIndexOrder = [];
 	}
 
 	function onEntriesTextChange(text) {
@@ -930,6 +941,31 @@
 			.sort((a, b) => b.count - a.count); // Sort by count descending
 
 		duplicateEntries = duplicates;
+	}
+
+	// Compute mapping from current entries to on-chain baseline indices
+	function computeShuffledIndexOrder(baselineList, currentList) {
+		try {
+			const baseline = (baselineList || []).map(v => String(v ?? ''));
+			const current = (currentList || []).map(v => String(v ?? ''));
+			// Build queues of original indices for each value (handles duplicates)
+			const queues = new Map();
+			for (let i = 0; i < baseline.length; i++) {
+				const key = baseline[i].toLowerCase();
+				if (!queues.has(key)) queues.set(key, []);
+				queues.get(key).push(i);
+			}
+			// Map each current entry to the next available original index
+			const order = new Array(current.length);
+			for (let i = 0; i < current.length; i++) {
+				const key = current[i].toLowerCase();
+				const q = queues.get(key) || [];
+				order[i] = q.length ? q.shift() : -1; // -1 if not found in baseline
+			}
+			return order;
+		} catch {
+			return [];
+		}
 	}
 
 	// Set wheel context for child component during initialization
@@ -1161,7 +1197,7 @@
 								type="radio"
 								name="wheel_tabs"
 								class="tab"
-								aria-label={`Entries (${createdWheelId ? entriesOnChain.length : entries.length})`}
+								aria-label={`Entries (${entries.length})`}
 								checked={activeTab === 'entries'}
 								onclick={() => (activeTab = 'entries')}
 							/>
@@ -1196,12 +1232,12 @@
 									</div>
 
 									{#if entriesViewMode === 'table'}
-										{@render entriesTable(entriesOnChain, false, false)}
+										{@render entriesTable(entries, false, false)}
 									{:else}
 										<textarea
 											class="textarea h-48 w-full text-base"
 											placeholder="One entry per line"
-											value={entriesOnChain.join('\n')}
+											value={entries.join('\n')}
 											readonly
 											aria-label="Entries list (read-only)"
 										></textarea>

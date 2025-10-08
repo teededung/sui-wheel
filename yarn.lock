@@ -968,7 +968,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mysten/sui@npm:1.39.0, @mysten/sui@npm:^1.39.0":
+"@mysten/sui@npm:1.39.0":
   version: 1.39.0
   resolution: "@mysten/sui@npm:1.39.0"
   dependencies:
@@ -1005,6 +1005,26 @@ __metadata:
     tweetnacl: "npm:^1.0.3"
     valibot: "npm:^0.36.0"
   checksum: 10c0/2c00a694c8f795e65c366043df493cb8babeab61591ff22b5f2337246ad71802285b4d0e80b262e9e58c401ceb4d33c41bf1ca7800a2baac3119443f752e72b3
+  languageName: node
+  linkType: hard
+
+"@mysten/sui@npm:^1.39.1":
+  version: 1.39.1
+  resolution: "@mysten/sui@npm:1.39.1"
+  dependencies:
+    "@graphql-typed-document-node/core": "npm:^3.2.0"
+    "@mysten/bcs": "npm:1.8.0"
+    "@mysten/utils": "npm:0.2.0"
+    "@noble/curves": "npm:^1.9.4"
+    "@noble/hashes": "npm:^1.8.0"
+    "@scure/base": "npm:^1.2.6"
+    "@scure/bip32": "npm:^1.7.0"
+    "@scure/bip39": "npm:^1.6.0"
+    gql.tada: "npm:^1.8.13"
+    graphql: "npm:^16.11.0"
+    poseidon-lite: "npm:0.2.1"
+    valibot: "npm:^0.36.0"
+  checksum: 10c0/036d94574509fc2095eaf9d09ce242f3cf855d4169cb5b74c541da36b23da544624bf0dadbf17384c6bd146d4c9dd0e26dd5738d2b5ab14d5c980b732c4349da
   languageName: node
   linkType: hard
 
@@ -1464,9 +1484,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sveltejs/kit@npm:^2.45.0":
-  version: 2.45.0
-  resolution: "@sveltejs/kit@npm:2.45.0"
+"@sveltejs/kit@npm:^2.46.2":
+  version: 2.46.2
+  resolution: "@sveltejs/kit@npm:2.46.2"
   dependencies:
     "@standard-schema/spec": "npm:^1.0.0"
     "@sveltejs/acorn-typescript": "npm:^1.0.5"
@@ -1491,7 +1511,7 @@ __metadata:
       optional: true
   bin:
     svelte-kit: svelte-kit.js
-  checksum: 10c0/427ff3d13052ec5fa865246f399c1a09007ef138bae86edf3db3f6882d4d09874a38df8ed0857335cad4440fa9e06fd94ed9323cabca8246239fef410484a61e
+  checksum: 10c0/ce4faf6ea3a4b5dd93d9fb5feb08abe3bd32a23d871ad58dd209b5099aaf63865893cc9dc4e18b16da77f8129837dca91255f51d6b03c15ff36d776ed24263f4
   languageName: node
   linkType: hard
 
@@ -2370,10 +2390,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"daisyui@npm:^5.1.27":
-  version: 5.1.27
-  resolution: "daisyui@npm:5.1.27"
-  checksum: 10c0/679c2dd53cb3a067d42aed946a86371e97ed8eb1e42c4cf52c0dc79582c65394e474282c243c23b231d56d1312d8c74435ba31246642ddf85b839e7f87387e06
+"daisyui@npm:^5.1.29":
+  version: 5.1.29
+  resolution: "daisyui@npm:5.1.29"
+  checksum: 10c0/f264df62eab57b04370d37f08c14c95989927b063cc96e431fa92675efba4f46869f88be6db909ad37481968fa43bf1a10bb8dde7ab9385fbec5aa89d6bf777e
   languageName: node
   linkType: hard
 
@@ -5147,13 +5167,13 @@ __metadata:
     "@eslint/js": "npm:^9.37.0"
     "@iconify-json/lucide": "npm:^1.2.68"
     "@iconify/tailwind4": "npm:^1.0.6"
-    "@mysten/sui": "npm:^1.39.0"
+    "@mysten/sui": "npm:^1.39.1"
     "@sveltejs/adapter-netlify": "npm:^5.2.4"
-    "@sveltejs/kit": "npm:^2.45.0"
+    "@sveltejs/kit": "npm:^2.46.2"
     "@sveltejs/vite-plugin-svelte": "npm:^6.2.1"
     "@tailwindcss/typography": "npm:^0.5.19"
     "@tailwindcss/vite": "npm:^4.1.14"
-    daisyui: "npm:^5.1.27"
+    daisyui: "npm:^5.1.29"
     date-fns: "npm:^4.1.0"
     eslint: "npm:^9.37.0"
     eslint-config-prettier: "npm:^10.1.8"
@@ -5167,7 +5187,7 @@ __metadata:
     rettiwt-api: "npm:^6.0.6"
     runed: "npm:^0.34.0"
     sui-svelte-wallet-kit: "npm:^0.8.2"
-    svelte: "npm:^5.39.9"
+    svelte: "npm:^5.39.10"
     svelte-check: "npm:^4.3.2"
     svelte-daisy-toaster: "npm:^0.5.5"
     tailwindcss: "npm:^4.1.14"
@@ -5242,9 +5262,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"svelte@npm:^5.39.9":
-  version: 5.39.9
-  resolution: "svelte@npm:5.39.9"
+"svelte@npm:^5.39.10":
+  version: 5.39.10
+  resolution: "svelte@npm:5.39.10"
   dependencies:
     "@jridgewell/remapping": "npm:^2.3.4"
     "@jridgewell/sourcemap-codec": "npm:^1.5.0"
@@ -5260,7 +5280,7 @@ __metadata:
     locate-character: "npm:^3.0.0"
     magic-string: "npm:^0.30.11"
     zimmerframe: "npm:^1.1.2"
-  checksum: 10c0/6fd549991d94aa91431190d3fe78dc61211f249e7861b9df2862d41b6b68a14bd436decb97202688d33d386c143a89a1826ec76e264f03759786e6d014c9cb0e
+  checksum: 10c0/4201fa53a5862b44002f931e90cff8073362d1bc2c2f06b9ff46d53451624c87830d7620ca8e377d6388d191134198a6aae9f4ce522316021c864aa408cf862f
   languageName: node
   linkType: hard
 

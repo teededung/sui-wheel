@@ -566,10 +566,10 @@
 					digest,
 					options: { showEvents: true }
 				});
-				const spinEventType = `${packageId}::${WHEEL_MODULE}::SpinEvent`;
+				const spinEventType = `${packageId}::${WHEEL_MODULE}::${WHEEL_EVENTS}`;
 				const spinEvents = (txBlock?.events || []).filter(e => {
 					const t = String(e?.type || '');
-					return t === spinEventType || t.endsWith(`::${WHEEL_MODULE}::SpinEvent`);
+					return t === spinEventType || t.endsWith(`::${WHEEL_MODULE}::${WHEEL_EVENTS.SPIN}`);
 				});
 				const firstEv = spinEvents?.[0];
 				const parsed = firstEv?.parsedJson || {};

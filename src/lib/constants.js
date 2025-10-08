@@ -1,7 +1,24 @@
 /**
- * Current package id after upgrade
+ * Mapping of all deployed package versions for backward compatibility.
+ * Each key is the package ID, mapped to its metadata.
  */
-export const PACKAGE_ID = '0x62b9100755f45fbe0fe8a07c3bfb6c67bc7bdf0913ead684ca20582fe406f6a8'; // 07.10.2025 UTC 06:02
+export const PACKAGE_VERSIONS = {
+	'0x75239d71f7fd99bed2619ed7a72f9f29408718f8b6a9f7bdd14339e2efc6ae69': {
+		version: 1,
+		timestamp: '2025-10-08T04:08:00Z',
+		comment: 'Deployed on 08.10.2025 UTC 04:08 (first deployment)'
+	}
+};
+
+/**
+ * Latest (active) package ID
+ */
+export const LATEST_PACKAGE_ID = Object.keys(PACKAGE_VERSIONS)[0];
+
+/**
+ * All package IDs sorted from latest → oldest
+ */
+export const ALL_PACKAGE_IDS = Object.keys(PACKAGE_VERSIONS);
 
 /**
  * Maximum number of entries allowed per wheel
