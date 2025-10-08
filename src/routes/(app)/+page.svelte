@@ -151,7 +151,7 @@
 
 	let isOnTestnet = $derived.by(() => isTestnet(account));
 
-	// UI: active tab in settings (entries | prizes | others)
+	// UI: active tab in settings (entries | prizes | settings)
 	let activeTab = $state('entries');
 
 	// UI: view mode for entries (table | textarea)
@@ -1433,14 +1433,14 @@
 									{/if}
 								</div>
 
-								<!-- Others tab -->
+								<!-- Settings tab -->
 								<input
 									type="radio"
 									name="wheel_tabs"
 									class="tab"
-									aria-label="Others"
-									checked={activeTab === 'others'}
-									onclick={() => (activeTab = 'others')}
+									aria-label="Settings"
+									checked={activeTab === 'settings'}
+									onclick={() => (activeTab = 'settings')}
 								/>
 								<div class="tab-content bg-base-100 border-base-300 p-6">
 									<h3 class="mb-4 text-lg font-semibold">Settings</h3>
@@ -1538,11 +1538,33 @@
 													<span class="icon-[lucide--clock] h-6 w-6"></span>
 													<span>Time remaining</span>
 
-													<span class="prose text-primary font-mono text-3xl font-bold">
-														{Math.floor(remainingTime / 60)}:{(remainingTime % 60)
-															.toString()
-															.padStart(2, '0')}
-													</span>
+													<div class="flex gap-2">
+														<div
+															class="bg-neutral rounded-box text-neutral-content flex flex-col p-2"
+														>
+															<span class="countdown font-mono text-3xl">
+																<span
+																	style="--value:{Math.floor(remainingTime / 60)};"
+																	aria-live="polite"
+																	aria-label={Math.floor(remainingTime / 60)}
+																	>{Math.floor(remainingTime / 60)}</span
+																>
+															</span>
+															min
+														</div>
+														<div
+															class="bg-neutral rounded-box text-neutral-content flex flex-col p-2"
+														>
+															<span class="countdown font-mono text-3xl">
+																<span
+																	style="--value:{remainingTime % 60};"
+																	aria-live="polite"
+																	aria-label={remainingTime % 60}>{remainingTime % 60}</span
+																>
+															</span>
+															sec
+														</div>
+													</div>
 												</div>
 											{/if}
 										</div>
