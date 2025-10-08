@@ -2,7 +2,7 @@
 	import { onDestroy } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { useSuiClient, useCurrentAccount, accountLoading } from 'sui-svelte-wallet-kit';
-	import { formatDistanceToNow } from 'date-fns';
+	import { formatDistanceToNow, format } from 'date-fns';
 	import { shortenAddress } from '$lib/utils/string.js';
 	import {
 		LATEST_PACKAGE_ID,
@@ -90,13 +90,20 @@
 							try {
 								prizesLen = Array.isArray(f['prize_amounts']) ? f['prize_amounts'].length : 0;
 							} catch {}
+							let remainingEntriesCount = 0;
+							try {
+								remainingEntriesCount = Array.isArray(f['remaining_entries'])
+									? f['remaining_entries'].length
+									: 0;
+							} catch {}
+							const totalEntries = remainingEntriesCount + spunCount;
 							const remaining = Math.max(0, prizesLen - spunCount);
 							const status = isCancelled ? 'Cancelled' : remaining > 0 ? 'Running' : 'Finished';
-							idToMeta.set(id, { status, remainingSpins: remaining });
+							idToMeta.set(id, { status, remainingSpins: remaining, totalEntries });
 						} catch {}
 					}
 					wheels = items.map(it => {
-						const meta = idToMeta.get(it.id) || { status: '—', remainingSpins: 0 };
+						const meta = idToMeta.get(it.id) || { status: '—', remainingSpins: 0, totalEntries: 0 };
 						return { ...it, ...meta };
 					});
 				} catch {
@@ -209,6 +216,7 @@
 										<th>Wheel ID</th>
 										<th>Created</th>
 										<th>Status</th>
+										<th class="w-20">Total Entries</th>
 										<th class="w-64">Actions</th>
 									</tr>
 								</thead>
@@ -231,9 +239,14 @@
 											</td>
 											<td class="whitespace-nowrap">
 												{#if w.timestampMs}
-													<span class="badge badge-soft badge-success">
-														{formatDistanceToNow(w.timestampMs, { addSuffix: true })}
-													</span>
+													<div
+														class="tooltip"
+														data-tip={format(w.timestampMs, "MMMM d, yyyy 'at' h:mm a")}
+													>
+														<span class="badge badge-soft badge-success">
+															{formatDistanceToNow(w.timestampMs, { addSuffix: true })}
+														</span>
+													</div>
 												{:else}
 													<span class="opacity-60">—</span>
 												{/if}
@@ -256,6 +269,11 @@
 														><span class="icon-[lucide--circle-alert]"></span> —</span
 													>
 												{/if}
+											</td>
+											<td class="text-center">
+												<span class="badge badge-neutral font-mono">
+													{w.totalEntries || 0}
+												</span>
 											</td>
 											<td>
 												<div class="join">

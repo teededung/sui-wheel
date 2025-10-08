@@ -12,6 +12,7 @@
 		LATEST_PACKAGE_ID,
 		WHEEL_MODULE,
 		WHEEL_FUNCTIONS,
+		WHEEL_STRUCT,
 		CLOCK_OBJECT_ID,
 		WHEEL_EVENTS
 	} from '$lib/constants.js';
@@ -97,6 +98,47 @@
 		}
 	);
 
+	async function fetchWheelCreationTimestamp(wheelId) {
+		if (!wheelId) return;
+		try {
+			const response = await suiClient.queryTransactionBlocks({
+				filter: {
+					MoveFunction: {
+						package: LATEST_PACKAGE_ID,
+						module: WHEEL_MODULE,
+						function: WHEEL_FUNCTIONS.CREATE
+					}
+				},
+				options: {
+					showObjectChanges: true,
+					showInput: true,
+					showEffects: false,
+					showEvents: false
+				},
+				order: 'descending',
+				limit: 50
+			});
+
+			const transactions = response?.data || [];
+			for (const tx of transactions) {
+				console.log(tx);
+
+				const created = (tx?.objectChanges || []).find(
+					ch =>
+						ch?.type === 'created' &&
+						String(ch?.objectType || '').endsWith(`::${WHEEL_MODULE}::${WHEEL_STRUCT}`) &&
+						String(ch?.objectId || '').toLowerCase() === String(wheelId).toLowerCase()
+				);
+				if (created?.objectId) {
+					wheelCreatedAtMs = Number(tx?.timestampMs || 0);
+					return;
+				}
+			}
+		} catch (e) {
+			console.error('Failed to fetch wheel creation timestamp:', e);
+		}
+	}
+
 	async function fetchData(wheelId) {
 		if (!wheelId) return;
 		loading = true;
@@ -140,6 +182,9 @@
 
 				poolBalanceMist = pool;
 			} catch {}
+
+			// Fetch wheel creation timestamp
+			await fetchWheelCreationTimestamp(wheelId);
 		} catch (e) {
 			error = e?.message || String(e);
 		} finally {
@@ -772,11 +817,9 @@
 							</div>
 
 							{#if wheelCreatedAtMs > 0 && !isNaN(new Date(wheelCreatedAtMs).getTime())}
-								<div class="mt-1 flex items-start text-sm opacity-80">
-									<span>Created</span>
-									<span title={new Date(wheelCreatedAtMs).toISOString()} class="ml-1">
-										{formatDistanceToNow(new Date(wheelCreatedAtMs), { addSuffix: true })}
-									</span>
+								<div class="mt-1 flex items-start gap-1 text-sm">
+									<span>Created: </span>
+									<span>{format(wheelCreatedAtMs, "MMMM d, yyyy 'at' h:mm a")}</span>
 								</div>
 							{/if}
 						</div>
