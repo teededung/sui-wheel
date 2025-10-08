@@ -21,7 +21,8 @@
 		remainingSpins,
 		isCancelled,
 		entryFormEnabled,
-		accountConnected
+		accountConnected,
+		shuffledIndexOrder = []
 	} = $props();
 
 	// Context deps/APIs from parent
@@ -542,17 +543,35 @@
 
 			const shouldAssignLast = uniqueLeft === 2 && remainingSpins === 2 && !isCancelled;
 			usedCombinedSpin = shouldAssignLast;
-			const targetFn = shouldAssignLast
-				? WHEEL_FUNCTIONS.SPIN_AND_ASSIGN_LAST
-				: WHEEL_FUNCTIONS.SPIN;
+
+			// Check if order is shuffled (different from sequential order)
+			const isOrderShuffled =
+				shuffledIndexOrder.length > 0 && !shuffledIndexOrder.every((val, idx) => val === idx);
+
+			let targetFn;
+			if (shouldAssignLast) {
+				targetFn = isOrderShuffled
+					? WHEEL_FUNCTIONS.SPIN_AND_ASSIGN_LAST_WITH_ORDER
+					: WHEEL_FUNCTIONS.SPIN_AND_ASSIGN_LAST;
+			} else {
+				targetFn = isOrderShuffled ? WHEEL_FUNCTIONS.SPIN_WITH_ORDER : WHEEL_FUNCTIONS.SPIN;
+			}
+
+			// Build transaction arguments
+			const txArgs = [tx.object(createdWheelId)];
+
+			// Add shuffled order if needed (must come after wheel object)
+			if (isOrderShuffled) {
+				txArgs.push(tx.pure.vector('u64', shuffledIndexOrder));
+			}
+
+			// Add remaining arguments
+			txArgs.push(tx.object(RANDOM_OBJECT_ID));
+			txArgs.push(tx.object(CLOCK_OBJECT_ID));
 
 			tx.moveCall({
 				target: `${packageId}::${WHEEL_MODULE}::${targetFn}`,
-				arguments: [
-					tx.object(createdWheelId),
-					tx.object(RANDOM_OBJECT_ID),
-					tx.object(CLOCK_OBJECT_ID)
-				]
+				arguments: txArgs
 			});
 
 			const res = await signAndExecuteTransaction(tx);

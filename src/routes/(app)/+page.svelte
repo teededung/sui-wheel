@@ -1101,6 +1101,7 @@
 				{isCancelled}
 				{entryFormEnabled}
 				accountConnected={Boolean(account)}
+				{shuffledIndexOrder}
 			/>
 		</div>
 
