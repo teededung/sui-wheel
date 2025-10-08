@@ -867,9 +867,9 @@
 		}
 	}
 
+	// Open prizes tab if remaining spins is 0 and wheel is created
 	onMount(() => {
 		if (remainingSpins === 0 && createdWheelId) {
-			// open tab prize
 			activeTab = 'prizes';
 		}
 	});
