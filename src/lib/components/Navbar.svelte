@@ -3,9 +3,17 @@
 	import ButtonThemeSwitch from './ButtonThemeSwitch.svelte';
 	import ButtonConnectWallet from './ButtonConnectWallet.svelte';
 	import ButtonLanguageSwitch from './ButtonLanguageSwitch.svelte';
+	import { getLanguageContext } from '$lib/context/language.js';
 
 	let isFaqPage = $derived(page.url.pathname === '/faq');
 	let isAboutPage = $derived(page.url.pathname === '/about');
+
+	const { language, setLanguage } = getLanguageContext();
+	let isVi = $derived(language.code === 'vi');
+
+	function selectLanguage(lang) {
+		setLanguage(lang);
+	}
 </script>
 
 <div class="navbar bg-base-100 px-4 shadow-sm">
@@ -20,6 +28,27 @@
 			>
 				<li><a href="/wheel-list" aria-label="Go to Wheel List">Wheel List</a></li>
 				<li><a href="/about" aria-label="Go to About">About</a></li>
+				<li class="menu-title">
+					<span>Language</span>
+				</li>
+				<li>
+					<button
+						onclick={() => selectLanguage('en')}
+						class={`w-full text-left ${!isVi ? 'active' : ''}`}
+					>
+						<img src="/flag-us.svg" alt="USA flag" class="h-5 w-6 rounded-sm" />
+						<span>English</span>
+					</button>
+				</li>
+				<li>
+					<button
+						onclick={() => selectLanguage('vi')}
+						class={`w-full text-left ${isVi ? 'active' : ''}`}
+					>
+						<img src="/flag-vn.svg" alt="Vietnam flag" class="h-5 w-6 rounded-sm" />
+						<span>Tiếng Việt</span>
+					</button>
+				</li>
 			</ul>
 		</div>
 
@@ -41,7 +70,7 @@
 	</div>
 
 	<div class="navbar-end flex items-center gap-4">
-		<ButtonLanguageSwitch />
+		<ButtonLanguageSwitch className="hidden lg:block" />
 		<ButtonThemeSwitch />
 		{#if !isFaqPage && !isAboutPage}
 			<ButtonConnectWallet showBalance={false} />

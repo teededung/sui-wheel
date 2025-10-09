@@ -8,8 +8,8 @@
 	const { language, setLanguage } = getLanguageContext();
 	let isVi = $derived(language.code === 'vi');
 
-	function toggleLanguage() {
-		setLanguage(isVi ? 'en' : 'vi');
+	function selectLanguage(lang) {
+		setLanguage(lang);
 	}
 
 	let isInitialized = $state(false);
@@ -19,21 +19,35 @@
 </script>
 
 {#if isInitialized}
-	<label
-		class={`swap swap-rotate tooltip tooltip-bottom cursor-pointer ${className}`}
-		aria-label="Switch language"
-		title="Switch language"
-		data-tip={isVi ? 'Vietnamese' : 'English'}
-	>
-		<input
-			type="checkbox"
-			class="language-controller"
-			checked={isVi}
-			onchange={toggleLanguage}
-			aria-label="Toggle language"
-		/>
-
-		<img src="/flag-us.svg" alt="USA flag" class="swap-off h-6 w-7 rounded-sm" />
-		<img src="/flag-vn.svg" alt="Vietnam flag" class="swap-on h-6 w-7 rounded-sm" />
-	</label>
+	<div class={`dropdown dropdown-end dropdown-hover ${className}`}>
+		<div tabindex="0" role="button" class="btn btn-ghost">
+			{#if isVi}
+				<img src="/flag-vn.svg" alt="Vietnam flag" class="h-6 w-7 rounded-sm" />
+				<span>Tiếng Việt</span>
+			{:else}
+				<img src="/flag-us.svg" alt="USA flag" class="h-6 w-7 rounded-sm" />
+				<span>English</span>
+			{/if}
+		</div>
+		<ul class="dropdown-content menu bg-base-200 rounded-box z-50 w-52 p-2 shadow-lg">
+			<li>
+				<button
+					onclick={() => selectLanguage('en')}
+					class={`w-full text-left ${!isVi ? 'active' : ''}`}
+				>
+					<img src="/flag-us.svg" alt="USA flag" class="h-5 w-6 rounded-sm" />
+					<span>English</span>
+				</button>
+			</li>
+			<li>
+				<button
+					onclick={() => selectLanguage('vi')}
+					class={`w-full text-left ${isVi ? 'active' : ''}`}
+				>
+					<img src="/flag-vn.svg" alt="Vietnam flag" class="h-5 w-6 rounded-sm" />
+					<span>Tiếng Việt</span>
+				</button>
+			</li>
+		</ul>
+	</div>
 {/if}
