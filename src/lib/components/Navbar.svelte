@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import ButtonThemeSwitch from './ButtonThemeSwitch.svelte';
 	import ButtonConnectWallet from './ButtonConnectWallet.svelte';
+	import ButtonLanguageSwitch from './ButtonLanguageSwitch.svelte';
 
 	let isFaqPage = $derived(page.url.pathname === '/faq');
 	let isAboutPage = $derived(page.url.pathname === '/about');
@@ -39,7 +40,8 @@
 		</div>
 	</div>
 
-	<div class="navbar-end flex items-center gap-3">
+	<div class="navbar-end flex items-center gap-4">
+		<ButtonLanguageSwitch />
 		<ButtonThemeSwitch />
 		{#if !isFaqPage && !isAboutPage}
 			<ButtonConnectWallet showBalance={false} />

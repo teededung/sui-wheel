@@ -1,14 +1,15 @@
 <script>
 	import { onMount } from 'svelte';
+	let isInitialized = $state(false);
 
-	let activeAccordion = $state(0);
+	let currentLanguage = 'en';
 
-	function toggleAccordion(index) {
-		activeAccordion = activeAccordion === index ? null : index;
-	}
+	onMount(() => {
+		isInitialized = true;
+	});
 
 	// FAQ Data
-	const faqData = [
+	const faqDataVi = [
 		{
 			category: 'Tổng quan',
 			questions: [
@@ -113,103 +114,224 @@
 			]
 		}
 	];
+
+	const faqDataEn = [
+		{
+			category: 'Overview',
+			questions: [
+				{
+					question: 'What is Sui Wheel and how does it work?',
+					answer:
+						'Sui Wheel is a lucky wheel application on the Sui blockchain using smart contracts to ensure 100% fairness. Organizers create wheels, add participants (up to 200 people), set prizes and fund the reward pool. Results are determined by on-chain randomness, transparent and tamper-proof.'
+				},
+				{
+					question: 'Why choose Sui Wheel?',
+					answer:
+						'Sui Wheel delivers 100% fairness with on-chain randomness, trustless security, fast speed with low fees, user-friendly interface and real-time tracking. Additionally, it supports advanced features like zkLogin, list import and flexible prize management.'
+				}
+			]
+		},
+		{
+			category: 'Blockchain & SUI',
+			questions: [
+				{
+					question: 'What do I need to know about the SUI blockchain?',
+					answer:
+						'Sui is a high-performance layer 1 blockchain designed for gaming and DeFi applications. Sui Wheel is built on Sui to ensure fast speed and low transaction fees. You need a Sui wallet (recommended Slush Wallet) to participate in on-chain wheels.'
+				},
+				{
+					question: 'Do I need to pay gas fees?',
+					answer:
+						'Yes, on-chain transactions will consume a small amount of SUI for gas fees. However, Sui has very low fees compared to other blockchains. You only pay fees when participating in actual on-chain wheels, not for off-chain demos.'
+				},
+				{
+					question: 'Is Sui Wheel safe?',
+					answer:
+						'Absolutely safe! Sui Wheel uses audited smart contracts and does not store user assets. All transactions are transparent and verifiable on the blockchain. Users always control their wallets and assets.'
+				}
+			]
+		},
+		{
+			category: 'Features & Usage',
+			questions: [
+				{
+					question: 'How to create a wheel?',
+					answer:
+						'<ol><li>Connect your Sui wallet</li><li>Add participant list (up to 200 people)</li><li>Set prizes and time</li><li>Fund the pool with sufficient tokens</li><li>Publish the wheel for everyone to participate</li></ol>'
+				},
+				{
+					question: 'How can I add participants?',
+					answer:
+						'<ul><li>Manually enter Sui wallet addresses</li><li>Import using online QR feature</li><li>Use X (Twitter) post import feature to automatically extract addresses from comments</li></ul>'
+				},
+				{
+					question: 'What types of prizes are supported?',
+					answer:
+						'Sui Wheel supports SUI tokens and other cryptocurrencies (coming next). You can customize the quantity and distribution of prizes flexibly according to your needs.'
+				},
+				{
+					question: 'What is the difference between Off-chain and On-chain?',
+					answer:
+						'Off-chain mode is for quick demos and testing without fees. On-chain mode is for real wheels with actual prizes, everything is transparent and permanently recorded on the blockchain.'
+				},
+				{
+					question: 'Does the Shuffle button work?',
+					answer:
+						'Yes! The Shuffle button actually works and can be verified on-chain. When you press Shuffle, the system generates a new random order for the participant list, and this process is recorded on the blockchain to ensure transparency and fairness.'
+				}
+			]
+		},
+		{
+			category: 'Frequently Asked Questions',
+			questions: [
+				{
+					question: 'How to receive prizes?',
+					answer:
+						'If you win, a claim link will be generated each time the wheel ends. Access this link to claim your prize.'
+				},
+				{
+					question: 'Is there a time limit for claiming prizes?',
+					answer:
+						"Yes, organizers can set a deadline for claiming prizes. After this deadline, unclaimed prizes will be returned to the pool for redistribution or refunded to the organizer's wallet."
+				},
+				{
+					question: 'Where can I track results?',
+					answer:
+						'All results are recorded on the blockchain and can be viewed directly on Sui Explorer. Additionally, Sui Wheel provides a real-time tracking interface so you can monitor wheels and winners.'
+				},
+				{
+					question: 'Does it support Google login?',
+					answer:
+						'Yes! Sui Wheel supports zkLogin with Google. This is the easiest way to get started with Sui Wheel. Remember that you need Sui coins in your wallet to create wheels.'
+				},
+				{
+					question: 'Can the wheel creator cancel the wheel?',
+					answer:
+						"Yes, the wheel creator can cancel the wheel provided you haven't executed the wheel yet. The reward pool will automatically refund to your wallet when cancelled."
+				},
+				{
+					question: "What happens if I don't claim prizes before the deadline?",
+					answer: 'You cannot claim prizes after the claiming deadline has passed.'
+				},
+				{
+					question: 'Can the creator recover the reward pool after the wheel ends?',
+					answer: 'Only when the prize claiming time has ended; if not yet due, cannot recover.'
+				}
+			]
+		}
+	];
+
+	// Select FAQ data based on current language - reactive
+	let faqData = $derived(currentLanguage === 'vi' ? faqDataVi : faqDataEn);
 </script>
 
 <svelte:head>
 	<title>FAQ — Sui Wheel</title>
 	<meta
 		name="description"
-		content="Câu hỏi thường gặp về Sui Wheel - ứng dụng vòng quay may mắn trên blockchain Sui với tính ngẫu nhiên công bằng và minh bạch."
+		content={currentLanguage === 'vi'
+			? 'Câu hỏi thường gặp về Sui Wheel - ứng dụng vòng quay may mắn trên blockchain Sui với tính ngẫu nhiên công bằng và minh bạch.'
+			: 'Frequently asked questions about Sui Wheel - lucky wheel application on Sui blockchain with fair and transparent randomness.'}
 	/>
 	<meta property="og:title" content="FAQ — Sui Wheel" />
 	<meta
 		property="og:description"
-		content="Câu hỏi thường gặp về Sui Wheel - ứng dụng vòng quay may mắn trên blockchain Sui."
+		content={currentLanguage === 'vi'
+			? 'Câu hỏi thường gặp về Sui Wheel - ứng dụng vòng quay may mắn trên blockchain Sui.'
+			: 'Frequently asked questions about Sui Wheel - lucky wheel application on Sui blockchain.'}
 	/>
 </svelte:head>
 
 <!-- Hero Section -->
-<section class="hero from-primary/10 via-base-100 to-secondary/10 min-h-[30vh] bg-gradient-to-br">
-	<div class="hero-content text-center">
-		<div class="max-w-4xl">
-			<h1 class="text-primary mb-6 text-5xl font-bold">
-				<span class="from-primary to-secondary bg-gradient-to-r bg-clip-text text-transparent">
-					Câu hỏi thường gặp
-				</span>
-			</h1>
-			<p class="text-base-content/80 mx-auto mb-8 max-w-2xl text-xl">
-				Tìm câu trả lời cho những câu hỏi phổ biến nhất về Sui Wheel
-			</p>
+{#if isInitialized}
+	<section class="hero from-primary/10 via-base-100 to-secondary/10 min-h-[30vh] bg-gradient-to-br">
+		<div class="hero-content pt-10 text-center">
+			<div class="max-w-4xl">
+				<h1 class="text-primary mb-6 text-5xl font-bold">
+					<span class="from-primary to-secondary bg-gradient-to-r bg-clip-text text-transparent">
+						{currentLanguage === 'vi' ? 'Câu hỏi thường gặp' : 'Frequently Asked Questions'}
+					</span>
+				</h1>
+				<p class="text-base-content/80 mx-auto mb-8 max-w-2xl text-xl">
+					{currentLanguage === 'vi'
+						? 'Tìm câu trả lời cho những câu hỏi phổ biến nhất về Sui Wheel'
+						: 'Find answers to the most common questions about Sui Wheel'}
+				</p>
 
-			<!-- Breadcrumb -->
-			<div class="text-base-content/60 mb-8 flex items-center justify-center gap-2 text-sm">
-				<a href="/" class="link link-primary">Trang chủ</a>
-				<span class="icon-[lucide--chevron-right] h-4 w-4"></span>
-				<span class="text-base-content">FAQ</span>
+				<!-- Breadcrumb -->
+				<div class="text-base-content/60 mb-8 flex items-center justify-center gap-2 text-sm">
+					<a href="/" class="link link-primary">
+						{currentLanguage === 'vi' ? 'Trang chủ' : 'Home'}
+					</a>
+					<span class="icon-[lucide--chevron-right] h-4 w-4"></span>
+					<span class="text-base-content">FAQ</span>
+				</div>
 			</div>
 		</div>
-	</div>
-</section>
+	</section>
 
-<!-- FAQ Content -->
-<section class="bg-base-100 py-20">
-	<div class="container mx-auto px-4">
-		<div class="mx-auto max-w-4xl">
-			{#each faqData as category, categoryIndex}
-				<div class="mb-12">
-					<!-- Category Header -->
-					<div class="mb-8">
-						<h2 class="mb-4 text-3xl font-bold">{category.category}</h2>
-						<div class="from-primary to-secondary h-1 w-20 bg-gradient-to-r"></div>
-					</div>
+	<!-- FAQ Content -->
+	<section class="bg-base-100 py-20">
+		<div class="container mx-auto px-4">
+			<div class="mx-auto max-w-4xl">
+				{#each faqData as category, categoryIndex}
+					<div class="mb-12">
+						<!-- Category Header -->
+						<div class="mb-8">
+							<h2 class="mb-4 text-3xl font-bold">{category.category}</h2>
+							<div class="from-primary to-secondary h-1 w-20 bg-gradient-to-r"></div>
+						</div>
 
-					<!-- FAQ Items -->
-					<div class="space-y-4">
-						{#each category.questions as question, questionIndex}
-							<div class="collapse-arrow bg-base-200 border-base-300 collapse border shadow">
-								<input
-									type="radio"
-									name="my-accordion-2"
-									class="peer"
-									bind:group={activeAccordion}
-									value={categoryIndex * 100 + questionIndex}
-								/>
-								<div class="collapse-title font-semibold">
-									{question.question}
-								</div>
-								<div class="collapse-content text-sm">
-									<div class="prose prose-base text-base-content/80 max-w-none">
-										{@html question.answer}
+						<!-- FAQ Items -->
+						<div class="space-y-4">
+							{#each category.questions as question, questionIndex}
+								<div class="collapse-arrow bg-base-200 border-base-300 collapse border shadow">
+									<input
+										type="radio"
+										name="my-accordion-2"
+										class="peer"
+										value={categoryIndex * 100 + questionIndex}
+									/>
+									<div class="collapse-title font-semibold">
+										{question.question}
+									</div>
+									<div class="collapse-content text-sm">
+										<div class="prose prose-base text-base-content/80 max-w-none">
+											{@html question.answer}
+										</div>
 									</div>
 								</div>
-							</div>
-						{/each}
+							{/each}
+						</div>
 					</div>
-				</div>
-			{/each}
-		</div>
-	</div>
-</section>
-
-<!-- CTA Section -->
-<section class="from-primary to-secondary bg-gradient-to-r py-20">
-	<div class="container mx-auto px-4 text-center">
-		<div class="mx-auto max-w-2xl">
-			<h2 class="mb-6 text-4xl font-bold text-white">Còn câu hỏi nào khác?</h2>
-			<p class="mb-8 text-xl text-white/90">
-				Nếu bạn không tìm thấy câu trả lời cho câu hỏi của mình, hãy liên hệ với chúng tôi để được
-				hỗ trợ.
-			</p>
-			<div class="flex flex-col justify-center gap-4 sm:flex-row">
-				<a href="/" class="btn btn-white btn-lg px-8">
-					<span class="icon-[lucide--gamepad-2] h-6 w-6"></span>
-					Bắt đầu ngay
-				</a>
-				<a href="/about" class="btn btn-outline btn-white btn-lg px-8">
-					<span class="icon-[lucide--info] h-6 w-6"></span>
-					Tìm hiểu thêm
-				</a>
+				{/each}
 			</div>
 		</div>
-	</div>
-</section>
+	</section>
+
+	<!-- CTA Section -->
+	<section class="from-primary to-secondary bg-gradient-to-r py-20">
+		<div class="container mx-auto px-4 text-center">
+			<div class="mx-auto max-w-2xl">
+				<h2 class="mb-6 text-4xl font-bold text-white">
+					{currentLanguage === 'vi' ? 'Còn câu hỏi nào khác?' : 'Have more questions?'}
+				</h2>
+				<p class="mb-8 text-xl text-white/90">
+					{currentLanguage === 'vi'
+						? 'Nếu bạn không tìm thấy câu trả lời cho câu hỏi của mình, hãy liên hệ với chúng tôi để được hỗ trợ.'
+						: "If you can't find the answer to your question, please contact us for support."}
+				</p>
+				<div class="flex flex-col justify-center gap-4 sm:flex-row">
+					<a href="/" class="btn btn-white btn-lg px-8">
+						<span class="icon-[lucide--gamepad-2] h-6 w-6"></span>
+						{currentLanguage === 'vi' ? 'Bắt đầu ngay' : 'Get Started'}
+					</a>
+					<a href="/about" class="btn btn-outline btn-white btn-lg px-8">
+						<span class="icon-[lucide--info] h-6 w-6"></span>
+						{currentLanguage === 'vi' ? 'Tìm hiểu thêm' : 'Learn More'}
+					</a>
+				</div>
+			</div>
+		</div>
+	</section>
+{/if}
