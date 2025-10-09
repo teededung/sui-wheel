@@ -1,19 +1,21 @@
 <script>
 	import { onMount } from 'svelte';
+	import { getLanguageContext } from '$lib/context/language.js';
 
 	/** @type {{className?: string}} */
 	let { className = '' } = $props();
 
-	let isInitialized = $state(false);
-	let isVi = $state(false);
+	const { language, setLanguage } = getLanguageContext();
+	let isVi = $derived(language.code === 'vi');
 
+	function toggleLanguage() {
+		setLanguage(isVi ? 'en' : 'vi');
+	}
+
+	let isInitialized = $state(false);
 	onMount(() => {
 		isInitialized = true;
 	});
-
-	function toggleLanguage() {
-		isVi = !isVi;
-	}
 </script>
 
 {#if isInitialized}

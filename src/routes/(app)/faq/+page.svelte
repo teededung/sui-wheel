@@ -1,8 +1,10 @@
 <script>
 	import { onMount } from 'svelte';
+	import { getLanguageContext } from '$lib/context/language.js';
 	let isInitialized = $state(false);
 
-	let currentLanguage = 'en';
+	const { language } = getLanguageContext();
+	let currentLanguage = $derived(language.code);
 
 	onMount(() => {
 		isInitialized = true;
@@ -257,15 +259,6 @@
 						? 'Tìm câu trả lời cho những câu hỏi phổ biến nhất về Sui Wheel'
 						: 'Find answers to the most common questions about Sui Wheel'}
 				</p>
-
-				<!-- Breadcrumb -->
-				<div class="text-base-content/60 mb-8 flex items-center justify-center gap-2 text-sm">
-					<a href="/" class="link link-primary">
-						{currentLanguage === 'vi' ? 'Trang chủ' : 'Home'}
-					</a>
-					<span class="icon-[lucide--chevron-right] h-4 w-4"></span>
-					<span class="text-base-content">FAQ</span>
-				</div>
 			</div>
 		</div>
 	</section>
