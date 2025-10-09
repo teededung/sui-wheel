@@ -17,7 +17,9 @@
 </svelte:head>
 
 <!-- Hero Section -->
-<section class="hero from-primary/10 via-base-100 to-secondary/10 min-h-screen bg-gradient-to-br">
+<section
+	class="hero from-primary/10 via-base-100 to-secondary/10 min-h-[calc(100vh-4rem)] bg-gradient-to-br"
+>
 	<div class="hero-content text-center">
 		<div class="max-w-4xl">
 			<!-- Logo -->
@@ -418,6 +420,3 @@
 		</div>
 	</div>
 </section>
-
-<!-- Footer -->
-<Footer />

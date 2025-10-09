@@ -4,6 +4,7 @@
 	import ButtonConnectWallet from './ButtonConnectWallet.svelte';
 
 	let isFaqPage = $derived(page.url.pathname === '/faq');
+	let isAboutPage = $derived(page.url.pathname === '/about');
 </script>
 
 <div class="navbar bg-base-100 px-4 shadow-sm">
@@ -40,7 +41,7 @@
 
 	<div class="navbar-end flex items-center gap-3">
 		<ButtonThemeSwitch />
-		{#if !isFaqPage}
+		{#if !isFaqPage && !isAboutPage}
 			<ButtonConnectWallet showBalance={false} />
 		{/if}
 	</div>
