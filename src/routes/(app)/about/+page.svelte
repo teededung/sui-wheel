@@ -331,14 +331,24 @@
 	<div class="relative">
 		<div class="absolute top-1/2 left-1/2 z-10 w-100 -translate-x-1/2 -translate-y-1/2">
 			<WheelImage
-				entries={[
-					"Don't trust, verify it!",
-					'Keep it fair',
-					'Built on Sui',
-					'🎁 Real prizes',
-					'Fast & efficient',
-					'Flexible prizes'
-				]}
+				fontSize={12}
+				entries={currentLanguage === 'vi'
+					? [
+							'Kiểm chứng onchain!',
+							'Giữ sự công bằng',
+							'Xây dựng trên Sui',
+							'🎁 Giải thưởng thật',
+							'Nhanh & hiệu quả',
+							'Giải thưởng linh hoạt'
+						]
+					: [
+							"Don't trust, verify it!",
+							'Keep it fair',
+							'Built on Sui',
+							'🎁 Real prizes',
+							'Fast & efficient',
+							'Flexible prizes'
+						]}
 				rotationSpeed={25}
 				logoSize={12}
 			/>

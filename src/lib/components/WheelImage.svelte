@@ -26,6 +26,7 @@
 		],
 		rotationSpeed = 20, // seconds for one full rotation
 		logoSize = 20,
+		fontSize = null, // Custom font size for entries (null = auto)
 		className = ''
 	} = $props();
 
@@ -43,6 +44,23 @@
 	let animState = { angle: 0 };
 
 	const segmentColors = colors;
+
+	// Track previous entries to avoid unnecessary re-renders
+	let previousEntries = $state([]);
+
+	// Reactive effect to re-render when entries change
+	$effect(() => {
+		if (entries && canvasEl && offscreenCtx && wheelSize > 0) {
+			// Check if entries actually changed
+			const entriesChanged = JSON.stringify(entries) !== JSON.stringify(previousEntries);
+			if (entriesChanged) {
+				previousEntries = [...entries];
+				recomputeLabelLayouts();
+				renderWheelBitmap();
+				drawStaticWheel();
+			}
+		}
+	});
 
 	onMount(async () => {
 		setupCanvas();
@@ -264,15 +282,16 @@
 				continue;
 			}
 			const arcDegrees = (arc * 180) / Math.PI;
-			let fontSize = Math.max(9, Math.min(17, arcDegrees * 0.75));
+			let calculatedFontSize =
+				fontSize !== null ? fontSize : Math.max(9, Math.min(17, arcDegrees * 0.75));
 			let displayText = baseLabel;
-			let font = `600 ${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"`;
+			let font = `600 ${calculatedFontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"`;
 			measureCtx.font = font;
 			let measured = measureCtx.measureText(displayText).width;
-			if (measured > maxWidth && maxWidth > 0) {
+			if (measured > maxWidth && maxWidth > 0 && fontSize === null) {
 				const scale = maxWidth / measured;
-				fontSize = Math.max(9, Math.floor(fontSize * scale));
-				font = `600 ${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"`;
+				calculatedFontSize = Math.max(9, Math.floor(calculatedFontSize * scale));
+				font = `600 ${calculatedFontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"`;
 				measureCtx.font = font;
 				measured = measureCtx.measureText(displayText).width;
 			}
