@@ -15,18 +15,9 @@
     "wheelList": "Wheel List",
     "faq": "FAQ"
   },
-  "wheel": {
-    "title": "Sui Wheel",
-    "description": "Create fair, transparent, and exciting prize wheels on Sui blockchain",
-    "playNow": "Play Now",
-    "learnMore": "Learn More",
-    "connectWallet": "Connect Sui Wallet",
-    "createWheel": "Create Wheel",
-    "spinWheel": "Spin Wheel"
-  },
   "wallet": {
     "connectWallet": "Connect Wallet",
-    "connectSuiWallet": "Connect Sui Wallet",
+    "connectSuiWallet": "Connect wallet",
     "disconnected": "Disconnected",
     "disconnectFailed": "Failed to disconnect",
     "addressCopied": "Address copied",
@@ -263,7 +254,6 @@
     "min": "min",
     "sec": "sec",
     "disableOnlineEntries": "Disable Online Entries",
-    "createWheelAndFund": "Create wheel and fund",
     "createWheel": "Create wheel",
     "connectWalletToCreateAndSpin": "Connect your Sui wallet to create and spin the wheel on-chain. You can still try spinning off-chain without connecting your wallet.",
     "importEntriesByXPost": "Import entries by X post",

@@ -15,15 +15,6 @@
     "wheelList": "Danh sách vòng quay",
     "faq": "Câu hỏi thường gặp"
   },
-  "wheel": {
-    "title": "Sui Wheel",
-    "description": "Tạo các vòng quay giải thưởng công bằng, minh bạch và hấp dẫn trên blockchain Sui",
-    "playNow": "Chơi ngay",
-    "learnMore": "Tìm hiểu thêm",
-    "connectWallet": "Kết nối ví Sui",
-    "createWheel": "Tạo vòng quay",
-    "spinWheel": "Quay vòng"
-  },
   "wallet": {
     "connectWallet": "Kết nối ví",
     "connectSuiWallet": "Kết nối ví Sui",
