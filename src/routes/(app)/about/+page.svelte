@@ -1,4 +1,5 @@
 <script>
+	import Footer from '$lib/components/Footer.svelte';
 	import WheelImage from '$lib/components/WheelImage.svelte';
 </script>
 
@@ -288,11 +289,11 @@
 	</div>
 </div>
 
-<!-- Advanced Features Section -->
+<!-- More Features Section -->
 <section class="bg-base-100 py-20 pt-64">
 	<div class="container mx-auto px-4">
 		<div class="mb-16 text-center">
-			<h2 class="mb-4 text-4xl font-bold">Advanced Features</h2>
+			<h2 class="mb-4 text-4xl font-bold">More Features</h2>
 			<p class="text-base-content/70 mx-auto max-w-2xl text-xl">
 				Powerful tools for organizers and participants
 			</p>
@@ -395,61 +396,6 @@
 	</div>
 </section>
 
-<!-- How It Works Section -->
-<section class="bg-base-200 py-20">
-	<div class="container mx-auto px-4">
-		<div class="mb-16 text-center">
-			<h2 class="mb-4 text-4xl font-bold">How It Works</h2>
-			<p class="text-base-content/70 mx-auto max-w-2xl text-xl">
-				Simple steps to create and manage your prize wheel
-			</p>
-		</div>
-
-		<div class="mx-auto max-w-4xl">
-			<div class="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-				<!-- Step 1 -->
-				<div class="text-center">
-					<div
-						class="bg-primary mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full text-2xl font-bold text-white"
-					>
-						1
-					</div>
-					<h3 class="mb-2 text-xl font-semibold">Connect Wallet</h3>
-					<p class="text-base-content/70">
-						Connect your Sui wallet (prefer Slush Wallet) to get started with on-chain features.
-					</p>
-				</div>
-
-				<!-- Step 2 -->
-				<div class="text-center">
-					<div
-						class="bg-secondary mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full text-2xl font-bold text-white"
-					>
-						2
-					</div>
-					<h3 class="mb-2 text-xl font-semibold">Configure Wheel</h3>
-					<p class="text-base-content/70">
-						Add participants, set prizes, timing, and fund the pool with sufficient tokens.
-					</p>
-				</div>
-
-				<!-- Step 3 -->
-				<div class="text-center">
-					<div
-						class="bg-accent mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full text-2xl font-bold text-white"
-					>
-						3
-					</div>
-					<h3 class="mb-2 text-xl font-semibold">Spin & Win</h3>
-					<p class="text-base-content/70">
-						Spin the wheel to randomly select winners using on-chain randomness.
-					</p>
-				</div>
-			</div>
-		</div>
-	</div>
-</section>
-
 <!-- CTA Section -->
 <section class="from-primary to-secondary bg-gradient-to-r py-20">
 	<div class="container mx-auto px-4 text-center">
@@ -474,14 +420,4 @@
 </section>
 
 <!-- Footer -->
-<footer class="footer footer-center bg-base-200 text-base-content p-10">
-	<div>
-		<img src="/sui-wheel-logo-small.png" alt="Sui Wheel" class="h-12 w-auto" />
-		<p class="font-bold">
-			Sui Wheel
-			<br />
-			Sui Wheel — Spin & Win
-		</p>
-		<p>Built on SUI</p>
-	</div>
-</footer>
+<Footer />

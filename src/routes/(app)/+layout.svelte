@@ -12,7 +12,7 @@
 {:else}
 	<div class="flex min-h-screen flex-col">
 		<Navbar />
-		<main class="py-6">
+		<main>
 			{@render children()}
 		</main>
 		<Footer />

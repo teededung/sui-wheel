@@ -1,6 +1,9 @@
 <script>
+	import { page } from '$app/state';
 	import ButtonThemeSwitch from './ButtonThemeSwitch.svelte';
 	import ButtonConnectWallet from './ButtonConnectWallet.svelte';
+
+	let isFaqPage = $derived(page.url.pathname === '/faq');
 </script>
 
 <div class="navbar bg-base-100 px-4 shadow-sm">
@@ -30,12 +33,15 @@
 		<div class="flex items-center gap-3">
 			<a href="/wheel-list" class="btn btn-ghost btn-sm" aria-label="Go to Wheel List">Wheel List</a
 			>
+			<a href="/faq" class="btn btn-ghost btn-sm" aria-label="Go to FAQ">FAQ</a>
 			<a href="/about" class="btn btn-ghost btn-sm" aria-label="Go to About">About</a>
 		</div>
 	</div>
 
 	<div class="navbar-end flex items-center gap-3">
 		<ButtonThemeSwitch />
-		<ButtonConnectWallet showBalance={false} />
+		{#if !isFaqPage}
+			<ButtonConnectWallet showBalance={false} />
+		{/if}
 	</div>
 </div>

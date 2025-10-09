@@ -182,7 +182,7 @@
 	<meta property="og:description" content={'List of wheels you created on Sui Testnet.'} />
 </svelte:head>
 
-<section class="container mx-auto px-4 py-6">
+<section class="container mx-auto px-4 py-12">
 	<div class="card bg-base-200 shadow">
 		<div class="card-body">
 			<div class="mb-4 flex items-center justify-between">

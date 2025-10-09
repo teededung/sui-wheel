@@ -1097,7 +1097,7 @@
 	{/if}
 {/snippet}
 
-<section class="container mx-auto px-4 py-6">
+<section class="container mx-auto px-4 py-12">
 	<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 		<div class="w-full">
 			<Wheel
