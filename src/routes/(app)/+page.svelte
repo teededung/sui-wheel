@@ -26,7 +26,10 @@
 	import ButtonCopy from '$lib/components/ButtonCopy.svelte';
 	import Wheel from '$lib/components/Wheel.svelte';
 	import { wheelContext } from '$lib/context/wheel.js';
+	import { useTranslation } from '$lib/hooks/useTranslation.js';
 	import QRCode from 'qrcode';
+
+	const t = useTranslation();
 
 	import {
 		LATEST_PACKAGE_ID,
@@ -38,6 +41,8 @@
 		RANDOM_OBJECT_ID,
 		CLOCK_OBJECT_ID
 	} from '$lib/constants.js';
+
+	// Language - using translation hook instead
 
 	const suiClient = $derived(useSuiClient());
 	const account = $derived(useCurrentAccount());
@@ -277,26 +282,28 @@
 
 	function validateSetup() {
 		const errors = [];
-		if (!account) errors.push('Wallet is not connected.');
-		if (!isOnTestnet) errors.push('Wallet must be on Testnet.');
-		if (!packageId || packageId.trim().length === 0) errors.push('Package ID is required.');
+		if (!account) errors.push(t('main.errors.walletNotConnected'));
+		if (!isOnTestnet) errors.push(t('main.errors.walletMustBeOnTestnet'));
+		if (!packageId || packageId.trim().length === 0)
+			errors.push(t('main.errors.packageIdRequired'));
 		const addrList = getAddressEntries();
-		if (addrList.length < 2) errors.push('At least 2 valid addresses are required.');
-		if (addrList.length > MAX_ENTRIES) errors.push(`Entries count must be ≤ ${MAX_ENTRIES}.`);
+		if (addrList.length < 2) errors.push(t('main.errors.atLeast2Addresses'));
+		if (addrList.length > MAX_ENTRIES)
+			errors.push(t('main.errors.entriesCountLimit', { maxEntries: MAX_ENTRIES }));
 		const prizesCount = prizeAmounts.filter(v => parseSuiToMist(v) > 0n).length;
-		if (prizesCount === 0) errors.push('Please add at least 1 prize with amount > 0.');
-		if (addrList.length < prizesCount)
-			errors.push('Number of entries must be >= number of prizes.');
+		if (prizesCount === 0) errors.push(t('main.errors.addAtLeast1Prize'));
+		if (addrList.length < prizesCount) errors.push(t('main.errors.entriesMustBeGreaterThanPrizes'));
 		// unique addresses check
 		const uniqueCount = new Set(addrList.map(a => a.toLowerCase())).size;
-		if (uniqueCount < prizesCount) errors.push('Unique address count must be >= number of prizes.');
+		if (uniqueCount < prizesCount)
+			errors.push(t('main.errors.uniqueAddressCountMustBeGreaterThanPrizes'));
 		// Check minimum prize amount
 		const invalidPrizes = prizeAmounts.filter(v => {
 			const mist = parseSuiToMist(v);
 			return mist > 0n && mist < MINIMUM_PRIZE_AMOUNT.MIST;
 		});
 		if (invalidPrizes.length > 0) {
-			errors.push(`Each prize must be at least ${MINIMUM_PRIZE_AMOUNT.SUI} SUI.`);
+			errors.push(t('main.errors.eachPrizeMustBeAtLeast', { minAmount: MINIMUM_PRIZE_AMOUNT.SUI }));
 		}
 		return errors;
 	}
@@ -314,7 +321,7 @@
 			const addrList = getAddressEntries();
 			const prizeMistList = prizeAmounts.map(v => parseSuiToMist(v)).filter(v => v > 0n);
 			const total = totalDonationMist;
-			if (total <= 0n) throw new Error('Total donation must be greater than 0');
+			if (total <= 0n) throw new Error(t('main.errors.totalDonationMustBeGreaterThan0'));
 
 			// Combine into a single PTB
 			const tx = new Transaction();
@@ -362,16 +369,16 @@
 			);
 
 			const finalWheelId = created?.objectId;
-			if (!finalWheelId) throw new Error('Wheel object id not found after creation');
+			if (!finalWheelId) throw new Error(t('main.errors.wheelObjectIdNotFound'));
 
-			setupSuccessMsg = `Successfully created and funded. We can spin it now.`;
+			setupSuccessMsg = t('main.success.wheelCreatedAndFunded');
 
 			// Notify and update current URL with wheelId param so reload keeps context
-			toast.success('Wheel created and funded successfully', {
+			toast.success(t('main.success.wheelCreatedAndFundedSuccessfully'), {
 				position: 'bottom-right',
 				durationMs: 5000,
 				button: {
-					text: 'View Tx',
+					text: t('main.success.viewTx'),
 					class: 'btn btn-primary btn-sm',
 					callback: () => {
 						window.open(`https://testnet.suivision.xyz/txblock/${digest}`, '_blank', 'noopener');
@@ -383,7 +390,9 @@
 			params.update({ wheelId: finalWheelId });
 		} catch (e) {
 			setupError = e?.message || String(e);
-			toast.error(setupError || 'Failed to create wheel', { position: 'bottom-right' });
+			toast.error(setupError || t('main.errors.failedToGetTransactionDigest'), {
+				position: 'bottom-right'
+			});
 		} finally {
 			setupLoading = false;
 		}
@@ -501,7 +510,7 @@
 				});
 				await signAndExecuteTransaction(tx);
 			}
-			setupSuccessMsg = 'Wheel updated successfully.';
+			setupSuccessMsg = t('main.success.wheelUpdatedSuccessfully');
 			isEditing = false;
 			await fetchWheelFromChain();
 		} catch (e) {
@@ -538,16 +547,18 @@
 			const res = await signAndExecuteTransaction(tx);
 			const digest = res?.digest ?? res?.effects?.transactionDigest;
 			if (!digest) {
-				setupError = 'Failed to cancel wheel.';
-				toast.error(setupError || 'Failed to cancel wheel.', { position: 'bottom-right' });
+				setupError = t('main.errors.failedToCancelWheel');
+				toast.error(setupError || t('main.errors.failedToCancelWheel'), {
+					position: 'bottom-right'
+				});
 				return;
 			}
-			setupSuccessMsg = 'Wheel cancelled and pool reclaimed if any.';
-			toast.success('Wheel cancelled successfully.', {
+			setupSuccessMsg = t('main.success.wheelCancelledAndPoolReclaimed');
+			toast.success(t('main.success.wheelCancelledSuccessfully'), {
 				position: 'bottom-right',
 				durationMs: 3000,
 				button: {
-					text: 'View Tx',
+					text: t('main.success.viewTx'),
 					class: 'btn btn-primary btn-sm',
 					callback: () => {
 						window.open(`https://testnet.suivision.xyz/txblock/${digest}`, '_blank', 'noopener');
@@ -688,7 +699,7 @@
 		entryFormEndTime = null;
 		remainingTime = 0;
 
-		toast.success('Online entries disabled', { position: 'top-right' });
+		toast.success(t('main.success.onlineEntriesDisabled'), { position: 'top-right' });
 	}
 
 	function generateWheelTempId() {
@@ -714,12 +725,15 @@
 			}
 
 			if (data?.addresses.length === 0) {
-				toast.error('No entries found in X post', { position: 'top-right' });
+				toast.error(t('main.notifications.noEntriesFoundInXPost'), { position: 'top-right' });
 			} else {
-				toast.success(`Imported ${data?.addresses.length} entrie(s) from X post successfully!`, {
-					title: 'Imported',
-					position: 'top-right'
-				});
+				toast.success(
+					t('main.success.importedEntriesFromXPost', { count: data?.addresses.length }),
+					{
+						title: t('main.success.imported'),
+						position: 'top-right'
+					}
+				);
 				// console.log('X post import result:', data);
 
 				entriesText = data?.addresses.join('\n') || '';
@@ -733,7 +747,9 @@
 				// Ignore close errors
 			}
 		} catch (e) {
-			toast.error(e?.message || 'Failed to import X post', { position: 'top-right' });
+			toast.error(e?.message || t('main.notifications.failedToImportXPost'), {
+				position: 'top-right'
+			});
 		} finally {
 			xImportLoading = false;
 		}
@@ -824,7 +840,10 @@
 								: `${formattedEntries.slice(0, 3).join(', ')} and ${formattedEntries.length - 3} more`;
 
 						toast.success(entriesList, {
-							title: `${addedCount} new entr${addedCount === 1 ? 'y' : 'ies'} added`,
+							title: t('main.notifications.newEntriesAdded', {
+								count: addedCount,
+								plural: addedCount === 1 ? 'y' : 'ies'
+							}),
 							position: 'top-right',
 							durationMs: 5000
 						});
@@ -867,8 +886,11 @@
 		}
 	}
 
-	// Open prizes tab if remaining spins is 0 and wheel is created
+	let isInitialized = $state(false);
 	onMount(() => {
+		isInitialized = true;
+
+		// Open prizes tab if remaining spins is 0 and wheel is created
 		if (remainingSpins === 0 && createdWheelId) {
 			activeTab = 'prizes';
 		}
@@ -991,22 +1013,16 @@
 </script>
 
 <svelte:head>
-	<title>Sui Wheel — Spin & Win</title>
-	<meta
-		name="description"
-		content={'Sui Wheel — create and fund a spin wheel on Sui Testnet, manage entries and prizes.'}
-	/>
-	<meta property="og:title" content={'Sui Wheel — Spin & Win'} />
-	<meta
-		property="og:description"
-		content={'Sui Wheel — create and fund a spin wheel on Sui Testnet, manage entries and prizes.'}
-	/>
+	<title>{t('main.title')}</title>
+	<meta name="description" content={t('main.metaDescription')} />
+	<meta property="og:title" content={t('main.ogTitle')} />
+	<meta property="og:description" content={t('main.ogDescription')} />
 </svelte:head>
 
 {#snippet showDuplicateEntries()}
 	{#if duplicateEntries.length > 0}
 		<div class="mt-4">
-			<h4 class="text-base-content/70 mb-2 text-sm font-semibold">Duplicate Entries:</h4>
+			<h4 class="text-base-content/70 mb-2 text-sm font-semibold">{t('main.duplicateEntries')}</h4>
 			<div class="bg-base-300 flex max-h-32 flex-col gap-1 overflow-y-auto rounded-lg p-2">
 				{#each duplicateEntries as duplicate}
 					<div class="flex items-center justify-between gap-2 text-sm">
@@ -1093,7 +1109,7 @@
 			{@render showDuplicateEntries()}
 		</div>
 	{:else}
-		<div class="text-center text-sm text-gray-500">No entries</div>
+		<div class="text-center text-sm text-gray-500">{t('main.noEntries')}</div>
 	{/if}
 {/snippet}
 
@@ -1121,16 +1137,17 @@
 							<!-- Header info -->
 							<div class="flex items-center gap-2 text-sm opacity-70">
 								<span
-									>Wheel ID: <span class="font-mono">{shortenAddress(createdWheelId)}</span></span
+									>{t('main.wheelId')}
+									<span class="font-mono">{shortenAddress(createdWheelId)}</span></span
 								>
 								{#if remainingSpins === 0}
 									<span class="badge badge-success badge-sm"
-										><span class="icon-[lucide--check]"></span> Finished</span
+										><span class="icon-[lucide--check]"></span> {t('main.finished')}</span
 									>
 								{/if}
 								{#if isCancelled}
 									<span class="badge badge-warning badge-sm"
-										><span class="icon-[lucide--circle-x]"></span> Cancelled</span
+										><span class="icon-[lucide--circle-x]"></span> {t('main.cancelled')}</span
 									>
 								{/if}
 							</div>
@@ -1152,7 +1169,7 @@
 											spunCountOnChain = 0;
 											poolBalanceMistOnChain = 0n;
 											entriesViewMode = 'textarea';
-										}}>New wheel</button
+										}}>{t('main.newWheel')}</button
 									>
 								{/if}
 
@@ -1160,13 +1177,13 @@
 									<ButtonLoading
 										formLoading={updateLoading}
 										color="primary"
-										loadingText="Updating..."
-										onclick={updateWheel}>Update wheel</ButtonLoading
+										loadingText={t('main.updating')}
+										onclick={updateWheel}>{t('main.updateWheel')}</ButtonLoading
 									>
 									<button
 										class="btn"
 										onclick={() => (isEditing = false)}
-										disabled={spunCountOnChain > 0}>Cancel edit</button
+										disabled={spunCountOnChain > 0}>{t('main.cancelEdit')}</button
 									>
 								{:else}
 									<!-- Edit wheel button -->
@@ -1182,9 +1199,10 @@
 									<ButtonLoading
 										formLoading={cancelLoading}
 										color="error"
-										loadingText="Cancelling..."
+										loadingText={t('main.cancelling')}
 										onclick={cancelWheel}
-										disabled={spinning || spunCountOnChain > 0}>Cancel wheel</ButtonLoading
+										disabled={spinning || spunCountOnChain > 0}
+										>{t('main.cancelWheel')}</ButtonLoading
 									>
 								{/if}
 							</div>
@@ -1205,14 +1223,14 @@
 								type="radio"
 								name="wheel_tabs"
 								class="tab"
-								aria-label={`Entries (${entries.length})`}
+								aria-label={`${t('main.entries')} (${entries.length})`}
 								checked={activeTab === 'entries'}
 								onclick={() => (activeTab = 'entries')}
 							/>
 							<div class="tab-content bg-base-100 border-base-300 p-6">
 								{#if createdWheelId && wheelFetched && !isEditing}
 									<div class="mb-3 flex items-center justify-between gap-2">
-										<div class="text-sm opacity-70">Entries</div>
+										<div class="text-sm opacity-70">{t('main.entries')}</div>
 										<div class="flex items-center gap-2">
 											<div class="join">
 												<button
@@ -1220,20 +1238,20 @@
 													class:btn-primary={entriesViewMode === 'textarea'}
 													class:btn-soft={entriesViewMode !== 'textarea'}
 													onclick={() => (entriesViewMode = 'textarea')}
-													aria-label="Textarea view"
+													aria-label={t('main.textareaView')}
 												>
 													<span class="icon-[lucide--edit] h-4 w-4"></span>
-													Text
+													{t('main.text')}
 												</button>
 												<button
 													class="btn btn-xs join-item"
 													class:btn-primary={entriesViewMode === 'table'}
 													class:btn-soft={entriesViewMode !== 'table'}
 													onclick={() => (entriesViewMode = 'table')}
-													aria-label="Table view"
+													aria-label={t('main.tableView')}
 												>
 													<span class="icon-[lucide--table] h-4 w-4"></span>
-													Table
+													{t('main.table')}
 												</button>
 											</div>
 										</div>
@@ -1244,10 +1262,10 @@
 									{:else}
 										<textarea
 											class="textarea h-48 w-full text-base"
-											placeholder="One entry per line"
+											placeholder={t('main.oneEntryPerLine')}
 											value={entries.join('\n')}
 											readonly
-											aria-label="Entries list (read-only)"
+											aria-label={t('main.entriesListReadOnly')}
 										></textarea>
 									{/if}
 								{:else}
@@ -1259,20 +1277,20 @@
 												class:btn-primary={entriesViewMode === 'textarea'}
 												class:btn-soft={entriesViewMode !== 'textarea'}
 												onclick={() => (entriesViewMode = 'textarea')}
-												aria-label="Textarea view"
+												aria-label={t('main.textareaView')}
 											>
 												<span class="icon-[lucide--edit] h-4 w-4"></span>
-												Text
+												{t('main.text')}
 											</button>
 											<button
 												class="btn btn-xs join-item"
 												class:btn-primary={entriesViewMode === 'table'}
 												class:btn-soft={entriesViewMode !== 'table'}
 												onclick={() => (entriesViewMode = 'table')}
-												aria-label="Table view"
+												aria-label={t('main.tableView')}
 											>
 												<span class="icon-[lucide--table] h-4 w-4"></span>
-												Table
+												{t('main.table')}
 											</button>
 										</div>
 
@@ -1282,20 +1300,20 @@
 													<button
 														class="btn btn-xs btn-outline"
 														onclick={checkForNewEntries}
-														aria-label="Sync online entries"
+														aria-label={t('main.syncOnlineEntries')}
 													>
 														<span class="icon-[lucide--refresh-cw] h-4 w-4"></span>
-														Sync
+														{t('main.sync')}
 													</button>
 												{/if}
 
 												<div class="dropdown dropdown-end">
 													<button
 														class="btn btn-xs btn-primary btn-soft"
-														aria-label="Import entries"
+														aria-label={t('main.importEntries')}
 													>
 														<span class="icon-[lucide--list-plus] h-4 w-4"></span>
-														<span>Import</span>
+														<span>{t('main.import')}</span>
 													</button>
 													<ul
 														class="menu dropdown-content rounded-box bg-base-200 z-[1] w-56 p-2 shadow"
@@ -1303,20 +1321,23 @@
 														<li>
 															<button
 																onclick={openEntryFormModal}
-																aria-label="Setup online entry form"
+																aria-label={t('main.setupOnlineEntryForm')}
 															>
 																<span class="icon-[lucide--qr-code] h-4 w-4"></span>
-																Online Entry Form
+																{t('main.onlineEntryForm')}
 															</button>
 														</li>
 														<li>
-															<button onclick={openXImportModal} aria-label="Import by X post">
+															<button
+																onclick={openXImportModal}
+																aria-label={t('main.importByXPost')}
+															>
 																<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
 																	<path
 																		d="M13.317 10.774L20.28 2h-1.73l-6.32 7.353L8.29 2H2.115l7.33 10.638L2.115 22h1.73l6.707-7.783L15.315 22H21.59l-7.482-10.774z"
 																	/>
 																</svg>
-																Import by X post
+																{t('main.importByXPost')}
 															</button>
 														</li>
 													</ul>
@@ -1330,7 +1351,7 @@
 									{:else}
 										<textarea
 											class="textarea h-48 w-full text-base"
-											placeholder="One entry per line"
+											placeholder={t('main.oneEntryPerLine')}
 											bind:value={entriesText}
 											oninput={() => onEntriesTextChange(entriesText)}
 											bind:this={entriesTextareaEl}
@@ -1348,12 +1369,12 @@
 									type="radio"
 									name="wheel_tabs"
 									class="tab"
-									aria-label="Prizes"
+									aria-label={t('main.prizes')}
 									checked={activeTab === 'prizes'}
 									onclick={() => (activeTab = 'prizes')}
 								/>
 								<div class="tab-content bg-base-100 border-base-300 p-6">
-									<h3 class="mb-4 text-lg font-semibold">Prizes (SUI)</h3>
+									<h3 class="mb-4 text-lg font-semibold">{t('main.prizesSui')}</h3>
 
 									{#if createdWheelId && wheelFetched && !isEditing}
 										<div class="overflow-x-auto">
@@ -1361,8 +1382,8 @@
 												<thead>
 													<tr>
 														<th>#</th>
-														<th>Amount</th>
-														<th>Winner</th>
+														<th>{t('main.amount')}</th>
+														<th>{t('main.winner')}</th>
 													</tr>
 												</thead>
 												<tbody>
@@ -1396,37 +1417,41 @@
 										<!-- Prize repeater -->
 										{#each prizeAmounts as prize, i}
 											<div class="join mb-2 w-full">
-												<button class="btn btn-disabled join-item">Prize #{i + 1}</button>
+												<button class="btn btn-disabled join-item"
+													>{t('main.prize')} #{i + 1}</button
+												>
 												<input
 													type="text"
 													class="input join-item prize-input w-full"
-													placeholder={`Amount (e.g. 0.5)`}
+													placeholder={t('main.amountExample')}
 													value={prizeAmounts[i] ?? ''}
 													oninput={e => updatePrizeAmount(i, e.currentTarget.value)}
 													onchange={e => updatePrizeAmount(i, e.currentTarget.value)}
 													onkeydown={e => handlePrizeKeydown(i, e)}
-													aria-label={`Prize #${i + 1} amount in SUI`}
+													aria-label={t('main.prizeAmountInSui', { number: i + 1 })}
 												/>
 												<button
 													class="btn btn-error btn-soft join-item"
 													onclick={() => removePrize(i)}
 													disabled={prizeAmounts.length <= 1}
-													aria-label="Remove prize"
+													aria-label={t('main.removePrize')}
 													><span class="icon-[lucide--x] h-4 w-4"></span></button
 												>
 											</div>
 										{/each}
 										<div class="mt-2 flex items-center justify-between">
-											<button class="btn btn-outline" onclick={addPrize}>Add prize</button>
+											<button class="btn btn-outline" onclick={addPrize}
+												>{t('main.addPrize')}</button
+											>
 											<div class="text-sm">
-												<strong>Need:</strong>
+												<strong>{t('main.need')}:</strong>
 												<span>{formatMistToSuiCompact(totalDonationMist)} SUI</span>
 											</div>
 										</div>
 
 										{#if createdWheelId && wheelFetched}
 											<div class="mt-2 text-sm">
-												<span class="opacity-70">Top-up required:</span>
+												<span class="opacity-70">{t('main.topUpRequired')}:</span>
 												<strong class="ml-1">{formatMistToSuiCompact(topUpMist)} SUI</strong>
 											</div>
 										{/if}
@@ -1438,45 +1463,45 @@
 									type="radio"
 									name="wheel_tabs"
 									class="tab"
-									aria-label="Settings"
+									aria-label={t('main.settings')}
 									checked={activeTab === 'settings'}
 									onclick={() => (activeTab = 'settings')}
 								/>
 								<div class="tab-content bg-base-100 border-base-300 p-6">
-									<h3 class="mb-4 text-lg font-semibold">Settings</h3>
+									<h3 class="mb-4 text-lg font-semibold">{t('main.settings')}</h3>
 									<div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
 										<fieldset class="fieldset border-base-300 rounded-box border p-4">
-											<legend class="fieldset-legend">Claim Delay</legend>
+											<legend class="fieldset-legend">{t('main.claimDelay')}</legend>
 											<select
 												class="select"
 												bind:value={delayMs}
-												aria-label="Delay"
+												aria-label={t('main.delay')}
 												disabled={createdWheelId && wheelFetched && !isEditing}
 											>
-												<option value={0}>0 minute (default)</option>
-												<option value={15}>15 minutes</option>
-												<option value={30}>30 minutes</option>
-												<option value={60}>1 hour</option>
-												<option value={120}>2 hours</option>
+												<option value={0}>{t('main.zeroMinuteDefault')}</option>
+												<option value={15}>{t('main.fifteenMinutes')}</option>
+												<option value={30}>{t('main.thirtyMinutes')}</option>
+												<option value={60}>{t('main.oneHour')}</option>
+												<option value={120}>{t('main.twoHours')}</option>
 											</select>
-											<span class="label">Wait time before claiming prize</span>
+											<span class="label">{t('main.waitTimeBeforeClaimingPrize')}</span>
 										</fieldset>
 
 										<fieldset class="fieldset border-base-300 rounded-box border p-4">
-											<legend class="fieldset-legend">Claim Period</legend>
+											<legend class="fieldset-legend">{t('main.claimPeriod')}</legend>
 											<select
 												class="select"
 												bind:value={claimWindowMs}
-												aria-label="Claim window"
+												aria-label={t('main.claimWindow')}
 												disabled={createdWheelId && wheelFetched && !isEditing}
 											>
-												<option value={60}>1 hour</option>
-												<option value={1440}>24 hours (default)</option>
-												<option value={2880}>2 days</option>
-												<option value={4320}>3 days</option>
-												<option value={10080}>1 week</option>
+												<option value={60}>{t('main.oneHour')}</option>
+												<option value={1440}>{t('main.twentyFourHoursDefault')}</option>
+												<option value={2880}>{t('main.twoDays')}</option>
+												<option value={4320}>{t('main.threeDays')}</option>
+												<option value={10080}>{t('main.oneWeek')}</option>
 											</select>
-											<span class="label">Deadline to claim prize</span>
+											<span class="label">{t('main.deadlineToClaimPrize')}</span>
 										</fieldset>
 									</div>
 								</div>
@@ -1487,7 +1512,9 @@
 							<div class="mt-2">
 								<div class="alert alert-soft alert-info light:!border-info w-60">
 									<span class="icon-[lucide--info] h-4 w-4"></span>
-									<a class="link" href={`/wheel-result?wheelId=${createdWheelId}`}> Claim link </a>
+									<a class="link" href={`/wheel-result?wheelId=${createdWheelId}`}>
+										{t('main.claimLink')}
+									</a>
 									<ButtonCopy
 										originText={`${page.url.origin}/wheel-result?wheelId=${createdWheelId}`}
 										size="xs"
@@ -1499,13 +1526,13 @@
 									<div class="mt-3 flex items-center gap-3">
 										<img
 											src={qrDataUrl}
-											alt="Result QR"
+											alt={t('main.resultQr')}
 											class="rounded-box border-base-300 bg-base-100 mb-3 h-64 w-64 border p-2 shadow"
 										/>
 
 										<div class="flex w-full flex-col items-center gap-2 text-center opacity-80">
 											<span class="icon-[lucide--smartphone] h-8 w-8"></span>
-											<span class="text-lg">Scan with your phone</span>
+											<span class="text-lg">{t('main.scanWithYourPhone')}</span>
 										</div>
 									</div>
 								{/if}
@@ -1516,7 +1543,7 @@
 							<div class="mt-2">
 								<div class="alert alert-soft light:!border-success alert-success">
 									<span class="icon-[lucide--qr-code] h-4 w-4"></span>
-									<span>Online Entry Form. Scan to join the wheel.</span>
+									<span>{t('main.onlineEntryFormScanToJoin')}</span>
 									<ButtonCopy originText={entryFormQRUrl} size="xs" className="btn-soft" />
 								</div>
 
@@ -1524,7 +1551,7 @@
 									<div class="mt-3 flex items-center gap-3">
 										<img
 											src={entryFormQRDataUrl}
-											alt="Entry Form QR"
+											alt={t('main.entryFormQr')}
 											class="rounded-box border-base-300 bg-base-100 mb-3 h-64 w-64 border p-2 shadow"
 										/>
 										<div class="flex w-full flex-col items-center gap-2">
@@ -1533,7 +1560,7 @@
 													class="text-base-content/70 flex flex-col items-center gap-2 text-center"
 												>
 													<span class="icon-[lucide--clock] h-6 w-6"></span>
-													<span>Time remaining</span>
+													<span>{t('main.timeRemaining')}</span>
 
 													<div class="flex gap-2">
 														<div
@@ -1547,7 +1574,7 @@
 																	>{Math.floor(remainingTime / 60)}</span
 																>
 															</span>
-															min
+															{t('main.min')}
 														</div>
 														<div
 															class="bg-neutral rounded-box text-neutral-content flex flex-col p-2"
@@ -1559,7 +1586,7 @@
 																	aria-label={remainingTime % 60}>{remainingTime % 60}</span
 																>
 															</span>
-															sec
+															{t('main.sec')}
 														</div>
 													</div>
 												</div>
@@ -1572,10 +1599,10 @@
 									<button
 										class="btn btn-sm btn-outline btn-error"
 										onclick={disableOnlineEntries}
-										aria-label="Disable online entries"
+										aria-label={t('main.disableOnlineEntries')}
 									>
 										<span class="icon-[lucide--x] h-4 w-4"></span>
-										Disable Online Entries
+										{t('main.disableOnlineEntries')}
 									</button>
 								</div>
 							</div>
@@ -1599,57 +1626,61 @@
 								<div class="alert alert-soft light:!border-warning alert-warning mt-3">
 									<ul class="list-inside list-disc">
 										{#if !isOnTestnet}
-											<li>Please switch wallet to Testnet.</li>
+											<li>{t('main.pleaseSwitchWalletToTestnet')}</li>
 										{/if}
 										{#if invalidEntriesCount > 0}
 											<li>
-												Please fix <strong>{invalidEntriesCount}</strong> invalid entries (must be SUI
-												addresses).
+												{t('main.pleaseFixInvalidEntries', { count: invalidEntriesCount })}
 											</li>
 										{/if}
 										{#if uniqueValidEntriesCount < 2}
-											<li>At least <strong>2 unique</strong> entries are required.</li>
+											<li>{t('main.atLeastTwoUniqueEntriesRequired')}</li>
 										{/if}
 										{#if prizesCount === 0}
 											<li>
-												You need to add at least <strong>1 prize</strong>.
+												{t('main.youNeedToAddAtLeastOnePrize')}
 												<button
 													class="btn btn-link btn-sm ml-1 align-baseline"
 													onclick={() => (activeTab = 'prizes')}
-													aria-label="Go to Prizes tab"
+													aria-label={t('main.goToPrizesTab')}
 												>
-													Open Prizes
+													{t('main.openPrizes')}
 												</button>
 											</li>
 										{/if}
 										{#if prizesCount > uniqueValidEntriesCount}
 											<li>
-												Prizes count (<strong>{prizesCount}</strong>) must be ≤ unique entries (<strong
-													>{uniqueValidEntriesCount}</strong
-												>).
+												{t('main.prizesCountMustBeLessThanOrEqualUniqueEntries', {
+													prizesCount,
+													uniqueValidEntriesCount
+												})}
 											</li>
 										{/if}
 										{#if invalidPrizeAmountsCount > 0}
 											<li>
-												<strong>{invalidPrizeAmountsCount}</strong> prize(s) must be at least {MINIMUM_PRIZE_AMOUNT.SUI}
-												SUI.
+												{t('main.prizesMustBeAtLeast', {
+													count: invalidPrizeAmountsCount,
+													amount: MINIMUM_PRIZE_AMOUNT.SUI
+												})}
 											</li>
 										{/if}
 										{#if entries.length > MAX_ENTRIES}
 											<li>
-												Entries count (<strong>{entries.length}</strong>) must be ≤ {MAX_ENTRIES}.
+												{t('main.entriesCountMustBeLessThanOrEqual', {
+													count: entries.length,
+													max: MAX_ENTRIES
+												})}
 											</li>
 										{/if}
 										{#if hasInsufficientBalance}
 											{#if suiBalance.value < 1_000_000_000}
-												<li>Wallet balance needs to be more than 1 SUI.</li>
+												<li>{t('main.walletBalanceNeedsToBeMoreThanOneSui')}</li>
 											{:else}
 												<li>
-													Wallet balance (<strong
-														>{formatMistToSuiCompact(suiBalance.value)} SUI</strong
-													>) is less than total required (<strong
-														>{formatMistToSuiCompact(totalDonationMist)} SUI</strong
-													>).
+													{t('main.walletBalanceIsLessThanTotalRequired', {
+														balance: formatMistToSuiCompact(suiBalance.value),
+														required: formatMistToSuiCompact(totalDonationMist)
+													})}
 												</li>
 											{/if}
 										{/if}
@@ -1662,9 +1693,9 @@
 									<ButtonLoading
 										formLoading={setupLoading}
 										color="primary"
-										loadingText="Setting up..."
+										loadingText={t('main.settingUp')}
 										onclick={createWheelAndFund}
-										aria-label="Create wheel and fund"
+										aria-label={t('main.createWheelAndFund')}
 										size="lg"
 										disabled={invalidEntriesCount > 0 ||
 											uniqueValidEntriesCount < 2 ||
@@ -1676,20 +1707,20 @@
 											hasInsufficientBalance}
 									>
 										{#if totalDonationMist > 0n}
-											Create wheel and fund <span class="text-success text-bold font-mono"
+											{t('main.createWheelAndFund')}
+											<span class="text-success text-bold font-mono"
 												>{formatMistToSuiCompact(totalDonationMist)}</span
 											> SUI
 										{:else}
-											Create wheel
+											{t('main.createWheel')}
 										{/if}
 									</ButtonLoading>
 								</div>
 							{/if}
-						{:else}
+						{:else if isInitialized}
 							<div class="alert alert-info alert-soft light:!border-info mt-3">
 								<span class="icon-[lucide--info] h-5 w-5"></span>
-								Connect your Sui wallet to create and spin the wheel on-chain. You can still try spinning
-								off-chain without connecting your wallet.
+								{t('main.connectWalletToCreateAndSpin')}
 							</div>
 						{/if}
 					{/if}
@@ -1702,20 +1733,20 @@
 <!-- X Import Modal -->
 <dialog id="x_import_modal" class="modal modal-middle" bind:this={xImportDialogEl}>
 	<div class="modal-box">
-		<h3 class="text-lg font-bold">Import entries by X post</h3>
-		<p class="py-3 text-sm opacity-80">Paste an X link or tweet ID.</p>
+		<h3 class="text-lg font-bold">{t('main.importEntriesByXPost')}</h3>
+		<p class="py-3 text-sm opacity-80">{t('main.pasteXLinkOrTweetId')}</p>
 
 		<fieldset class="fieldset">
 			<input
 				type="text"
 				class="input w-full text-base"
 				autocomplete="off"
-				placeholder="https://x.com/username/status/1234567890"
+				placeholder={t('main.xPostLinkPlaceholder')}
 				bind:value={xImportInput}
 				bind:this={xImportInputEl}
-				aria-label="X post link or ID"
+				aria-label={t('main.xPostLinkOrId')}
 			/>
-			<p class="label">Note: we only take the first {MAX_ENTRIES} Sui addresses from replies.</p>
+			<p class="label">{t('main.noteOnlyFirstEntriesFromReplies', { max: MAX_ENTRIES })}</p>
 		</fieldset>
 
 		<div class="flex justify-end">
@@ -1725,24 +1756,24 @@
 				size="md"
 				color="primary"
 				formLoading={xImportLoading}
-				loadingText="Importing..."
+				loadingText={t('main.importing')}
 				onclick={handleXImportSubmit}
 			>
-				Import
+				{t('main.import')}
 			</ButtonLoading>
 		</div>
 	</div>
 
 	<form method="dialog" class="modal-backdrop">
-		<button>Close</button>
+		<button>{t('main.close')}</button>
 	</form>
 </dialog>
 
 <!-- Entry Form Modal -->
 <dialog id="entry_form_modal" class="modal modal-middle" bind:this={entryFormModalEl}>
 	<div class="modal-box">
-		<h3 class="text-lg font-bold">Online Entry Form Settings</h3>
-		<p class="py-3 text-sm opacity-80">Configure how participants can join your wheel online.</p>
+		<h3 class="text-lg font-bold">{t('main.onlineEntryFormSettings')}</h3>
+		<p class="py-3 text-sm opacity-80">{t('main.configureHowParticipantsCanJoin')}</p>
 
 		<div class="mb-3 space-y-4">
 			<div class="form-control">
@@ -1752,30 +1783,30 @@
 						class="checkbox checkbox-primary"
 						bind:checked={entryFormModalEnabled}
 					/>
-					<span class="label-text">Enable online entry form</span>
+					<span class="label-text">{t('main.enableOnlineEntryForm')}</span>
 				</label>
 				<p class="text-base-content/70 ml-8 text-xs">
-					Allow participants to join by scanning QR code
+					{t('main.allowParticipantsToJoinByScanningQrCode')}
 				</p>
 			</div>
 
 			{#if entryFormModalEnabled}
 				<fieldset class="fieldset">
-					<legend class="fieldset-legend">Wheel Name</legend>
+					<legend class="fieldset-legend">{t('main.wheelName')}</legend>
 					<input
 						type="text"
 						class="input w-full text-base"
-						placeholder="Enter wheel name (optional)"
+						placeholder={t('main.enterWheelNameOptional')}
 						bind:value={entryFormModalName}
 						autocomplete="off"
 					/>
 					<p class="label text-base-content/70 mt-1 text-xs">
-						This name will be displayed to participants
+						{t('main.thisNameWillBeDisplayedToParticipants')}
 					</p>
 				</fieldset>
 
 				<fieldset class="fieldset">
-					<legend class="fieldset-legend">Duration (minutes)</legend>
+					<legend class="fieldset-legend">{t('main.durationMinutes')}</legend>
 					<input
 						type="number"
 						class="input w-full text-base"
@@ -1786,11 +1817,11 @@
 						autocomplete="off"
 					/>
 					<p class="label text-base-content/70 mt-1 text-xs">
-						Entry form will automatically close after this time (1-60 minutes)
+						{t('main.entryFormWillAutomaticallyCloseAfterThisTime')}
 					</p>
 				</fieldset>
 				<fieldset class="fieldset">
-					<legend class="fieldset-legend">Entry Type</legend>
+					<legend class="fieldset-legend">{t('main.entryType')}</legend>
 					<div class="flex flex-col gap-2">
 						<label class="label cursor-pointer gap-2">
 							<input
@@ -1800,7 +1831,7 @@
 								value="address"
 								bind:group={entryFormModalType}
 							/>
-							<span class="label-text">Sui Wallet Address</span>
+							<span class="label-text">{t('main.suiWalletAddress')}</span>
 						</label>
 						<label class="label cursor-pointer gap-2">
 							<input
@@ -1810,7 +1841,7 @@
 								value="name"
 								bind:group={entryFormModalType}
 							/>
-							<span class="label-text">Name (Any text)</span>
+							<span class="label-text">{t('main.nameAnyText')}</span>
 						</label>
 						<label class="label cursor-pointer gap-2">
 							<input
@@ -1820,7 +1851,7 @@
 								value="email"
 								bind:group={entryFormModalType}
 							/>
-							<span class="label-text">Email Address</span>
+							<span class="label-text">{t('main.emailAddress')}</span>
 						</label>
 					</div>
 				</fieldset>
@@ -1839,7 +1870,7 @@
 					}
 				}}
 			>
-				Cancel
+				{t('main.cancel')}
 			</button>
 			<button
 				type="button"
@@ -1847,12 +1878,12 @@
 				onclick={handleEntryFormModalSubmit}
 				disabled={!entryFormModalEnabled}
 			>
-				OK
+				{t('main.ok')}
 			</button>
 		</div>
 	</div>
 
 	<form method="dialog" class="modal-backdrop">
-		<button>Close</button>
+		<button>{t('main.close')}</button>
 	</form>
 </dialog>

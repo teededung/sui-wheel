@@ -1,0 +1,537 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "navigation": {
+    "home": "Home",
+    "about": "About",
+    "wheelList": "Wheel List",
+    "faq": "FAQ"
+  },
+  "wheel": {
+    "title": "Sui Wheel",
+    "description": "Create fair, transparent, and exciting prize wheels on Sui blockchain",
+    "playNow": "Play Now",
+    "learnMore": "Learn More",
+    "connectWallet": "Connect Sui Wallet",
+    "createWheel": "Create Wheel",
+    "spinWheel": "Spin Wheel"
+  },
+  "wallet": {
+    "connectWallet": "Connect Wallet",
+    "connectSuiWallet": "Connect Sui Wallet",
+    "disconnected": "Disconnected",
+    "disconnectFailed": "Failed to disconnect",
+    "addressCopied": "Address copied",
+    "copyFailed": "Copy failed",
+    "switchWallet": "Switch Wallet",
+    "disconnect": "Disconnect",
+    "active": "Active",
+    "switch": "Switch",
+    "selectAccountToSwitch": "Select account to switch",
+    "connectedAccount": "Connected account",
+    "moreOptions": "More options"
+  },
+  "faq": {
+    "title": "FAQ — Sui Wheel",
+    "metaDescription": "Frequently asked questions about Sui Wheel - lucky wheel application on Sui blockchain with fair and transparent randomness.",
+    "ogTitle": "FAQ — Sui Wheel",
+    "ogDescription": "Frequently asked questions about Sui Wheel - lucky wheel application on Sui blockchain.",
+    "heroTitle": "Frequently Asked Questions",
+    "heroDescription": "Find answers to the most common questions about Sui Wheel",
+    "cta": {
+      "title": "Have more questions?",
+      "description": "If you can't find the answer to your question, please contact us for support.",
+      "getStarted": "Get Started",
+      "learnMore": "Learn More"
+    },
+    "categories": {
+      "overview": "Overview",
+      "blockchain": "Blockchain & SUI",
+      "features": "Features & Usage",
+      "frequentlyAsked": "Frequently Asked Questions"
+    },
+    "questions": {
+      "overview": [
+        {
+          "question": "What is Sui Wheel and how does it work?",
+          "answer": "Sui Wheel is a lucky wheel application on the Sui blockchain using smart contracts to ensure 100% fairness. Organizers create wheels, add participants (up to 200 people), set prizes and fund the reward pool. Results are determined by on-chain randomness, transparent and tamper-proof."
+        },
+        {
+          "question": "Why choose Sui Wheel?",
+          "answer": "Sui Wheel delivers 100% fairness with on-chain randomness, trustless security, fast speed with low fees, user-friendly interface and real-time tracking. Additionally, it supports advanced features like zkLogin, list import and flexible prize management."
+        }
+      ],
+      "blockchain": [
+        {
+          "question": "What do I need to know about the SUI blockchain?",
+          "answer": "Sui is a high-performance layer 1 blockchain designed for gaming and DeFi applications. Sui Wheel is built on Sui to ensure fast speed and low transaction fees. You need a Sui wallet (recommended Slush Wallet) to participate in on-chain wheels."
+        },
+        {
+          "question": "Do I need to pay gas fees?",
+          "answer": "Yes, on-chain transactions will consume a small amount of SUI for gas fees. However, Sui has very low fees compared to other blockchains. You only pay fees when participating in actual on-chain wheels, not for off-chain demos."
+        },
+        {
+          "question": "Is Sui Wheel safe?",
+          "answer": "Absolutely safe! Sui Wheel uses audited smart contracts and does not store user assets. All transactions are transparent and verifiable on the blockchain. Users always control their wallets and assets."
+        }
+      ],
+      "features": [
+        {
+          "question": "How to create a wheel?",
+          "answer": "<ol><li>Connect your Sui wallet</li><li>Add participant list (up to 200 people)</li><li>Set prizes and time</li><li>Fund the pool with sufficient tokens</li><li>Publish the wheel for everyone to participate</li></ol>"
+        },
+        {
+          "question": "How can I add participants?",
+          "answer": "<ul><li>Manually enter Sui wallet addresses</li><li>Import using online QR feature</li><li>Use X (Twitter) post import feature to automatically extract addresses from comments</li></ul>"
+        },
+        {
+          "question": "What types of prizes are supported?",
+          "answer": "Sui Wheel supports SUI tokens and other cryptocurrencies (coming next). You can customize the quantity and distribution of prizes flexibly according to your needs."
+        },
+        {
+          "question": "What is the difference between Off-chain and On-chain?",
+          "answer": "Off-chain mode is for quick demos and testing without fees. On-chain mode is for real wheels with actual prizes, everything is transparent and permanently recorded on the blockchain."
+        },
+        {
+          "question": "Does the Shuffle button work?",
+          "answer": "Yes! The Shuffle button actually works and can be verified on-chain. When you press Shuffle, the system generates a new random order for the participant list, and this process is recorded on the blockchain to ensure transparency and fairness."
+        }
+      ],
+      "frequentlyAsked": [
+        {
+          "question": "How to receive prizes?",
+          "answer": "If you win, a claim link will be generated each time the wheel ends. Access this link to claim your prize."
+        },
+        {
+          "question": "Is there a time limit for claiming prizes?",
+          "answer": "Yes, organizers can set a deadline for claiming prizes. After this deadline, unclaimed prizes will be returned to the pool for redistribution or refunded to the organizer's wallet."
+        },
+        {
+          "question": "Where can I track results?",
+          "answer": "All results are recorded on the blockchain and can be viewed directly on Sui Explorer. Additionally, Sui Wheel provides a real-time tracking interface so you can monitor wheels and winners."
+        },
+        {
+          "question": "Does it support Google login?",
+          "answer": "Yes! Sui Wheel supports zkLogin with Google. This is the easiest way to get started with Sui Wheel. Remember that you need Sui coins in your wallet to create wheels."
+        },
+        {
+          "question": "Can the wheel creator cancel the wheel?",
+          "answer": "Yes, the wheel creator can cancel the wheel provided you haven't executed the wheel yet. The reward pool will automatically refund to your wallet when cancelled."
+        },
+        {
+          "question": "What happens if I don't claim prizes before the deadline?",
+          "answer": "You cannot claim prizes after the claiming deadline has passed."
+        },
+        {
+          "question": "Can the creator recover the reward pool after the wheel ends?",
+          "answer": "Only when the prize claiming time has ended; if not yet due, cannot recover."
+        }
+      ]
+    }
+  },
+  "wheelList": {
+    "title": "Sui Wheel — Your wheels",
+    "metaDescription": "List of wheels you created on Sui Testnet.",
+    "ogTitle": "Sui Wheel — Your wheels",
+    "ogDescription": "List of wheels you created on Sui Testnet.",
+    "pageTitle": "Your Wheels",
+    "createNew": "Create new",
+    "loading": "Loading...",
+    "connectWallet": "Please connect your wallet to view your wheels.",
+    "noWheels": "No wheels found.",
+    "refreshing": "Refreshing",
+    "table": {
+      "number": "#",
+      "wheelId": "Wheel ID",
+      "created": "Created",
+      "status": "Status",
+      "totalEntries": "Total Entries",
+      "actions": "Actions"
+    },
+    "status": {
+      "cancelled": "Cancelled",
+      "running": "Running",
+      "finished": "Finished",
+      "unknown": "—"
+    },
+    "actions": {
+      "open": "Open",
+      "results": "Results"
+    }
+  },
+  "wheelResult": {
+    "title": "Sui Wheel — Results",
+    "metaDescription": "View winners and claim prizes for a Sui Wheel on Testnet.",
+    "ogTitle": "Sui Wheel — Results",
+    "ogDescription": "View winners and claim prizes for a Sui Wheel on Testnet.",
+    "pageTitle": "Wheel Results",
+    "testnetWarning": "This app runs on Sui Testnet. Please switch your wallet network to Testnet.",
+    "lastReclaim": "Last reclaim:",
+    "on": "on",
+    "viewTx": "View tx",
+    "winners": "Winners",
+    "table": {
+      "number": "#",
+      "amount": "Amount",
+      "winner": "Winner",
+      "spunAt": "Spun at"
+    },
+    "nonWinningEntries": "Non-winning entries",
+    "tableNonWinning": {
+      "number": "#",
+      "address": "Address"
+    },
+    "you": "You",
+    "wheelCancelled": "This wheel has been cancelled!",
+    "connectWallet": "Connect your wallet to view your prize and claim it! 🔑",
+    "yourPrize": "Your prize",
+    "congratulations": "Congratulations on your win!",
+    "claimedAt": "Claimed at",
+    "congratulationsClaim": "Congratulation! You can claim your prize now.",
+    "claimExpired": "Claim window expired. You can't claim your prize anymore.",
+    "wheelRunning": "The wheel is still running. Please come back later.",
+    "notWinner": "You are not a winner for this wheel.",
+    "claiming": "Claiming...",
+    "claim": "Claim",
+    "startsIn": "Starts in",
+    "claimExpiredOn": "Claim window expired on",
+    "wheelId": "Wheel ID:",
+    "suivision": "Suivision",
+    "status": "Status:",
+    "remainingPoolBalance": "Remaining pool balance:",
+    "reclaiming": "Reclaiming...",
+    "reclaim": "Reclaim",
+    "created": "Created:",
+    "errors": {
+      "connectWalletToClaim": "Connect wallet to claim",
+      "onlyOrganizerCanReclaim": "Only organizer can reclaim the pool",
+      "poolCannotBeReclaimedYet": "Pool cannot be reclaimed yet",
+      "connectWalletToReclaim": "Connect wallet to reclaim",
+      "reclaimWindowNotYetOpen": "Reclaim window not yet open. Please wait.",
+      "noRemainingFunds": "No remaining funds in pool to reclaim."
+    },
+    "success": {
+      "reclaimedPoolSuccessfully": "Reclaimed pool successfully",
+      "openOnSuivision": "Open on Suivision"
+    }
+  },
+  "main": {
+    "title": "Sui Wheel — Spin & Win",
+    "metaDescription": "Sui Wheel — create and fund a spin wheel on Sui Testnet, manage entries and prizes.",
+    "ogTitle": "Sui Wheel — Spin & Win",
+    "ogDescription": "Sui Wheel — create and fund a spin wheel on Sui Testnet, manage entries and prizes.",
+    "wheelId": "Wheel ID:",
+    "finished": "Finished",
+    "cancelled": "Cancelled",
+    "newWheel": "New wheel",
+    "updating": "Updating...",
+    "updateWheel": "Update wheel",
+    "cancelEdit": "Cancel edit",
+    "cancelling": "Cancelling...",
+    "cancelWheel": "Cancel wheel",
+    "entries": "Entries",
+    "text": "Text",
+    "table": "Table",
+    "sync": "Sync",
+    "import": "Import",
+    "onlineEntryForm": "Online Entry Form",
+    "importByXPost": "Import by X post",
+    "prizes": "Prizes",
+    "prizeNumber": "Prize #{number}",
+    "amount": "Amount",
+    "winner": "Winner",
+    "addPrize": "Add prize",
+    "need": "Need:",
+    "topUpRequired": "Top-up required:",
+    "settings": "Settings",
+    "claimDelay": "Claim Delay",
+    "claimPeriod": "Claim Period",
+    "waitTimeBeforeClaimingPrize": "Wait time before claiming prize",
+    "deadlineToClaimPrize": "Deadline to claim prize",
+    "claimLink": "Claim link",
+    "scanWithYourPhone": "Scan with your phone",
+    "onlineEntryFormScanToJoin": "Online Entry Form. Scan to join the wheel.",
+    "timeRemaining": "Time remaining",
+    "min": "min",
+    "sec": "sec",
+    "disableOnlineEntries": "Disable Online Entries",
+    "createWheelAndFund": "Create wheel and fund",
+    "createWheel": "Create wheel",
+    "connectWalletToCreateAndSpin": "Connect your Sui wallet to create and spin the wheel on-chain. You can still try spinning off-chain without connecting your wallet.",
+    "importEntriesByXPost": "Import entries by X post",
+    "pasteXLinkOrTweetId": "Paste an X link or tweet ID.",
+    "noteOnlyFirstEntriesFromReplies": "Note: we only take the first {max} Sui addresses from replies.",
+    "importing": "Importing...",
+    "importButton": "Import",
+    "close": "Close",
+    "onlineEntryFormSettings": "Online Entry Form Settings",
+    "configureHowParticipantsCanJoin": "Configure how participants can join your wheel online.",
+    "enableOnlineEntryForm": "Enable online entry form",
+    "allowParticipantsToJoinByScanningQrCode": "Allow participants to join by scanning QR code",
+    "wheelName": "Wheel Name",
+    "enterWheelNameOptional": "Enter wheel name (optional)",
+    "thisNameWillBeDisplayedToParticipants": "This name will be displayed to participants",
+    "durationMinutes": "Duration (minutes)",
+    "entryFormWillAutomaticallyCloseAfterThisTime": "Entry form will automatically close after this time (1-60 minutes)",
+    "entryType": "Entry Type",
+    "suiWalletAddress": "Sui Wallet Address",
+    "nameAnyText": "Name (Any text)",
+    "emailAddress": "Email Address",
+    "cancel": "Cancel",
+    "ok": "OK",
+    "duplicateEntries": "Duplicate Entries:",
+    "noEntries": "No entries",
+    "removeEntry": "Remove entry",
+    "collapseTable": "Collapse table",
+    "expandTable": "Expand table",
+    "showAll": "Show all ({count})",
+    "oneEntryPerLine": "One entry per line",
+    "entriesListReadOnly": "Entries list (read-only)",
+    "prizeAmountInSui": "Prize #{number} amount in SUI",
+    "removePrize": "Remove prize",
+    "delay": "Delay",
+    "claimWindow": "Claim window",
+    "prizesSui": "Prizes (SUI)",
+    "prize": "Prize",
+    "amountExample": "Amount (e.g. 0.5)",
+    "zeroMinuteDefault": "0 minute (default)",
+    "fifteenMinutes": "15 minutes",
+    "thirtyMinutes": "30 minutes",
+    "oneHour": "1 hour",
+    "twoHours": "2 hours",
+    "twentyFourHoursDefault": "24 hours (default)",
+    "twoDays": "2 days",
+    "threeDays": "3 days",
+    "oneWeek": "1 week",
+    "resultQr": "Result QR",
+    "entryFormQr": "Entry Form QR",
+    "syncOnlineEntries": "Sync online entries",
+    "importEntries": "Import entries",
+    "setupOnlineEntryForm": "Setup online entry form",
+    "textareaView": "Textarea view",
+    "tableView": "Table view",
+    "xPostLinkPlaceholder": "https://x.com/username/status/1234567890",
+    "xPostLinkOrId": "X post link or ID",
+    "delayOptions": {
+      "0min": "0 minute (default)",
+      "15min": "15 minutes",
+      "30min": "30 minutes",
+      "1hour": "1 hour",
+      "2hours": "2 hours"
+    },
+    "claimWindowOptions": {
+      "1hour": "1 hour",
+      "24hours": "24 hours (default)",
+      "2days": "2 days",
+      "3days": "3 days",
+      "1week": "1 week"
+    },
+    "errors": {
+      "walletNotConnected": "Wallet is not connected.",
+      "walletMustBeOnTestnet": "Wallet must be on Testnet.",
+      "packageIdRequired": "Package ID is required.",
+      "atLeast2Addresses": "At least 2 valid addresses are required.",
+      "entriesCountLimit": "Entries count must be ≤ {maxEntries}.",
+      "addAtLeast1Prize": "Please add at least 1 prize with amount > 0.",
+      "entriesMustBeGreaterThanPrizes": "Number of entries must be >= number of prizes.",
+      "uniqueAddressCountMustBeGreaterThanPrizes": "Unique address count must be >= number of prizes.",
+      "eachPrizeMustBeAtLeast": "Each prize must be at least {minAmount} SUI.",
+      "totalDonationMustBeGreaterThan0": "Total donation must be greater than 0",
+      "wheelObjectIdNotFound": "Wheel object id not found after creation",
+      "failedToGetTransactionDigest": "Failed to get transaction digest",
+      "failedToCancelWheel": "Failed to cancel wheel."
+    },
+    "success": {
+      "wheelCreatedAndFunded": "Successfully created and funded. We can spin it now.",
+      "wheelCreatedAndFundedSuccessfully": "Wheel created and funded successfully",
+      "viewTx": "View Tx",
+      "wheelUpdatedSuccessfully": "Wheel updated successfully.",
+      "wheelCancelledAndPoolReclaimed": "Wheel cancelled and pool reclaimed if any.",
+      "wheelCancelledSuccessfully": "Wheel cancelled successfully.",
+      "onlineEntriesDisabled": "Online entries disabled",
+      "importedEntriesFromXPost": "Imported {count} entrie(s) from X post successfully!",
+      "imported": "Imported"
+    },
+    "warnings": {
+      "switchWalletToTestnet": "Please switch wallet to Testnet.",
+      "fixInvalidEntries": "Please fix {count} invalid entries (must be SUI addresses).",
+      "atLeast2UniqueEntries": "At least 2 unique entries are required.",
+      "addAtLeast1Prize": "You need to add at least 1 prize.",
+      "openPrizes": "Open Prizes",
+      "prizesCountMustBeLessThanEntries": "Prizes count ({prizesCount}) must be ≤ unique entries ({entriesCount}).",
+      "prizesMustBeAtLeast": "{count} prize(s) must be at least {minAmount} SUI.",
+      "entriesCountMustBeLessThanMax": "Entries count ({count}) must be ≤ {maxEntries}.",
+      "walletBalanceNeedsMoreThan1Sui": "Wallet balance needs to be more than 1 SUI.",
+      "walletBalanceLessThanRequired": "Wallet balance ({balance} SUI) is less than total required ({required} SUI)."
+    },
+    "pleaseSwitchWalletToTestnet": "Please switch wallet to Testnet.",
+    "pleaseFixInvalidEntries": "Please fix {count} invalid entries (must be SUI addresses).",
+    "atLeastTwoUniqueEntriesRequired": "At least 2 unique entries are required.",
+    "youNeedToAddAtLeastOnePrize": "You need to add at least 1 prize.",
+    "goToPrizesTab": "Go to Prizes tab",
+    "openPrizes": "Open Prizes",
+    "prizesCountMustBeLessThanOrEqualUniqueEntries": "Prizes count ({prizesCount}) must be ≤ unique entries ({uniqueValidEntriesCount}).",
+    "prizesMustBeAtLeast": "{count} prize(s) must be at least {amount} SUI.",
+    "entriesCountMustBeLessThanOrEqual": "Entries count ({count}) must be ≤ {max}.",
+    "walletBalanceNeedsToBeMoreThanOneSui": "Wallet balance needs to be more than 1 SUI.",
+    "walletBalanceIsLessThanTotalRequired": "Wallet balance ({balance} SUI) is less than total required ({required} SUI).",
+    "settingUp": "Setting up...",
+    "createWheelAndFund": "Create wheel and fund",
+    "notifications": {
+      "newEntriesAdded": "{count} new entr{plural} added",
+      "noEntriesFoundInXPost": "No entries found in X post",
+      "failedToImportXPost": "Failed to import X post"
+    }
+  },
+  "entryForm": {
+    "title": "Join Wheel - Sui Wheel",
+    "metaDescription": "Join the Sui Wheel by submitting your entry",
+    "loadingWheelInformation": "Loading wheel information...",
+    "entrySubmitted": "Entry Submitted!",
+    "pleaseWaitForTableToUpdate": "Please wait for the table to update automatically. You can close this window.",
+    "yourEntryHasBeenRecordedSuccessfully": "Your entry has been recorded successfully!",
+    "joinTheWheel": "Join the Wheel!",
+    "enterYourSuiWalletAddressToJoin": "Enter your Sui wallet address to join",
+    "enterYourEmailAddressToJoin": "Enter your email address to join",
+    "enterYourNameToJoin": "Enter your name to join",
+    "submitting": "Submitting...",
+    "joinWheel": "Join Wheel",
+    "wheel": "Wheel",
+    "temporary": "Temporary",
+    "placeholder": {
+      "walletAddress": "0x...",
+      "emailAddress": "your@email.com",
+      "name": "Enter your name"
+    },
+    "label": {
+      "walletAddress": "Wallet Address",
+      "emailAddress": "Email Address",
+      "name": "Name"
+    },
+    "errors": {
+      "invalidWheelLink": "Invalid wheel link",
+      "pleaseEnterValidSuiAddress": "Please enter a valid Sui address",
+      "nameMustBe1To50Characters": "Name must be 1-50 characters",
+      "pleaseEnterValidEmailAddress": "Please enter a valid email address",
+      "failedToSubmitEntry": "Failed to submit entry",
+      "networkErrorPleaseTryAgain": "Network error. Please try again."
+    },
+    "success": {
+      "entrySubmittedSuccessfully": "Entry submitted successfully!"
+    }
+  },
+  "wheel": {
+    "soundOn": "Sound: on",
+    "soundOff": "Sound: off",
+    "toggleSound": "Toggle sound",
+    "confirming": "Confirming...",
+    "spinning": "Spinning...",
+    "spinTheWheel": "Spin the wheel",
+    "spin": "Spin",
+    "winner": "Winner",
+    "remainingSpins": "Remaining spins",
+    "shuffleEntries": "Shuffle entries",
+    "shuffle": "Shuffle",
+    "clear": "Clear",
+    "congratulations": "Congratulations",
+    "alsoAssigned": "Also assigned",
+    "winnerWillBeAutomaticallyRemoved": "The winner will be automatically removed from the list.",
+    "close": "Close"
+  },
+  "about": {
+    "title": "About — Sui Wheel",
+    "metaDescription": "About Sui Wheel — create and manage on-chain prize wheels on Sui Testnet.",
+    "ogTitle": "About — Sui Wheel",
+    "ogDescription": "About Sui Wheel — fair lucky wheels with on-chain randomness and verifiable results.",
+    "heroTitle": "Sui Wheel",
+    "heroDescription": "Create fair, transparent, and exciting prize wheels on Sui blockchain. Spin to win with on-chain randomness and verifiable results.",
+    "stats": {
+      "onChain": "On-Chain",
+      "onChainDesc": "Transparent & Verifiable",
+      "maxEntries": "Max Entries",
+      "maxEntriesDesc": "Participants per wheel",
+      "network": "Network",
+      "networkDesc": "Blockchain Gaming"
+    },
+    "whyChoose": {
+      "title": "Why Choose Sui Wheel?",
+      "description": "Experience the future of fair gaming with blockchain-powered randomness and transparent results."
+    },
+    "features": {
+      "onChainRandomness": {
+        "title": "On-Chain Randomness",
+        "description": "Every spin uses verifiable on-chain randomness, ensuring fair and transparent results that can't be manipulated."
+      },
+      "secureTrustless": {
+        "title": "Secure & Trustless",
+        "description": "No central authority controls the outcomes. Smart contracts handle everything automatically and transparently."
+      },
+      "fastEfficient": {
+        "title": "Fast & Efficient",
+        "description": "Built on Sui's high-performance blockchain for instant transactions and low fees."
+      },
+      "easyToUse": {
+        "title": "Easy to Use",
+        "description": "Simple interface for organizers and participants. Connect wallet, configure, and spin!"
+      },
+      "realTimeTracking": {
+        "title": "Real-time Tracking",
+        "description": "Monitor spins, winners, and claims in real-time with detailed analytics and history."
+      },
+      "flexiblePrizes": {
+        "title": "Flexible Prizes",
+        "description": "Support for SUI tokens and other cryptocurrencies. Customizable prize amounts and distribution."
+      }
+    },
+    "wheelEntries": [
+      "Don't trust, verify it!",
+      "Keep it fair",
+      "Built on Sui",
+      "🎁 Real prizes",
+      "Fast & efficient",
+      "Flexible prizes"
+    ],
+    "moreFeatures": {
+      "title": "More Features",
+      "description": "Powerful tools for organizers and participants",
+      "dualModeGaming": {
+        "title": "Dual Mode Gaming",
+        "description": "Play both off-chain for quick demos and on-chain for real prizes with full transparency."
+      },
+      "zkLoginGoogle": {
+        "title": "zkLogin Google",
+        "description": "Sign in with Google account using zkLogin technology for seamless onboarding."
+      },
+      "onlineImport": {
+        "title": "Online Import",
+        "description": "Import participant lists online - perfect for workshops and offline events."
+      },
+      "xPostImport": {
+        "title": "X Post Import",
+        "description": "Paste X post link and automatically extract Sui addresses from comments."
+      },
+      "verifiableShuffle": {
+        "title": "Verifiable Shuffle",
+        "description": "True on-chain shuffle with cryptographic proof that can be independently verified."
+      },
+      "deadlineClaims": {
+        "title": "Deadline Claims",
+        "description": "Set claim deadlines for prizes with automatic fund recovery after expiration."
+      }
+    },
+    "cta": {
+      "title": "Ready to Spin?",
+      "description": "Join the future of fair gaming. Create your first prize wheel and experience transparent, verifiable randomness.",
+      "playNow": "Play Now",
+      "faq": "FAQ"
+    }
+  }
+}

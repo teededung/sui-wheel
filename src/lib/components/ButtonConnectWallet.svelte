@@ -16,13 +16,17 @@
 	} from 'sui-svelte-wallet-kit';
 	import { toast } from 'svelte-daisy-toaster';
 	import { shortenAddress } from '$lib/utils/string';
+	import { useTranslation } from '$lib/hooks/useTranslation.js';
+
+	// Translation hook
+	const t = useTranslation();
 
 	// rune-style props
 	let { showSwitcher = true, showBalance = true } = $props();
 
 	// mount guard to avoid SSR/hydration mismatch
-	let hydrated = $state(false);
-	onMount(() => (hydrated = true));
+	let isInitialized = $state(false);
+	onMount(() => (isInitialized = true));
 
 	// ensure UI reacts to account changes reliably
 	let accAddr = $state(null);
@@ -68,8 +72,10 @@
 	function copy(addr) {
 		navigator.clipboard
 			.writeText(addr)
-			.then(() => toast.success('Address copied', { position: 'bottom-right', durationMs: 1500 }))
-			.catch(() => toast.error('Copy failed', { position: 'bottom-right' }));
+			.then(() =>
+				toast.success(t('wallet.addressCopied'), { position: 'bottom-right', durationMs: 1500 })
+			)
+			.catch(() => toast.error(t('wallet.copyFailed'), { position: 'bottom-right' }));
 	}
 
 	function openSV(addr) {
@@ -89,16 +95,16 @@
 	async function handleDisconnect() {
 		try {
 			await disconnect();
-			toast.success('Disconnected', { position: 'bottom-right' });
+			toast.success(t('wallet.disconnected'), { position: 'bottom-right' });
 		} catch (e) {
 			console.error('Disconnect failed', e);
-			toast.error('Failed to disconnect', { position: 'bottom-right' });
+			toast.error(t('wallet.disconnectFailed'), { position: 'bottom-right' });
 		}
 	}
 </script>
 
 <div class="flex items-center gap-2">
-	{#if hydrated && accAddr && showBalance}
+	{#if isInitialized && accAddr && showBalance}
 		<div
 			class="badge badge-soft badge-primary px-2 font-mono text-xs leading-none whitespace-nowrap"
 			title={`${Number(bal ?? 0).toFixed(6)} SUI`}
@@ -115,7 +121,7 @@
 		</div>
 	{/if}
 
-	{#if hydrated && accAddr}
+	{#if isInitialized && accAddr}
 		<!-- connected -->
 		{#if showSwitcher && (walletLabel || walletIcon)}
 			<!-- full dropdown / switcher as before -->
@@ -139,7 +145,7 @@
 					tabindex="-1"
 					class="dropdown-content menu bg-base-100 rounded-box border-base-300 relative z-50 w-80 border p-0 shadow-xl"
 				>
-					{#if hydrated && accAddr}
+					{#if isInitialized && accAddr}
 						<div class="absolute top-2 right-2">
 							<div
 								class="tooltip badge badge-sm badge-soft badge-primary px-2 font-mono leading-none whitespace-nowrap"
@@ -164,7 +170,9 @@
 						<div>
 							<h3 class="text-sm font-semibold">{walletLabel || 'Wallet'}</h3>
 							<p class="text-xs opacity-60">
-								{accounts.length > 1 ? 'Select account to switch' : 'Connected account'}
+								{accounts.length > 1
+									? t('wallet.selectAccountToSwitch')
+									: t('wallet.connectedAccount')}
 							</p>
 						</div>
 					</div>
@@ -182,7 +190,7 @@
 										<div class="flex items-center gap-2">
 											<span class="text-sm font-medium">{display(acc)}</span>
 											{#if acc.address === account.address}
-												<div class="badge badge-primary badge-xs">Active</div>
+												<div class="badge badge-primary badge-xs">{t('wallet.active')}</div>
 											{/if}
 										</div>
 										{#if display(acc).includes('.sui')}
@@ -218,7 +226,7 @@
 													switchAccount(acc.address);
 												}}
 											>
-												Switch
+												{t('wallet.switch')}
 											</button>
 										{/if}
 									</div>
@@ -230,13 +238,15 @@
 					<!-- footer -->
 					<div class="border-base-300 space-y-2 border-t px-4 py-3">
 						<button class="btn btn-ghost btn-sm w-full justify-start" onclick={handleSwitchWallet}>
-							<span class="icon-[lucide--refresh-cw] h-4 w-4"></span> Switch Wallet
+							<span class="icon-[lucide--refresh-cw] h-4 w-4"></span>
+							{t('wallet.switchWallet')}
 						</button>
 						<button
 							class="btn btn-ghost btn-sm text-error hover:bg-error/10 w-full justify-start"
 							onclick={handleDisconnect}
 						>
-							<span class="icon-[lucide--unlink] h-4 w-4"></span> Disconnect
+							<span class="icon-[lucide--unlink] h-4 w-4"></span>
+							{t('wallet.disconnect')}
 						</button>
 					</div>
 				</div>
@@ -262,7 +272,7 @@
 					<button
 						tabindex="0"
 						class="btn btn-ghost btn-xs ml-1"
-						aria-label="More options"
+						aria-label={t('wallet.moreOptions')}
 						data-toggle="dropdown"
 					>
 						<span class="icon-[lucide--ellipsis] h-4 w-4"></span>
@@ -270,12 +280,14 @@
 					<ul tabindex="-1" class="dropdown-content menu bg-base-100 rounded-box w-44 p-2 shadow">
 						<li>
 							<button onclick={handleSwitchWallet}>
-								<span class="icon-[lucide--refresh-cw] mr-1"></span> Switch Wallet
+								<span class="icon-[lucide--refresh-cw] mr-1"></span>
+								{t('wallet.switchWallet')}
 							</button>
 						</li>
 						<li>
 							<button onclick={handleDisconnect}>
-								<span class="icon-[lucide--unlink] mr-1"></span> Disconnect
+								<span class="icon-[lucide--unlink] mr-1"></span>
+								{t('wallet.disconnect')}
 							</button>
 						</li>
 					</ul>
@@ -286,7 +298,7 @@
 		<!-- not connected -->
 		<button class="btn btn-soft btn-sm hover:bg-primary" onclick={connectWithModal}>
 			<span class="icon-[lucide--wallet] h-4 w-4"></span>
-			Connect Wallet
+			{t('wallet.connectSuiWallet')}
 		</button>
 	{/if}
 </div>
