@@ -2,8 +2,8 @@
 	let isDark = $state(false);
 	let isInitialized = $state(false);
 
-	/** @type {{clazz?: string}} */
-	let { clazz = '' } = $props();
+	/** @type {{className?: string}} */
+	let { className = '' } = $props();
 
 	$effect(() => {
 		// Đọc theme từ document thay vì localStorage để đồng bộ với themes.js
@@ -21,7 +21,7 @@
 </script>
 
 {#if isInitialized}
-	<label class={`swap swap-rotate ${clazz}`}>
+	<label class={`swap swap-rotate ${className}`}>
 		<input
 			type="checkbox"
 			class="theme-controller"
