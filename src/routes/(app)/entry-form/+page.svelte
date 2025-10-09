@@ -5,6 +5,9 @@
 	import { toast } from 'svelte-daisy-toaster';
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
 	import { isValidSuiAddress } from '$lib/utils/suiHelpers.js';
+	import { useTranslation } from '$lib/hooks/useTranslation.js';
+
+	const t = useTranslation();
 
 	// Get wheelId from URL params (can be wheelTempId or createdWheelId)
 	let wheelId = $state('');
@@ -22,7 +25,7 @@
 		wheelName = urlParams.get('name') || '';
 
 		if (!wheelId) {
-			toast.error('Invalid wheel link', { position: 'top-center' });
+			toast.error(t('entryForm.errors.invalidWheelLink'), { position: 'top-center' });
 			goto('/');
 			return;
 		}
@@ -38,19 +41,19 @@
 
 		// Validate entry based on type
 		if (entryType === 'address' && !isValidSuiAddress(entry)) {
-			toast.error('Please enter a valid Sui address', { position: 'top-center' });
+			toast.error(t('entryForm.errors.pleaseEnterValidSuiAddress'), { position: 'top-center' });
 			return;
 		}
 
 		if (entryType === 'name' && (entry.length < 1 || entry.length > 50)) {
-			toast.error('Name must be 1-50 characters', { position: 'top-center' });
+			toast.error(t('entryForm.errors.nameMustBe1To50Characters'), { position: 'top-center' });
 			return;
 		}
 
 		if (entryType === 'email') {
 			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 			if (!emailRegex.test(entry)) {
-				toast.error('Please enter a valid email address', { position: 'top-center' });
+				toast.error(t('entryForm.errors.pleaseEnterValidEmailAddress'), { position: 'top-center' });
 				return;
 			}
 		}
@@ -80,7 +83,7 @@
 			});
 
 			if (data.success) {
-				toast.success('Entry submitted successfully!', {
+				toast.success(t('entryForm.success.entrySubmittedSuccessfully'), {
 					position: 'top-center',
 					durationMs: 3000
 				});
@@ -89,11 +92,13 @@
 
 				// Don't redirect, let user close the window manually
 			} else {
-				toast.error(data.message || 'Failed to submit entry', { position: 'top-center' });
+				toast.error(data.message || t('entryForm.errors.failedToSubmitEntry'), {
+					position: 'top-center'
+				});
 			}
 		} catch (error) {
 			console.error('Submit error:', error);
-			toast.error('Network error. Please try again.', { position: 'top-center' });
+			toast.error(t('entryForm.errors.networkErrorPleaseTryAgain'), { position: 'top-center' });
 		} finally {
 			submitting = false;
 		}
@@ -108,8 +113,8 @@
 </script>
 
 <svelte:head>
-	<title>Join Wheel - Sui Wheel</title>
-	<meta name="description" content="Join the Sui Wheel by submitting your entry" />
+	<title>{t('entryForm.title')}</title>
+	<meta name="description" content={t('entryForm.metaDescription')} />
 </svelte:head>
 
 <div class="mt-10 flex items-center justify-center p-4">
@@ -118,31 +123,31 @@
 			{#if loading}
 				<div class="flex flex-col items-center space-y-4">
 					<div class="loading loading-spinner loading-lg text-primary"></div>
-					<p class="text-base-content/70">Loading wheel information...</p>
+					<p class="text-base-content/70">{t('entryForm.loadingWheelInformation')}</p>
 				</div>
 			{:else if submitted}
 				<div class="text-center">
 					<div class="mb-6">
-						<h1 class="text-primary mb-2 text-2xl font-bold">Entry Submitted!</h1>
+						<h1 class="text-primary mb-2 text-2xl font-bold">{t('entryForm.entrySubmitted')}</h1>
 						<p class="text-base-content/70 text-sm">
-							Please wait for the table to update automatically. You can close this window.
+							{t('entryForm.pleaseWaitForTableToUpdate')}
 						</p>
 					</div>
 					<div class="alert alert-success">
 						<span class="icon-[lucide--check-circle] h-5 w-5"></span>
-						<span>Your entry has been recorded successfully!</span>
+						<span>{t('entryForm.yourEntryHasBeenRecordedSuccessfully')}</span>
 					</div>
 				</div>
 			{:else}
 				<div class="mb-6 text-center">
-					<h1 class="text-primary mb-2 text-2xl font-bold">Join the Wheel!</h1>
+					<h1 class="text-primary mb-2 text-2xl font-bold">{t('entryForm.joinTheWheel')}</h1>
 					<p class="text-base-content/70 text-sm">
 						{#if entryType === 'address'}
-							Enter your Sui wallet address to join
+							{t('entryForm.enterYourSuiWalletAddressToJoin')}
 						{:else if entryType === 'email'}
-							Enter your email address to join
+							{t('entryForm.enterYourEmailAddressToJoin')}
 						{:else}
-							Enter your name to join
+							{t('entryForm.enterYourNameToJoin')}
 						{/if}
 					</p>
 				</div>
@@ -159,10 +164,10 @@
 							type={entryType === 'email' ? 'email' : 'text'}
 							class="input join-item w-full text-base"
 							placeholder={entryType === 'address'
-								? '0x...'
+								? t('entryForm.placeholder.walletAddress')
 								: entryType === 'email'
-									? 'your@email.com'
-									: 'Enter your name'}
+									? t('entryForm.placeholder.emailAddress')
+									: t('entryForm.placeholder.name')}
 							bind:value={entry}
 							onkeydown={handleKeydown}
 							disabled={submitting}
@@ -171,11 +176,11 @@
 						/>
 						<span>
 							{#if entryType === 'address'}
-								Wallet Address
+								{t('entryForm.label.walletAddress')}
 							{:else if entryType === 'email'}
-								Email Address
+								{t('entryForm.label.emailAddress')}
 							{:else}
-								Name
+								{t('entryForm.label.name')}
 							{/if}
 						</span>
 					</label>
@@ -184,17 +189,18 @@
 						formLoading={submitting}
 						color="primary"
 						size="lg"
-						loadingText="Submitting..."
+						loadingText={t('entryForm.submitting')}
 						onclick={handleSubmit}
 						disabled={!entry.trim()}
 						className="join-item"
 					>
-						Join Wheel
+						{t('entryForm.joinWheel')}
 					</ButtonLoading>
 				</form>
 
 				<div class="divider text-base-content/50 text-xs">
-					Wheel: {wheelName || (wheelId.startsWith('temp_') ? 'Temporary' : wheelId.slice(0, 8))}
+					{t('entryForm.wheel')}: {wheelName ||
+						(wheelId.startsWith('temp_') ? t('entryForm.temporary') : wheelId.slice(0, 8))}
 				</div>
 			{/if}
 		</div>

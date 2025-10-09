@@ -2,12 +2,13 @@
 	import Footer from '$lib/components/Footer.svelte';
 	import WheelImage from '$lib/components/WheelImage.svelte';
 	import { onMount } from 'svelte';
-	import { getLanguageContext } from '$lib/context/language.js';
+	import { useTranslation } from '$lib/hooks/useTranslation.js';
 
-	// Language state
+	// Translation hook
+	const t = useTranslation();
+
+	// Initialization state
 	let isInitialized = $state(false);
-	const { language } = getLanguageContext();
-	let currentLanguage = $derived(language.code);
 
 	onMount(() => {
 		isInitialized = true;
@@ -15,23 +16,10 @@
 </script>
 
 <svelte:head>
-	<title>{currentLanguage === 'vi' ? 'Giới thiệu — Sui Wheel' : 'About — Sui Wheel'}</title>
-	<meta
-		name="description"
-		content={currentLanguage === 'vi'
-			? 'Giới thiệu Sui Wheel — tạo và quản lý vòng quay giải thưởng on-chain trên Sui Testnet.'
-			: 'About Sui Wheel — create and manage on-chain prize wheels on Sui Testnet.'}
-	/>
-	<meta
-		property="og:title"
-		content={currentLanguage === 'vi' ? 'Giới thiệu — Sui Wheel' : 'About — Sui Wheel'}
-	/>
-	<meta
-		property="og:description"
-		content={currentLanguage === 'vi'
-			? 'Giới thiệu Sui Wheel — ứng dụng vòng quay công bằng với tính ngẫu nhiên on-chain và kết quả có thể kiểm chứng.'
-			: 'About Sui Wheel — fair lucky wheels with on-chain randomness and verifiable results.'}
-	/>
+	<title>{t('about.title')}</title>
+	<meta name="description" content={t('about.metaDescription')} />
+	<meta property="og:title" content={t('about.ogTitle')} />
+	<meta property="og:description" content={t('about.ogDescription')} />
 </svelte:head>
 
 {#if isInitialized}
@@ -49,26 +37,24 @@
 				<!-- Main Title -->
 				<h1 class="text-primary mb-6 text-5xl font-bold">
 					<span class="from-primary to-secondary bg-gradient-to-r bg-clip-text text-transparent">
-						Sui Wheel
+						{t('about.heroTitle')}
 					</span>
 				</h1>
 
 				<!-- Subtitle -->
 				<p class="text-base-content/80 mx-auto mb-8 max-w-2xl text-xl">
-					{currentLanguage === 'vi'
-						? 'Tạo các vòng quay giải thưởng công bằng, minh bạch và hấp dẫn trên blockchain Sui. Quay để trúng thưởng với tính ngẫu nhiên on-chain và kết quả có thể kiểm chứng.'
-						: 'Create fair, transparent, and exciting prize wheels on Sui blockchain. Spin to win with on-chain randomness and verifiable results.'}
+					{t('about.heroDescription')}
 				</p>
 
 				<!-- CTA Buttons -->
 				<div class="mb-12 flex flex-col items-center justify-center gap-4 sm:flex-row">
 					<a href="/" class="btn btn-primary btn-lg px-8">
 						<span class="icon-[lucide--gamepad-2] h-6 w-6"></span>
-						{currentLanguage === 'vi' ? 'Chơi ngay' : 'Play Now'}
+						{t('wheel.playNow')}
 					</a>
 					<a href="#features" class="btn btn-outline btn-lg px-8">
 						<span class="icon-[lucide--info] h-6 w-6"></span>
-						{currentLanguage === 'vi' ? 'Tìm hiểu thêm' : 'Learn More'}
+						{t('wheel.learnMore')}
 					</a>
 				</div>
 
@@ -80,12 +66,10 @@
 						<div class="stat-figure text-primary">
 							<span class="icon-[lucide--zap] h-8 w-8"></span>
 						</div>
-						<div class="stat-title">{currentLanguage === 'vi' ? 'On-chain' : 'On-Chain'}</div>
+						<div class="stat-title">{t('about.stats.onChain')}</div>
 						<div class="stat-value text-primary">100%</div>
 						<div class="stat-desc">
-							{currentLanguage === 'vi'
-								? 'Minh bạch & có thể kiểm chứng'
-								: 'Transparent & Verifiable'}
+							{t('about.stats.onChainDesc')}
 						</div>
 					</div>
 
@@ -94,11 +78,11 @@
 							<span class="icon-[lucide--users] h-8 w-8"></span>
 						</div>
 						<div class="stat-title">
-							{currentLanguage === 'vi' ? 'Số người tham gia tối đa' : 'Max Entries'}
+							{t('about.stats.maxEntries')}
 						</div>
 						<div class="stat-value text-secondary">200</div>
 						<div class="stat-desc">
-							{currentLanguage === 'vi' ? 'Người tham gia mỗi vòng quay' : 'Participants per wheel'}
+							{t('about.stats.maxEntriesDesc')}
 						</div>
 					</div>
 
@@ -106,10 +90,10 @@
 						<div class="stat-figure text-accent">
 							<span class="icon-[lucide--network] h-8 w-8"></span>
 						</div>
-						<div class="stat-title">{currentLanguage === 'vi' ? 'Mạng' : 'Network'}</div>
+						<div class="stat-title">{t('about.stats.network')}</div>
 						<div class="stat-value text-accent">Sui</div>
 						<div class="stat-desc">
-							{currentLanguage === 'vi' ? 'Blockchain cho trò chơi' : 'Blockchain Gaming'}
+							{t('about.stats.networkDesc')}
 						</div>
 					</div>
 				</div>
@@ -122,12 +106,10 @@
 		<div class="container mx-auto px-4">
 			<div class="mb-16 text-center">
 				<h2 class="mb-4 text-4xl font-bold">
-					{currentLanguage === 'vi' ? 'Vì sao chọn Sui Wheel?' : 'Why Choose Sui Wheel?'}
+					{t('about.whyChoose.title')}
 				</h2>
 				<p class="text-base-content/70 mx-auto max-w-2xl text-xl">
-					{currentLanguage === 'vi'
-						? 'Trải nghiệm tương lai của sự công bằng với tính ngẫu nhiên trên blockchain và kết quả minh bạch.'
-						: 'Experience the future of fair gaming with blockchain-powered randomness and transparent results.'}
+					{t('about.whyChoose.description')}
 				</p>
 			</div>
 
@@ -154,12 +136,10 @@
 							</svg>
 						</div>
 						<h3 class="card-title mb-2 justify-center">
-							{currentLanguage === 'vi' ? 'Ngẫu nhiên trên chuỗi' : 'On-Chain Randomness'}
+							{t('about.features.onChainRandomness.title')}
 						</h3>
 						<p class="text-base-content/70">
-							{currentLanguage === 'vi'
-								? 'Mỗi lượt quay sử dụng tính ngẫu nhiên on-chain có thể kiểm chứng, đảm bảo kết quả công bằng và không thể bị thao túng.'
-								: "Every spin uses verifiable on-chain randomness, ensuring fair and transparent results that can't be manipulated."}
+							{t('about.features.onChainRandomness.description')}
 						</p>
 					</div>
 				</div>
@@ -186,12 +166,10 @@
 							</svg>
 						</div>
 						<h3 class="card-title mb-2 justify-center">
-							{currentLanguage === 'vi' ? 'An toàn & không cần tin tưởng' : 'Secure & Trustless'}
+							{t('about.features.secureTrustless.title')}
 						</h3>
 						<p class="text-base-content/70">
-							{currentLanguage === 'vi'
-								? 'Không có bên trung gian kiểm soát kết quả. Smart contract xử lý mọi thứ tự động và minh bạch.'
-								: 'No central authority controls the outcomes. Smart contracts handle everything automatically and transparently.'}
+							{t('about.features.secureTrustless.description')}
 						</p>
 					</div>
 				</div>
@@ -218,12 +196,10 @@
 							</svg>
 						</div>
 						<h3 class="card-title mb-2 justify-center">
-							{currentLanguage === 'vi' ? 'Nhanh & hiệu quả' : 'Fast & Efficient'}
+							{t('about.features.fastEfficient.title')}
 						</h3>
 						<p class="text-base-content/70">
-							{currentLanguage === 'vi'
-								? 'Xây dựng trên blockchain hiệu năng cao của Sui cho giao dịch tức thì và phí thấp.'
-								: "Built on Sui's high-performance blockchain for instant transactions and low fees."}
+							{t('about.features.fastEfficient.description')}
 						</p>
 					</div>
 				</div>
@@ -250,12 +226,10 @@
 							</svg>
 						</div>
 						<h3 class="card-title mb-2 justify-center">
-							{currentLanguage === 'vi' ? 'Dễ sử dụng' : 'Easy to Use'}
+							{t('about.features.easyToUse.title')}
 						</h3>
 						<p class="text-base-content/70">
-							{currentLanguage === 'vi'
-								? 'Giao diện đơn giản cho người tổ chức và người tham gia. Kết nối ví, cấu hình và quay!'
-								: 'Simple interface for organizers and participants. Connect wallet, configure, and spin!'}
+							{t('about.features.easyToUse.description')}
 						</p>
 					</div>
 				</div>
@@ -282,12 +256,10 @@
 							</svg>
 						</div>
 						<h3 class="card-title mb-2 justify-center">
-							{currentLanguage === 'vi' ? 'Theo dõi thời gian thực' : 'Real-time Tracking'}
+							{t('about.features.realTimeTracking.title')}
 						</h3>
 						<p class="text-base-content/70">
-							{currentLanguage === 'vi'
-								? 'Theo dõi lượt quay, người thắng cuộc và nhận thưởng theo thời gian thực với thống kê chi tiết.'
-								: 'Monitor spins, winners, and claims in real-time with detailed analytics and history.'}
+							{t('about.features.realTimeTracking.description')}
 						</p>
 					</div>
 				</div>
@@ -314,12 +286,10 @@
 							</svg>
 						</div>
 						<h3 class="card-title mb-2 justify-center">
-							{currentLanguage === 'vi' ? 'Giải thưởng linh hoạt' : 'Flexible Prizes'}
+							{t('about.features.flexiblePrizes.title')}
 						</h3>
 						<p class="text-base-content/70">
-							{currentLanguage === 'vi'
-								? 'Hỗ trợ token SUI và các tiền mã hóa khác. Linh hoạt về số lượng và cách phân phối.'
-								: 'Support for SUI tokens and other cryptocurrencies. Customizable prize amounts and distribution.'}
+							{t('about.features.flexiblePrizes.description')}
 						</p>
 					</div>
 				</div>
@@ -329,26 +299,10 @@
 
 	<!-- Floating Wheel Image between sections -->
 	<div class="relative">
-		<div class="absolute top-1/2 left-1/2 z-10 w-100 -translate-x-1/2 -translate-y-1/2">
+		<div class="absolute top-1/2 left-1/2 z-10 w-80 -translate-x-1/2 -translate-y-1/2 md:w-100">
 			<WheelImage
 				fontSize={12}
-				entries={currentLanguage === 'vi'
-					? [
-							'Kiểm chứng onchain!',
-							'Giữ sự công bằng',
-							'Xây dựng trên Sui',
-							'🎁 Giải thưởng thật',
-							'Nhanh & hiệu quả',
-							'Giải thưởng linh hoạt'
-						]
-					: [
-							"Don't trust, verify it!",
-							'Keep it fair',
-							'Built on Sui',
-							'🎁 Real prizes',
-							'Fast & efficient',
-							'Flexible prizes'
-						]}
+				entries={t('about.wheelEntries')}
 				rotationSpeed={25}
 				logoSize={12}
 			/>
@@ -360,12 +314,10 @@
 		<div class="container mx-auto px-4">
 			<div class="mb-16 text-center">
 				<h2 class="mb-4 text-4xl font-bold">
-					{currentLanguage === 'vi' ? 'Tính năng khác' : 'More Features'}
+					{t('about.moreFeatures.title')}
 				</h2>
 				<p class="text-base-content/70 mx-auto max-w-2xl text-xl">
-					{currentLanguage === 'vi'
-						? 'Công cụ mạnh mẽ cho người tổ chức và người tham gia'
-						: 'Powerful tools for organizers and participants'}
+					{t('about.moreFeatures.description')}
 				</p>
 			</div>
 
@@ -380,12 +332,10 @@
 								<span class="icon-[lucide--gamepad-2] text-primary h-8 w-8"></span>
 							</div>
 							<h3 class="card-title mb-2 justify-center">
-								{currentLanguage === 'vi' ? 'Chế độ chơi kép' : 'Dual Mode Gaming'}
+								{t('about.moreFeatures.dualModeGaming.title')}
 							</h3>
 							<p class="text-base-content/70">
-								{currentLanguage === 'vi'
-									? 'Chơi off-chain cho demo nhanh và on-chain cho giải thưởng thật với tính minh bạch đầy đủ.'
-									: 'Play both off-chain for quick demos and on-chain for real prizes with full transparency.'}
+								{t('about.moreFeatures.dualModeGaming.description')}
 							</p>
 						</div>
 					</div>
@@ -399,12 +349,10 @@
 								<span class="icon-[lucide--user] text-secondary h-8 w-8"></span>
 							</div>
 							<h3 class="card-title mb-2 justify-center">
-								{currentLanguage === 'vi' ? 'Đăng nhập zkLogin Google' : 'zkLogin Google'}
+								{t('about.moreFeatures.zkLoginGoogle.title')}
 							</h3>
 							<p class="text-base-content/70">
-								{currentLanguage === 'vi'
-									? 'Đăng nhập bằng tài khoản Google với công nghệ zkLogin cho trải nghiệm liền mạch.'
-									: 'Sign in with Google account using zkLogin technology for seamless onboarding.'}
+								{t('about.moreFeatures.zkLoginGoogle.description')}
 							</p>
 						</div>
 					</div>
@@ -418,12 +366,10 @@
 								<span class="icon-[lucide--download] text-accent h-8 w-8"></span>
 							</div>
 							<h3 class="card-title mb-2 justify-center">
-								{currentLanguage === 'vi' ? 'Nhập trực tuyến' : 'Online Import'}
+								{t('about.moreFeatures.onlineImport.title')}
 							</h3>
 							<p class="text-base-content/70">
-								{currentLanguage === 'vi'
-									? 'Nhập danh sách người tham gia trực tuyến - phù hợp cho workshop và sự kiện offline.'
-									: 'Import participant lists online - perfect for workshops and offline events.'}
+								{t('about.moreFeatures.onlineImport.description')}
 							</p>
 						</div>
 					</div>
@@ -437,12 +383,10 @@
 								<span class="icon-[lucide--link] text-info h-8 w-8"></span>
 							</div>
 							<h3 class="card-title mb-2 justify-center">
-								{currentLanguage === 'vi' ? 'Nhập từ bài đăng X' : 'X Post Import'}
+								{t('about.moreFeatures.xPostImport.title')}
 							</h3>
 							<p class="text-base-content/70">
-								{currentLanguage === 'vi'
-									? 'Dán link bài đăng X và tự động trích xuất địa chỉ Sui từ bình luận.'
-									: 'Paste X post link and automatically extract Sui addresses from comments.'}
+								{t('about.moreFeatures.xPostImport.description')}
 							</p>
 						</div>
 					</div>
@@ -456,12 +400,10 @@
 								<span class="icon-[lucide--shuffle] text-success h-8 w-8"></span>
 							</div>
 							<h3 class="card-title mb-2 justify-center">
-								{currentLanguage === 'vi' ? 'Xáo trộn có thể kiểm chứng' : 'Verifiable Shuffle'}
+								{t('about.moreFeatures.verifiableShuffle.title')}
 							</h3>
 							<p class="text-base-content/70">
-								{currentLanguage === 'vi'
-									? 'Xáo trộn on-chain thực sự với bằng chứng mật mã có thể tự xác minh.'
-									: 'True on-chain shuffle with cryptographic proof that can be independently verified.'}
+								{t('about.moreFeatures.verifiableShuffle.description')}
 							</p>
 						</div>
 					</div>
@@ -475,12 +417,10 @@
 								<span class="icon-[lucide--clock] text-warning h-8 w-8"></span>
 							</div>
 							<h3 class="card-title mb-2 justify-center">
-								{currentLanguage === 'vi' ? 'Hạn nhận thưởng' : 'Deadline Claims'}
+								{t('about.moreFeatures.deadlineClaims.title')}
 							</h3>
 							<p class="text-base-content/70">
-								{currentLanguage === 'vi'
-									? 'Đặt thời hạn nhận thưởng cùng cơ chế tự động hoàn tiền sau khi hết hạn.'
-									: 'Set claim deadlines for prizes with automatic fund recovery after expiration.'}
+								{t('about.moreFeatures.deadlineClaims.description')}
 							</p>
 						</div>
 					</div>
@@ -494,21 +434,19 @@
 		<div class="container mx-auto px-4 text-center">
 			<div class="mx-auto max-w-2xl">
 				<h2 class="mb-6 text-4xl font-bold text-white">
-					{currentLanguage === 'vi' ? 'Sẵn sàng quay?' : 'Ready to Spin?'}
+					{t('about.cta.title')}
 				</h2>
 				<p class="mb-8 text-xl text-white/90">
-					{currentLanguage === 'vi'
-						? 'Tham gia tương lai của sự công bằng. Tạo vòng quay đầu tiên của bạn và trải nghiệm tính ngẫu nhiên có thể kiểm chứng.'
-						: 'Join the future of fair gaming. Create your first prize wheel and experience transparent, verifiable randomness.'}
+					{t('about.cta.description')}
 				</p>
 				<div class="flex flex-col justify-center gap-4 sm:flex-row">
 					<a href="/" class="btn btn-white btn-lg px-8">
 						<span class="icon-[lucide--gamepad-2] h-6 w-6"></span>
-						{currentLanguage === 'vi' ? 'Chơi ngay' : 'Play Now'}
+						{t('about.cta.playNow')}
 					</a>
 					<a href="/faq" class="btn btn-outline btn-white btn-lg px-8">
 						<span class="icon-[lucide--help-circle] h-6 w-6"></span>
-						{currentLanguage === 'vi' ? 'FAQ' : 'FAQ'}
+						{t('about.cta.faq')}
 					</a>
 				</div>
 			</div>

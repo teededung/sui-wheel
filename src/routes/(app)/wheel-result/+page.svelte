@@ -25,6 +25,9 @@
 	// Components
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
 	import ButtonCopy from '$lib/components/ButtonCopy.svelte';
+	import { useTranslation } from '$lib/hooks/useTranslation.js';
+
+	const t = useTranslation();
 
 	const suiClient = $derived(useSuiClient());
 	const account = $derived(useCurrentAccount());
@@ -362,12 +365,12 @@
 
 	async function claim(prizeIndex) {
 		if (!account) {
-			error = 'Connect wallet to claim';
+			error = t('wheelResult.errors.connectWalletToClaim');
 			return;
 		}
 		error = '';
 		claimLoading = true;
-		const t = toast.loading('Claiming...', { position: 'bottom-right' });
+		const toastInstance = toast.loading(t('wheelResult.claiming'), { position: 'bottom-right' });
 		try {
 			const tx = new Transaction();
 			// Call claim to get a Coin<SUI> back in the PTB
@@ -385,7 +388,7 @@
 			error = e?.message || String(e);
 		} finally {
 			claimLoading = false;
-			t.dismiss();
+			toastInstance.dismiss();
 		}
 	}
 
@@ -433,15 +436,15 @@
 
 	async function reclaimPool() {
 		if (!account) {
-			error = 'Connect wallet to reclaim';
+			error = t('wheelResult.errors.connectWalletToReclaim');
 			return;
 		}
 		if (!isOrganizer) {
-			error = 'Only organizer can reclaim the pool';
+			error = t('wheelResult.errors.onlyOrganizerCanReclaim');
 			return;
 		}
 		if (!canOrganizerReclaim()) {
-			error = 'Pool cannot be reclaimed yet';
+			error = t('wheelResult.errors.poolCannotBeReclaimedYet');
 			return;
 		}
 		error = '';
@@ -459,11 +462,11 @@
 			await fetchData(wheelId);
 			await fetchReclaimEvents(wheelId);
 			if (lastReclaim.digest) {
-				toast.success('Reclaimed pool successfully', {
+				toast.success(t('wheelResult.success.reclaimedPoolSuccessfully'), {
 					position: 'bottom-right',
 					durationMs: 1500,
 					button: {
-						text: 'Open on Suivision',
+						text: t('wheelResult.success.openOnSuivision'),
 						class: 'btn btn-primary btn-sm',
 						callback: () => {
 							window.open(
@@ -479,9 +482,9 @@
 			error = e?.message || String(e);
 			// Parse error for user-friendly msg, e.g., if includes 'EReclaimTooEarly'
 			if (error.includes('EReclaimTooEarly')) {
-				error = 'Reclaim window not yet open. Please wait.';
+				error = t('wheelResult.errors.reclaimWindowNotYetOpen');
 			} else if (error.includes('ENoRemaining')) {
-				error = 'No remaining funds in pool to reclaim.';
+				error = t('wheelResult.errors.noRemainingFunds');
 			}
 		} finally {
 			reclaimLoading = false;
@@ -494,24 +497,21 @@
 </script>
 
 <svelte:head>
-	<title>Sui Wheel — Results</title>
-	<meta name="description" content={'View winners and claim prizes for a Sui Wheel on Testnet.'} />
-	<meta property="og:title" content={'Sui Wheel — Results'} />
-	<meta
-		property="og:description"
-		content={'View winners and claim prizes for a Sui Wheel on Testnet.'}
-	/>
+	<title>{t('wheelResult.title')}</title>
+	<meta name="description" content={t('wheelResult.metaDescription')} />
+	<meta property="og:title" content={t('wheelResult.ogTitle')} />
+	<meta property="og:description" content={t('wheelResult.ogDescription')} />
 </svelte:head>
 
 <section class="container mx-auto px-4 py-6">
 	{#if account && !isOnTestnet}
 		<div class="alert alert-warning mb-4 text-sm">
 			<span class="icon-[lucide--triangle-alert] h-4 w-4"></span>
-			<span>This app runs on Sui Testnet. Please switch your wallet network to Testnet.</span>
+			<span>{t('wheelResult.testnetWarning')}</span>
 		</div>
 	{/if}
 	<div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-		<h1 class="text-xl font-bold">Wheel Results</h1>
+		<h1 class="text-xl font-bold">{t('wheelResult.pageTitle')}</h1>
 	</div>
 
 	{#if error}
@@ -540,9 +540,9 @@
 			<div class="order-2 overflow-x-auto lg:order-1 lg:col-span-2">
 				{#if lastReclaim.timestampMs > 0 && isOrganizer}
 					<div class="text-base-content/70 mb-4 text-xs">
-						Last reclaim:
+						{t('wheelResult.lastReclaim')}
 						<strong>{formatMistToSuiCompact(lastReclaim.amount)} SUI</strong>
-						on
+						{t('wheelResult.on')}
 						<span title={new Date(lastReclaim.timestampMs).toISOString()}>
 							{format(new Date(lastReclaim.timestampMs), 'PPpp')} ({formatDistanceToNow(
 								new Date(lastReclaim.timestampMs),
@@ -554,23 +554,23 @@
 								class="link link-primary ml-2"
 								href={`https://testnet.suivision.xyz/txblock/${lastReclaim.digest}`}
 								target="_blank"
-								rel="noopener noreferrer">View tx</a
+								rel="noopener noreferrer">{t('wheelResult.viewTx')}</a
 							>
 						{/if}
 					</div>
 				{/if}
 
-				<h2 class="mt-6 mb-3 text-lg font-semibold">Winners</h2>
+				<h2 class="mt-6 mb-3 text-lg font-semibold">{t('wheelResult.winners')}</h2>
 				<div class="card bg-base-200 border-base-300 mb-6 border shadow-sm">
 					<div class="card-body p-0">
 						<div class="overflow-x-auto">
 							<table class="table-zebra table">
 								<thead>
 									<tr>
-										<th>#</th>
-										<th>Amount</th>
-										<th>Winner</th>
-										<th>Spun at</th>
+										<th>{t('wheelResult.table.number')}</th>
+										<th>{t('wheelResult.table.amount')}</th>
+										<th>{t('wheelResult.table.winner')}</th>
+										<th>{t('wheelResult.table.spunAt')}</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -585,7 +585,7 @@
 												>{findWinner(i) ? shortenAddress(findWinner(i).addr) : '—'}
 												{#if findWinner(i) && isYou(findWinner(i).addr)}
 													<span class="badge badge-neutral badge-sm ml-2 text-xs opacity-70"
-														>You</span
+														>{t('wheelResult.you')}</span
 													>
 												{/if}
 											</td>
@@ -607,7 +607,7 @@
 				</div>
 
 				{#if nonWinningEntries.length > 0}
-					<h2 class="mt-6 mb-3 text-lg font-semibold">Non-winning entries</h2>
+					<h2 class="mt-6 mb-3 text-lg font-semibold">{t('wheelResult.nonWinningEntries')}</h2>
 
 					<div class="card bg-base-200 border-base-300 mb-6 border shadow-sm">
 						<div class="card-body p-0">
@@ -615,8 +615,8 @@
 								<table class="table-zebra table">
 									<thead>
 										<tr>
-											<th>#</th>
-											<th>Address</th>
+											<th>{t('wheelResult.tableNonWinning.number')}</th>
+											<th>{t('wheelResult.tableNonWinning.address')}</th>
 										</tr>
 									</thead>
 									<tbody>
@@ -627,7 +627,7 @@
 													>{shortenAddress(addr)}
 													{#if isYou(addr)}
 														<span class="badge badge-neutral badge-sm ml-2 text-xs opacity-70"
-															>You</span
+															>{t('wheelResult.you')}</span
 														>
 													{/if}
 												</td>
@@ -646,23 +646,23 @@
 						{#if isCancelled}
 							<div class="alert alert-soft dark:!border-warning alert-warning text-sm">
 								<span class="icon-[lucide--info] h-4 w-4"></span>
-								<span>This wheel has been cancelled!</span>
+								<span>{t('wheelResult.wheelCancelled')}</span>
 							</div>
 						{:else if !account}
 							<div class="alert alert-soft dark:!border-info alert-info text-sm">
 								<span class="icon-[lucide--info] h-4 w-4"></span>
-								<span>Connect your wallet to view your prize and claim it! 🔑</span>
+								<span>{t('wheelResult.connectWallet')}</span>
 							</div>
 						{:else if winnerInfo}
-							<h3 class="mb-2 text-lg font-semibold">Your prize</h3>
+							<h3 class="mb-2 text-lg font-semibold">{t('wheelResult.yourPrize')}</h3>
 							{#if winnerInfo.claimed}
 								<div class="alert alert-success mb-3 text-sm">
 									<span class="icon-[lucide--party-popper] h-6 w-6"></span>
 									<p>
-										<strong class="mb-1 block">Congratulations on your win!</strong>
+										<strong class="mb-1 block">{t('wheelResult.congratulations')}</strong>
 										{#if lastClaim.timestampMs > 0}
 											<span class="block text-xs">
-												<span>Claimed at</span>
+												<span>{t('wheelResult.claimedAt')}</span>
 												<span
 													class="text-primary"
 													title={new Date(lastClaim.timestampMs).toISOString()}
@@ -681,7 +681,7 @@
 														target="_blank"
 														rel="noopener noreferrer"
 													>
-														<span class="mr-2">View tx</span>
+														<span class="mr-2">{t('wheelResult.viewTx')}</span>
 														<span class="icon-[lucide--external-link]"></span>
 													</a>
 												{/if}
@@ -692,23 +692,23 @@
 							{:else if getClaimState(winnerPrizeIndex).state === 'claimable'}
 								<div class="alert alert-success mb-3 text-sm">
 									<span class="icon-[lucide--gift] h-4 w-4"></span>
-									<span>Congratulation! You can claim your prize now.</span>
+									<span>{t('wheelResult.congratulationsClaim')}</span>
 								</div>
 							{:else if getClaimState(winnerPrizeIndex).state === 'expired'}
 								<div class="alert alert-error mb-3 text-sm">
 									<span class="icon-[lucide--circle-alert] h-4 w-4"></span>
-									<span>Claim window expired. You can't claim your prize anymore.</span>
+									<span>{t('wheelResult.claimExpired')}</span>
 								</div>
 							{/if}
 						{:else if remainingSpins > 0}
 							<div class="alert alert-info text-sm">
 								<span class="icon-[lucide--clock] h-4 w-4"></span>
-								<span>The wheel is still running. Please come back later.</span>
+								<span>{t('wheelResult.wheelRunning')}</span>
 							</div>
 						{:else}
 							<div class="alert border-info alert-outline text-sm">
 								<span class="icon-[lucide--circle-alert] h-4 w-4"></span>
-								<span>You are not a winner for this wheel.</span>
+								<span>{t('wheelResult.notWinner')}</span>
 							</div>
 						{/if}
 
@@ -719,20 +719,22 @@
 										<ButtonLoading
 											formLoading={claimLoading}
 											color="primary"
-											loadingText="Claiming..."
+											loadingText={t('wheelResult.claiming')}
 											onclick={() => claim(winnerPrizeIndex)}
 											disabled={!isOnTestnet}
 											className="mb-2"
-											>Claim {formatMistToSuiCompact(prizeAmounts[winnerPrizeIndex] ?? 0n)} SUI</ButtonLoading
+											>{t('wheelResult.claim')}
+											{formatMistToSuiCompact(prizeAmounts[winnerPrizeIndex] ?? 0n)} SUI</ButtonLoading
 										>
 									{/if}
 									{#if getClaimState(winnerPrizeIndex).state === 'too_early'}
 										<div class="text-xs opacity-80">
-											Starts in {formatDuration(getClaimState(winnerPrizeIndex).startsInMs)}
+											{t('wheelResult.startsIn')}
+											{formatDuration(getClaimState(winnerPrizeIndex).startsInMs)}
 										</div>
 									{:else}
 										<div class="text-error text-xs">
-											Claim window expired on
+											{t('wheelResult.claimExpiredOn')}
 											<strong
 												class="ml-1"
 												title={new Date(
@@ -753,7 +755,7 @@
 										</div>
 									{/if}
 								{:else}
-									<div class="text-sm opacity-70">You are not a winner for this wheel.</div>
+									<div class="text-sm opacity-70">{t('wheelResult.notWinner')}</div>
 								{/if}
 							{/if}
 						{/if}
@@ -764,7 +766,7 @@
 					<div class="card bg-base-200 mt-4 shadow">
 						<div class="card-body">
 							<div class="flex max-w-full items-center gap-2 text-sm">
-								<span class="mr-1 inline-block">Wheel ID:</span>
+								<span class="mr-1 inline-block">{t('wheelResult.wheelId')}</span>
 								<span
 									class="inline-block max-w-[12rem] truncate font-mono text-xs sm:max-w-[16rem]"
 									title={wheelId}>{shortenAddress(wheelId)}</span
@@ -775,31 +777,35 @@
 									href={`https://testnet.suivision.xyz/object/${wheelId}`}
 									target="_blank"
 									rel="noopener noreferrer"
-									>Suivision <span class="icon-[lucide--external-link]"></span></a
+									>{t('wheelResult.suivision')}
+									<span class="icon-[lucide--external-link]"></span></a
 								>
 							</div>
 
 							<div class="mt-1 flex flex-wrap items-center gap-2 text-sm">
-								Status: {#if isCancelled}
+								{t('wheelResult.status')}
+								{#if isCancelled}
 									<span class="badge badge-warning badge-sm"
-										><span class="icon-[lucide--circle-x]"></span> Cancelled</span
+										><span class="icon-[lucide--circle-x]"></span>
+										{t('wheelList.status.cancelled')}</span
 									>
 								{:else if remainingSpins > 0}
 									<span class="badge badge-primary badge-sm"
-										><span class="icon-[lucide--clock]"></span> Running</span
+										><span class="icon-[lucide--clock]"></span>
+										{t('wheelList.status.running')}</span
 									>
 								{:else}
 									<span class="badge badge-success badge-sm"
-										><span class="icon-[lucide--check]"></span> Finished</span
+										><span class="icon-[lucide--check]"></span>
+										{t('wheelList.status.finished')}</span
 									>
 								{/if}
 							</div>
 
 							<div class="mt-1 flex items-center gap-2">
 								<div class="flex gap-2 text-sm">
-									Remaining pool balance: <div
-										class="flex items-center gap-1 font-mono font-semibold"
-									>
+									{t('wheelResult.remainingPoolBalance')}
+									<div class="flex items-center gap-1 font-mono font-semibold">
 										<span class="text-primary">{formatMistToSuiCompact(poolBalanceMist)}</span>
 										<span class="text-base-content/80 text-xs">SUI</span>
 									</div>
@@ -809,17 +815,19 @@
 										formLoading={reclaimLoading}
 										color="warning"
 										size="xs"
-										loadingText="Reclaiming..."
+										loadingText={t('wheelResult.reclaiming')}
 										onclick={reclaimPool}
-										disabled={!isOnTestnet}>Reclaim</ButtonLoading
+										disabled={!isOnTestnet}>{t('wheelResult.reclaim')}</ButtonLoading
 									>
 								{/if}
 							</div>
 
 							{#if wheelCreatedAtMs > 0 && !isNaN(new Date(wheelCreatedAtMs).getTime())}
-								<div class="mt-1 flex items-start gap-1 text-sm">
-									<span>Created: </span>
-									<span>{format(wheelCreatedAtMs, "MMMM d, yyyy 'at' h:mm a")}</span>
+								<div class="mt-1 flex items-center gap-1 text-sm">
+									<span>{t('wheelResult.created')} </span>
+									<span class="text-base-content/80 text-xs"
+										>{format(wheelCreatedAtMs, "MMMM d, yyyy 'at' h:mm a")}</span
+									>
 								</div>
 							{/if}
 						</div>

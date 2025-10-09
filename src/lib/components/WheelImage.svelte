@@ -329,7 +329,7 @@
 <div class="rounded-box relative mx-auto max-w-[560px] {className}">
 	<div
 		bind:this={canvasContainerEl}
-		class="relative mx-auto aspect-square w-full rounded-full border-1 border-amber-300/60 shadow-lg"
+		class="relative mx-auto aspect-square w-full overflow-hidden rounded-full border-1 border-amber-300/60 shadow-lg"
 	>
 		<!-- Wheel -->
 		<canvas bind:this={canvasEl} class="rounded-box pointer-events-none mx-auto block"></canvas>

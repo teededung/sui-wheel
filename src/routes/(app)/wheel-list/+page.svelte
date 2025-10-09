@@ -11,6 +11,9 @@
 		WHEEL_STRUCT
 	} from '$lib/constants.js';
 	import { watch, IsIdle } from 'runed';
+	import { useTranslation } from '$lib/hooks/useTranslation.js';
+
+	const t = useTranslation();
 
 	const suiClient = $derived(useSuiClient());
 	const account = $derived(useCurrentAccount());
@@ -176,23 +179,25 @@
 </script>
 
 <svelte:head>
-	<title>Sui Wheel — Your wheels</title>
-	<meta name="description" content={'List of wheels you created on Sui Testnet.'} />
-	<meta property="og:title" content={'Sui Wheel — Your wheels'} />
-	<meta property="og:description" content={'List of wheels you created on Sui Testnet.'} />
+	<title>{t('wheelList.title')}</title>
+	<meta name="description" content={t('wheelList.metaDescription')} />
+	<meta property="og:title" content={t('wheelList.ogTitle')} />
+	<meta property="og:description" content={t('wheelList.ogDescription')} />
 </svelte:head>
 
 <section class="container mx-auto px-4 py-12">
 	<div class="card bg-base-200 shadow">
 		<div class="card-body">
 			<div class="mb-4 flex items-center justify-between">
-				<h2 class="text-lg font-semibold">Your Wheels</h2>
-				<a href="/" class="btn btn-primary btn-sm" aria-label="Create new wheel">Create new</a>
+				<h2 class="text-lg font-semibold">{t('wheelList.pageTitle')}</h2>
+				<a href="/" class="btn btn-primary btn-sm" aria-label={t('wheelList.createNew')}
+					>{t('wheelList.createNew')}</a
+				>
 			</div>
 			{#if pageState === 'initializing'}
 				<div class="flex items-center gap-2">
 					<span class="loading loading-spinner loading-sm"></span>
-					Loading...
+					{t('wheelList.loading')}
 				</div>
 			{:else if pageState === 'loading'}
 				{#if accountLoading.value && !account}
@@ -201,23 +206,23 @@
 						<div class="skeleton h-32 w-full"></div>
 					</div>
 				{:else if !account}
-					<div class="flex items-center gap-2">Please connect your wallet to view your wheels.</div>
+					<div class="flex items-center gap-2">{t('wheelList.connectWallet')}</div>
 				{/if}
 			{:else if pageState === 'loaded'}
 				{#if wheels.length === 0}
-					<div class="text-sm opacity-70">No wheels found.</div>
+					<div class="text-sm opacity-70">{t('wheelList.noWheels')}</div>
 				{:else}
 					<div class="relative">
 						<div class="overflow-x-auto">
 							<table class="table-zebra table">
 								<thead>
 									<tr>
-										<th class="w-12">#</th>
-										<th>Wheel ID</th>
-										<th>Created</th>
-										<th>Status</th>
-										<th class="w-20">Total Entries</th>
-										<th class="w-64">Actions</th>
+										<th class="w-12">{t('wheelList.table.number')}</th>
+										<th>{t('wheelList.table.wheelId')}</th>
+										<th>{t('wheelList.table.created')}</th>
+										<th>{t('wheelList.table.status')}</th>
+										<th class="w-20">{t('wheelList.table.totalEntries')}</th>
+										<th class="w-64">{t('wheelList.table.actions')}</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -254,19 +259,23 @@
 											<td>
 												{#if w.status === 'Cancelled'}
 													<span class="badge badge-warning"
-														><span class="icon-[lucide--circle-x]"></span> Cancelled</span
+														><span class="icon-[lucide--circle-x]"></span>
+														{t('wheelList.status.cancelled')}</span
 													>
 												{:else if w.status === 'Running'}
 													<span class="badge badge-primary"
-														><span class="icon-[lucide--clock]"></span> Running</span
+														><span class="icon-[lucide--clock]"></span>
+														{t('wheelList.status.running')}</span
 													>
 												{:else if w.status === 'Finished'}
 													<span class="badge badge-success"
-														><span class="icon-[lucide--check]"></span> Finished</span
+														><span class="icon-[lucide--check]"></span>
+														{t('wheelList.status.finished')}</span
 													>
 												{:else}
 													<span class="badge"
-														><span class="icon-[lucide--circle-alert]"></span> —</span
+														><span class="icon-[lucide--circle-alert]"></span>
+														{t('wheelList.status.unknown')}</span
 													>
 												{/if}
 											</td>
@@ -280,12 +289,14 @@
 													<a
 														class="btn btn-sm btn-success btn-soft join-item"
 														href={`/?wheelId=${w.id}`}
-														aria-label="Open wheel to spin">Open</a
+														aria-label={t('wheelList.actions.open')}
+														>{t('wheelList.actions.open')}</a
 													>
 													<a
 														class="btn btn-sm btn-secondary btn-soft join-item"
 														href={`/wheel-result/?wheelId=${w.id}`}
-														aria-label="View results">Results</a
+														aria-label={t('wheelList.actions.results')}
+														>{t('wheelList.actions.results')}</a
 													>
 												</div>
 											</td>
@@ -303,7 +314,7 @@
 							>
 								<span
 									class="loading loading-spinner loading-md text-primary"
-									aria-label="Refreshing"
+									aria-label={t('wheelList.refreshing')}
 								></span>
 							</div>
 						{/if}

@@ -10,7 +10,9 @@
 	import { wheelContext } from '$lib/context/wheel.js';
 	import { shortenAddress } from '$lib/utils/string.js';
 	import { isValidSuiAddress } from '$lib/utils/suiHelpers.js';
+	import { useTranslation } from '$lib/hooks/useTranslation.js';
 
+	const t = useTranslation();
 	const suiClient = $derived(useSuiClient());
 
 	// Props from parent
@@ -796,9 +798,9 @@
 			<button
 				class="btn btn-circle btn-sm tooltip absolute top-2 right-2 z-20 bg-white/90 shadow-lg backdrop-blur-sm transition-all duration-200 hover:bg-white"
 				onclick={() => (muted = !muted)}
-				aria-label={muted ? 'Sound: off' : 'Sound: on'}
-				title={'Toggle sound'}
-				data-tip={muted ? 'Sound: off' : 'Sound: on'}
+				aria-label={muted ? t('wheel.soundOff') : t('wheel.soundOn')}
+				title={t('wheel.toggleSound')}
+				data-tip={muted ? t('wheel.soundOff') : t('wheel.soundOn')}
 			>
 				{#if muted}
 					<span class="icon-[lucide--volume-off] text-base text-gray-600"></span>
@@ -850,13 +852,13 @@
 					<ButtonLoading
 						formLoading={spinning}
 						size="lg"
-						loadingText={progressing ? 'Confirming...' : 'Spinning...'}
+						loadingText={progressing ? t('wheel.confirming') : t('wheel.spinning')}
 						onclick={accountConnected ? spinOnChainAndAnimate : spin}
-						aria-label="Spin the wheel"
+						aria-label={t('wheel.spinTheWheel')}
 						className={`border-0 w-full h-full rounded-full text-gray-800 !pointer-events-auto cursor-pointer disabled:cursor-not-allowed disabled:!shadow-lg disabled:opacity-70 disabled:text-gray-500 shadow-lg ring-2 ring-amber-300/80 bg-gradient-to-b from-amber-200 to-amber-500 hover:from-amber-200 hover:to-amber-600 transition-all duration-200 font-extrabold uppercase ${isSpinDisabled ? 'text-xs' : ''}`}
 						disabled={isSpinDisabled}
 					>
-						Spin
+						{t('wheel.spin')}
 					</ButtonLoading>
 				</div>
 			</div>
@@ -864,7 +866,7 @@
 
 		{#if selectedIndex !== null && entries[selectedIndex]}
 			<div class="mt-3 text-center">
-				<div class="badge badge-lg badge-success animate-pulse">🎯 Winner</div>
+				<div class="badge badge-lg badge-success animate-pulse">🎯 {t('wheel.winner')}</div>
 				<div
 					class="text-success bg-success/10 border-success/20 mt-2 rounded-lg border px-4 py-2 text-lg font-bold break-words"
 				>
@@ -878,7 +880,7 @@
 				<div
 					class="badge badge-lg badge-primary rounded px-2 py-1 text-center text-xs font-medium shadow"
 				>
-					Remaining spins: {Math.max(0, remainingSpins || 0)}
+					{t('wheel.remainingSpins')}: {Math.max(0, remainingSpins || 0)}
 				</div>
 			</div>
 		{/if}
@@ -890,11 +892,11 @@
 					class:btn-disabled={spinning || entries.length < 2}
 					disabled={spinning || entries.length < 2}
 					onclick={onShuffle}
-					aria-label="Shuffle entries">Shuffle</button
+					aria-label={t('wheel.shuffleEntries')}>{t('wheel.shuffle')}</button
 				>
 				{#if !createdWheelId}
 					<button class="btn btn-warning" disabled={spinning} onclick={onClearAllEntries}
-						>Clear</button
+						>{t('wheel.clear')}</button
 					>
 				{/if}
 			</div>
@@ -904,7 +906,7 @@
 
 <dialog bind:this={winnerModal} class="modal">
 	<div class="modal-box w-">
-		<h3 class="mb-6 text-center text-2xl font-bold">🎉 Congratulations!</h3>
+		<h3 class="mb-6 text-center text-2xl font-bold">🎉 {t('wheel.congratulations')}!</h3>
 		<div class="text-center">
 			<div class="relative">
 				<div
@@ -923,7 +925,7 @@
 				</div>
 				{#if usedCombinedSpin && secondaryWinner}
 					<div class="mt-3 text-center text-sm">
-						<span class="opacity-80">Also assigned:</span>
+						<span class="opacity-80">{t('wheel.alsoAssigned')}:</span>
 						<strong class="ml-2 font-mono"
 							>{isValidSuiAddress(secondaryWinner)
 								? shortenAddress(secondaryWinner)
@@ -942,13 +944,11 @@
 					⭐
 				</div>
 			</div>
-			<small class="mt-5 block text-gray-500"
-				>The winner will be automatically removed from the list.</small
-			>
+			<small class="mt-5 block text-gray-500">{t('wheel.winnerWillBeAutomaticallyRemoved')}</small>
 		</div>
 	</div>
 	<form method="dialog" class="modal-backdrop">
-		<button>Close</button>
+		<button>{t('wheel.close')}</button>
 	</form>
 </dialog>
 
