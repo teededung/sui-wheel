@@ -50,11 +50,11 @@
 				<div class="mb-12 flex flex-col items-center justify-center gap-4 sm:flex-row">
 					<a href="/" class="btn btn-primary btn-lg px-8">
 						<span class="icon-[lucide--gamepad-2] h-6 w-6"></span>
-						{t('wheel.playNow')}
+						{t('about.cta.playNow')}
 					</a>
 					<a href="#features" class="btn btn-outline btn-lg px-8">
 						<span class="icon-[lucide--info] h-6 w-6"></span>
-						{t('wheel.learnMore')}
+						{t('faq.cta.learnMore')}
 					</a>
 				</div>
 

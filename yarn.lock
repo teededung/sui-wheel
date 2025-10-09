@@ -695,12 +695,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@iconify-json/lucide@npm:^1.2.68":
-  version: 1.2.68
-  resolution: "@iconify-json/lucide@npm:1.2.68"
+"@iconify-json/lucide@npm:^1.2.69":
+  version: 1.2.69
+  resolution: "@iconify-json/lucide@npm:1.2.69"
   dependencies:
     "@iconify/types": "npm:*"
-  checksum: 10c0/e2d8526b51f490ac2966123dff43d4be37780d78bb2fe54ae69341fd6e999ddca1f08f01943b6451a0e86c1c9502a9f6c9f1491abfd9ee42bb6ff6b483dc3f3c
+  checksum: 10c0/d8fcdad9ac803675e3988607a21a0e567c5b0c843552cffe13b1fa05f58910b1531cc8b14a06cb57576055dfae0485332e1142cdce3a2d629802531635ea8fb7
   languageName: node
   linkType: hard
 
@@ -1484,9 +1484,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sveltejs/kit@npm:^2.46.2":
-  version: 2.46.2
-  resolution: "@sveltejs/kit@npm:2.46.2"
+"@sveltejs/kit@npm:^2.46.4":
+  version: 2.46.4
+  resolution: "@sveltejs/kit@npm:2.46.4"
   dependencies:
     "@standard-schema/spec": "npm:^1.0.0"
     "@sveltejs/acorn-typescript": "npm:^1.0.5"
@@ -1511,7 +1511,7 @@ __metadata:
       optional: true
   bin:
     svelte-kit: svelte-kit.js
-  checksum: 10c0/ce4faf6ea3a4b5dd93d9fb5feb08abe3bd32a23d871ad58dd209b5099aaf63865893cc9dc4e18b16da77f8129837dca91255f51d6b03c15ff36d776ed24263f4
+  checksum: 10c0/745a8fe0191c33382c64f85a4f96f28fd26a56cc05ce1877f155a81c74cfb503b08fa6deac50f9dd4198b68286a6433099d9135adc437ee64a4a0d2160570833
   languageName: node
   linkType: hard
 
@@ -5165,11 +5165,11 @@ __metadata:
   dependencies:
     "@eslint/compat": "npm:^1.4.0"
     "@eslint/js": "npm:^9.37.0"
-    "@iconify-json/lucide": "npm:^1.2.68"
+    "@iconify-json/lucide": "npm:^1.2.69"
     "@iconify/tailwind4": "npm:^1.0.6"
     "@mysten/sui": "npm:^1.39.1"
     "@sveltejs/adapter-netlify": "npm:^5.2.4"
-    "@sveltejs/kit": "npm:^2.46.2"
+    "@sveltejs/kit": "npm:^2.46.4"
     "@sveltejs/vite-plugin-svelte": "npm:^6.2.1"
     "@tailwindcss/typography": "npm:^0.5.19"
     "@tailwindcss/vite": "npm:^4.1.14"
@@ -5187,8 +5187,8 @@ __metadata:
     rettiwt-api: "npm:^6.0.6"
     runed: "npm:^0.34.0"
     sui-svelte-wallet-kit: "npm:^0.8.2"
-    svelte: "npm:^5.39.10"
-    svelte-check: "npm:^4.3.2"
+    svelte: "npm:^5.39.11"
+    svelte-check: "npm:^4.3.3"
     svelte-daisy-toaster: "npm:^0.5.5"
     tailwindcss: "npm:^4.1.14"
     typescript: "npm:^5.9.3"
@@ -5214,9 +5214,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"svelte-check@npm:^4.3.2":
-  version: 4.3.2
-  resolution: "svelte-check@npm:4.3.2"
+"svelte-check@npm:^4.3.3":
+  version: 4.3.3
+  resolution: "svelte-check@npm:4.3.3"
   dependencies:
     "@jridgewell/trace-mapping": "npm:^0.3.25"
     chokidar: "npm:^4.0.1"
@@ -5228,7 +5228,7 @@ __metadata:
     typescript: ">=5.0.0"
   bin:
     svelte-check: bin/svelte-check
-  checksum: 10c0/a3b35da017ae5f24b6594f713147e559c5339d9b2b3924ac53d59e07cff3ffdb11767b9aab65a9b3453c4b8f34fa7ed3045b249d7a2961fa484ce70145aa3f2b
+  checksum: 10c0/210c12a01b1535600d67866371bebdd17d2407d2ef5f0ed005f072e4976964489d85a8da35c85daa1fbf3bc19416ed0b90e77fa8ddad299b2f89282fb4e5918d
   languageName: node
   linkType: hard
 
@@ -5262,9 +5262,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"svelte@npm:^5.39.10":
-  version: 5.39.10
-  resolution: "svelte@npm:5.39.10"
+"svelte@npm:^5.39.11":
+  version: 5.39.11
+  resolution: "svelte@npm:5.39.11"
   dependencies:
     "@jridgewell/remapping": "npm:^2.3.4"
     "@jridgewell/sourcemap-codec": "npm:^1.5.0"
@@ -5280,7 +5280,7 @@ __metadata:
     locate-character: "npm:^3.0.0"
     magic-string: "npm:^0.30.11"
     zimmerframe: "npm:^1.1.2"
-  checksum: 10c0/4201fa53a5862b44002f931e90cff8073362d1bc2c2f06b9ff46d53451624c87830d7620ca8e377d6388d191134198a6aae9f4ce522316021c864aa408cf862f
+  checksum: 10c0/12d1759c0e1ef61ce9606e4f4657f9ae1ac6dc8a325285d39bb1949314aa65cde7d5c4a89b975b7f299e91c02be82fa1ed6ba91f47748227c022a1ce7d863ca9
   languageName: node
   linkType: hard
 

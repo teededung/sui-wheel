@@ -1696,7 +1696,7 @@
 										loadingText={t('main.settingUp')}
 										onclick={createWheelAndFund}
 										aria-label={t('main.createWheelAndFund')}
-										size="lg"
+										size="md"
 										disabled={invalidEntriesCount > 0 ||
 											uniqueValidEntriesCount < 2 ||
 											prizesCount === 0 ||

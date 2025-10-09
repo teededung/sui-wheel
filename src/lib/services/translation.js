@@ -34,7 +34,7 @@ export function t(key, language = 'en', params = {}) {
 
 	// Simple parameter interpolation (only for strings)
 	if (typeof translation === 'string') {
-		return translation.replace(/\{\{(\w+)\}\}/g, (match, paramKey) => {
+		return translation.replace(/\{(\w+)\}/g, (match, paramKey) => {
 			return params[paramKey] || match;
 		});
 	}
