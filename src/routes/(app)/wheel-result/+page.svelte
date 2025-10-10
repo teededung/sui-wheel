@@ -597,13 +597,15 @@
 												<span class="text-primary font-mono">{formatMistToSuiCompact(m)}</span>
 												<span class="text-base-content/80 text-xs">SUI</span>
 											</td>
-											<td class="font-mono"
-												>{findWinner(i) ? shortenAddress(findWinner(i).addr) : '—'}
-												{#if findWinner(i) && isYou(findWinner(i).addr)}
-													<span class="badge badge-neutral badge-sm ml-2 text-xs opacity-70"
-														>{t('wheelResult.you')}</span
-													>
-												{/if}
+											<td class="font-mono">
+												<div class="flex items-center">
+													{findWinner(i) ? shortenAddress(findWinner(i).addr) : '—'}
+													{#if findWinner(i) && isYou(findWinner(i).addr)}
+														<span class="badge badge-neutral badge-sm ml-2 text-xs opacity-70"
+															>{t('wheelResult.you')}</span
+														>
+													{/if}
+												</div>
 											</td>
 											<td class="text-sm opacity-80">
 												{#if Number(spinTimes[i] || 0) > 0}
