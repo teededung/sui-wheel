@@ -1363,101 +1363,94 @@
 								{/if}
 							</div>
 
-							{#if account}
-								<!-- Prizes tab -->
-								<input
-									type="radio"
-									name="wheel_tabs"
-									class="tab"
-									aria-label={t('main.prizes')}
-									checked={activeTab === 'prizes'}
-									onclick={() => (activeTab = 'prizes')}
-								/>
-								<div class="tab-content bg-base-100 border-base-300 p-6">
-									<h3 class="mb-4 text-lg font-semibold">{t('main.prizesSui')}</h3>
+							<!-- Prizes tab -->
+							<input
+								type="radio"
+								name="wheel_tabs"
+								class="tab"
+								aria-label={t('main.prizes')}
+								checked={activeTab === 'prizes'}
+								onclick={() => (activeTab = 'prizes')}
+							/>
+							<div class="tab-content bg-base-100 border-base-300 p-6">
+								<h3 class="mb-4 text-lg font-semibold">{t('main.prizesSui')}</h3>
 
-									{#if createdWheelId && wheelFetched && !isEditing}
-										<div class="overflow-x-auto">
-											<table class="table-zebra table">
-												<thead>
+								{#if createdWheelId && wheelFetched && !isEditing}
+									<div class="overflow-x-auto">
+										<table class="table-zebra table">
+											<thead>
+												<tr>
+													<th>#</th>
+													<th>{t('main.amount')}</th>
+													<th>{t('main.winner')}</th>
+												</tr>
+											</thead>
+											<tbody>
+												{#each prizesOnChainMist as m, i}
 													<tr>
-														<th>#</th>
-														<th>{t('main.amount')}</th>
-														<th>{t('main.winner')}</th>
-													</tr>
-												</thead>
-												<tbody>
-													{#each prizesOnChainMist as m, i}
-														<tr>
-															<td class="w-12">{i + 1}</td>
-															<td class="font-mono">{formatMistToSuiCompact(m)}</td>
-															<td class="flex items-center font-mono">
-																{#if winnersOnChain.find(w => w.prize_index === i)}
-																	{shortenAddress(
-																		winnersOnChain.find(w => w.prize_index === i).addr
-																	)}
-																	{#if Number(spinTimesOnChain[i] || 0) > 0}
-																		<span
-																			class="badge badge-success badge-sm ml-2 text-xs opacity-70"
-																			>{formatDistanceToNow(spinTimesOnChain[i], {
-																				addSuffix: true
-																			})}</span
-																		>
-																	{/if}
-																{:else}
-																	<span class="opacity-60">—</span>
+														<td class="w-12">{i + 1}</td>
+														<td class="font-mono">{formatMistToSuiCompact(m)}</td>
+														<td class="flex items-center font-mono">
+															{#if winnersOnChain.find(w => w.prize_index === i)}
+																{shortenAddress(winnersOnChain.find(w => w.prize_index === i).addr)}
+																{#if Number(spinTimesOnChain[i] || 0) > 0}
+																	<span class="badge badge-success badge-sm ml-2 text-xs opacity-70"
+																		>{formatDistanceToNow(spinTimesOnChain[i], {
+																			addSuffix: true
+																		})}</span
+																	>
 																{/if}
-															</td>
-														</tr>
-													{/each}
-												</tbody>
-											</table>
-										</div>
-									{:else}
-										<!-- Prize repeater -->
-										{#each prizeAmounts as prize, i}
-											<div class="join mb-2 w-full">
-												<button class="btn btn-disabled join-item"
-													>{t('main.prize')} #{i + 1}</button
-												>
-												<input
-													type="text"
-													class="input join-item prize-input w-full"
-													placeholder={t('main.amountExample')}
-													value={prizeAmounts[i] ?? ''}
-													oninput={e => updatePrizeAmount(i, e.currentTarget.value)}
-													onchange={e => updatePrizeAmount(i, e.currentTarget.value)}
-													onkeydown={e => handlePrizeKeydown(i, e)}
-													aria-label={t('main.prizeAmountInSui', { number: i + 1 })}
-												/>
-												<button
-													class="btn btn-error btn-soft join-item"
-													onclick={() => removePrize(i)}
-													disabled={prizeAmounts.length <= 1}
-													aria-label={t('main.removePrize')}
-													><span class="icon-[lucide--x] h-4 w-4"></span></button
-												>
-											</div>
-										{/each}
-										<div class="mt-2 flex items-center justify-between">
-											<button class="btn btn-outline" onclick={addPrize}
-												>{t('main.addPrize')}</button
+															{:else}
+																<span class="opacity-60">—</span>
+															{/if}
+														</td>
+													</tr>
+												{/each}
+											</tbody>
+										</table>
+									</div>
+								{:else}
+									<!-- Prize repeater -->
+									{#each prizeAmounts as prize, i}
+										<div class="join mb-2 w-full">
+											<button class="btn btn-disabled join-item">{t('main.prize')} #{i + 1}</button>
+											<input
+												type="text"
+												class="input join-item prize-input w-full"
+												placeholder={t('main.amountExample')}
+												value={prizeAmounts[i] ?? ''}
+												oninput={e => updatePrizeAmount(i, e.currentTarget.value)}
+												onchange={e => updatePrizeAmount(i, e.currentTarget.value)}
+												onkeydown={e => handlePrizeKeydown(i, e)}
+												aria-label={t('main.prizeAmountInSui', { number: i + 1 })}
+											/>
+											<button
+												class="btn btn-error btn-soft join-item"
+												onclick={() => removePrize(i)}
+												disabled={prizeAmounts.length <= 1}
+												aria-label={t('main.removePrize')}
+												><span class="icon-[lucide--x] h-4 w-4"></span></button
 											>
-											<div class="text-sm">
-												<strong>{t('main.need')}:</strong>
-												<span>{formatMistToSuiCompact(totalDonationMist)} SUI</span>
-											</div>
 										</div>
+									{/each}
+									<div class="mt-2 flex items-center justify-between">
+										<button class="btn btn-outline" onclick={addPrize}>{t('main.addPrize')}</button>
+										<div class="text-sm">
+											<strong>{t('main.need')}:</strong>
+											<span>{formatMistToSuiCompact(totalDonationMist)} SUI</span>
+										</div>
+									</div>
 
-										{#if createdWheelId && wheelFetched}
-											<div class="mt-2 text-sm">
-												<span class="opacity-70">{t('main.topUpRequired')}:</span>
-												<strong class="ml-1">{formatMistToSuiCompact(topUpMist)} SUI</strong>
-											</div>
-										{/if}
+									{#if createdWheelId && wheelFetched}
+										<div class="mt-2 text-sm">
+											<span class="opacity-70">{t('main.topUpRequired')}:</span>
+											<strong class="ml-1">{formatMistToSuiCompact(topUpMist)} SUI</strong>
+										</div>
 									{/if}
-								</div>
+								{/if}
+							</div>
 
+							{#if account}
 								<!-- Settings tab -->
 								<input
 									type="radio"
