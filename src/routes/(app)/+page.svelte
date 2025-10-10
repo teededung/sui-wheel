@@ -479,8 +479,19 @@
 			poolBalanceMistOnChain = poolMist;
 
 			// Sync form states for edit mode convenience
-			entriesText = entriesOnChain.join('\n');
-			entries = [...entriesOnChain];
+			// If wheel is finished, show winners first then remaining entries
+			if (remainingSpins === 0 && winnersOnChain.length > 0) {
+				const winnerAddresses = winnersOnChain.map(w => w.addr);
+				const remainingEntries = entriesOnChain.filter(
+					entry => !winnersOnChain.find(w => w.addr.toLowerCase() === entry.toLowerCase())
+				);
+				entries = [...winnerAddresses, ...remainingEntries];
+				entriesText = entries.join('\n');
+			} else {
+				entriesText = entriesOnChain.join('\n');
+				entries = [...entriesOnChain];
+			}
+
 			prizeAmounts = prizesOnChainMist.map(m => formatMistToSuiCompact(m));
 			delayMs = delayMsOnChain;
 			claimWindowMs = claimWindowMsOnChain;
@@ -1168,6 +1179,7 @@
 											winnersOnChain = [];
 											spunCountOnChain = 0;
 											poolBalanceMistOnChain = 0n;
+											activeTab = 'entries';
 											entriesViewMode = 'textarea';
 										}}>{t('main.newWheel')}</button
 									>
