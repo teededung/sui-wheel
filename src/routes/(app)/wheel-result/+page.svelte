@@ -211,14 +211,21 @@
 		try {
 			if (!wheelId || !account) return;
 			const eventType = `${LATEST_PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_EVENTS.RECLAIM}`;
-			const res = await suiClient.queryEvents({
-				query: {
-					MoveEventType: eventType
-				},
-				limit: 50
-			});
-			const events = Array.isArray(res?.data) ? res.data : [];
-			const filtered = events.filter(e => {
+			let cursor = null;
+			let hasNextPage = true;
+			let allEvents = [];
+			while (hasNextPage) {
+				const res = await suiClient.queryEvents({
+					query: { MoveEventType: eventType },
+					limit: 100,
+					cursor
+				});
+				const events = Array.isArray(res?.data) ? res.data : [];
+				allEvents = allEvents.concat(events);
+				cursor = res.nextCursor;
+				hasNextPage = res.hasNextPage;
+			}
+			const filtered = allEvents.filter(e => {
 				const wid = String(e?.parsedJson?.wheel_id ?? e?.parsedJson?.wheelId ?? '').toLowerCase();
 				return wid === String(wheelId).toLowerCase();
 			});
@@ -258,10 +265,22 @@
 		try {
 			if (!wheelId || !account) return;
 			const eventType = `${LATEST_PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_EVENTS.CLAIM}`;
-			const res = await suiClient.queryEvents({ query: { MoveEventType: eventType }, limit: 50 });
-			const events = Array.isArray(res?.data) ? res.data : [];
+			let cursor = null;
+			let hasNextPage = true;
+			let allEvents = [];
+			while (hasNextPage) {
+				const res = await suiClient.queryEvents({
+					query: { MoveEventType: eventType },
+					limit: 100,
+					cursor
+				});
+				const events = Array.isArray(res?.data) ? res.data : [];
+				allEvents = allEvents.concat(events);
+				cursor = res.nextCursor;
+				hasNextPage = res.hasNextPage;
+			}
 			const who = String(account?.address).toLowerCase();
-			const filtered = events.filter(e => {
+			const filtered = allEvents.filter(e => {
 				const wid = String(e?.parsedJson?.wheel_id ?? e?.parsedJson?.wheelId ?? '').toLowerCase();
 				const winner = String(e?.parsedJson?.winner ?? '').toLowerCase();
 				return wid === String(wheelId).toLowerCase() && winner === who;
