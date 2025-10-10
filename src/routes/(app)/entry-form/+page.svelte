@@ -188,7 +188,7 @@
 					<ButtonLoading
 						formLoading={submitting}
 						color="primary"
-						size="lg"
+						size="md"
 						loadingText={t('entryForm.submitting')}
 						onclick={handleSubmit}
 						disabled={!entry.trim()}
