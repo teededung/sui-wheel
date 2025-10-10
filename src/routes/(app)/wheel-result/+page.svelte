@@ -85,19 +85,24 @@
 		}
 	});
 
+	// Watch wheelId change
 	watch(
 		() => wheelId,
 		async () => {
-			// Run fetchData and event fetches in parallel
-			await Promise.all([
-				fetchData(wheelId),
-				fetchReclaimEvents(wheelId),
-				fetchClaimEventsForWinner(wheelId)
-			]);
+			await fetchData(wheelId);
 
 			// Precompute static "Spun at" texts based on current time once
 			const base = Date.now();
 			spunAtTexts = (spinTimes || []).map(ts => formatRelativePreciseAt(ts, base));
+		}
+	);
+
+	// Watch account change
+	watch(
+		() => account,
+		async () => {
+			if (!account && !wheelId) return;
+			await Promise.all([fetchReclaimEvents(wheelId), fetchClaimEventsForWinner(wheelId)]);
 		}
 	);
 
@@ -124,8 +129,6 @@
 
 			const transactions = response?.data || [];
 			for (const tx of transactions) {
-				console.log(tx);
-
 				const created = (tx?.objectChanges || []).find(
 					ch =>
 						ch?.type === 'created' &&
@@ -199,7 +202,12 @@
 		try {
 			if (!wheelId || !account) return;
 			const eventType = `${LATEST_PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_EVENTS.RECLAIM}`;
-			const res = await suiClient.queryEvents({ query: { MoveEventType: eventType }, limit: 1 });
+			const res = await suiClient.queryEvents({
+				query: {
+					MoveEventType: eventType
+				},
+				limit: 50
+			});
 			const events = Array.isArray(res?.data) ? res.data : [];
 			const filtered = events.filter(e => {
 				const wid = String(e?.parsedJson?.wheel_id ?? e?.parsedJson?.wheelId ?? '').toLowerCase();
@@ -232,48 +240,6 @@
 			const ts = Number(latest?.timestampMs ?? 0);
 			const digest = String(latest?.id?.txDigest ?? latest?.transactionDigest ?? '');
 			lastReclaim = { amount, timestampMs: ts, digest };
-		} catch {
-			// ignore
-		}
-	}
-
-	async function fetchClaimEvents(wheelId) {
-		try {
-			if (!wheelId || !account) return;
-			const eventType = `${LATEST_PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_EVENTS.CLAIM}`;
-			const res = await suiClient.queryEvents({ query: { MoveEventType: eventType }, limit: 1 });
-			const events = Array.isArray(res?.data) ? res.data : [];
-			const filtered = events.filter(e => {
-				const wid = String(e?.parsedJson?.wheel_id ?? e?.parsedJson?.wheelId ?? '').toLowerCase();
-				return wid === String(wheelId).toLowerCase();
-			});
-			if (filtered.length === 0) {
-				lastClaim = { amount: 0n, timestampMs: 0, digest: '' };
-				return;
-			}
-			filtered.sort((a, b) => {
-				const ta = Number(a?.timestampMs ?? 0);
-				const tb = Number(b?.timestampMs ?? 0);
-				if (tb !== ta) return tb - ta;
-				try {
-					const ea = BigInt(a?.id?.eventSeq ?? '0');
-					const eb = BigInt(b?.id?.eventSeq ?? '0');
-					return eb > ea ? 1 : eb < ea ? -1 : 0;
-				} catch {
-					return 0;
-				}
-			});
-			const latest = filtered[0];
-			const amount = (() => {
-				try {
-					return BigInt(latest?.parsedJson?.amount ?? 0);
-				} catch {
-					return 0n;
-				}
-			})();
-			const ts = Number(latest?.timestampMs ?? 0);
-			const digest = String(latest?.id?.txDigest ?? latest?.transactionDigest ?? '');
-			lastClaim = { amount, timestampMs: ts, digest };
 		} catch {
 			// ignore
 		}
@@ -381,7 +347,17 @@
 			// Transfer the returned coin to the sender's address
 			tx.transferObjects([claimedCoin], tx.pure.address(account?.address));
 
-			await signAndExecuteTransaction(tx);
+			const res = await signAndExecuteTransaction(tx);
+			const digest = res?.digest ?? res?.effects?.transactionDigest;
+			if (!digest) throw new Error('Missing tx digest for claim');
+
+			// Wait for transaction to be confirmed on-chain
+			await suiClient.waitForTransaction({
+				digest,
+				options: { showEvents: true }
+			});
+
+			// Refresh data after transaction is confirmed
 			await fetchData(wheelId);
 			await fetchClaimEventsForWinner(wheelId);
 		} catch (e) {
@@ -458,9 +434,21 @@
 				arguments: [tx.object(wheelId), tx.object(CLOCK_OBJECT_ID)]
 			});
 			tx.transferObjects([coin], tx.pure.address(account.address));
-			await signAndExecuteTransaction(tx);
+
+			const res = await signAndExecuteTransaction(tx);
+			const digest = res?.digest ?? res?.effects?.transactionDigest;
+			if (!digest) throw new Error('Missing tx digest for reclaim');
+
+			// Wait for transaction to be confirmed on-chain
+			await suiClient.waitForTransaction({
+				digest,
+				options: { showEvents: true }
+			});
+
+			// Refresh data after transaction is confirmed
 			await fetchData(wheelId);
 			await fetchReclaimEvents(wheelId);
+
 			if (lastReclaim.digest) {
 				toast.success(t('wheelResult.success.reclaimedPoolSuccessfully'), {
 					position: 'bottom-right',
@@ -641,7 +629,7 @@
 				{/if}
 			</div>
 			<div class="order-1 mb-4 lg:order-2 lg:mb-0">
-				<div class="card bg-base-200 shadow">
+				<div class="card bg-base-200 border-base-300 border-1 shadow">
 					<div class="card-body">
 						{#if isCancelled}
 							<div class="alert alert-soft dark:!border-warning alert-warning text-sm">
@@ -763,7 +751,7 @@
 				</div>
 
 				{#if wheelId}
-					<div class="card bg-base-200 mt-4 shadow">
+					<div class="card bg-base-200 border-base-300 mt-4 border-1 shadow">
 						<div class="card-body">
 							<div class="flex max-w-full items-center gap-2 text-sm">
 								<span class="mr-1 inline-block">{t('wheelResult.wheelId')}</span>

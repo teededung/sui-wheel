@@ -29,11 +29,8 @@
 	import { useTranslation } from '$lib/hooks/useTranslation.js';
 	import QRCode from 'qrcode';
 
-	const t = useTranslation();
-
 	import {
 		LATEST_PACKAGE_ID,
-		// MIST_PER_SUI,
 		WHEEL_MODULE,
 		WHEEL_FUNCTIONS,
 		MINIMUM_PRIZE_AMOUNT,
@@ -42,10 +39,10 @@
 		CLOCK_OBJECT_ID
 	} from '$lib/constants.js';
 
-	// Language - using translation hook instead
-
+	const t = useTranslation();
 	const suiClient = $derived(useSuiClient());
 	const account = $derived(useCurrentAccount());
+	let isOnTestnet = $derived.by(() => isTestnet(account));
 
 	// State
 	let entries = $state([
@@ -153,8 +150,6 @@
 			return 0n;
 		}
 	});
-
-	let isOnTestnet = $derived.by(() => isTestnet(account));
 
 	// UI: active tab in settings (entries | prizes | settings)
 	let activeTab = $state('entries');
