@@ -337,11 +337,11 @@
 								<thead>
 									<tr>
 										<th class="w-12">{t('wheelList.table.number')}</th>
-										<th>{t('wheelList.table.wheelId')}</th>
-										<th>{t('wheelList.table.created')}</th>
+										<th class="w-40">{t('wheelList.table.wheelId')}</th>
+										<th class="w-40">{t('wheelList.table.actions')}</th>
+										<th class="w-24">{t('wheelList.table.created')}</th>
+										<th class="w-6">{t('wheelList.table.totalEntries')}</th>
 										<th>{t('wheelList.table.status')}</th>
-										<th class="w-20">{t('wheelList.table.totalEntries')}</th>
-										<th class="w-64">{t('wheelList.table.actions')}</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -361,6 +361,22 @@
 													<span class="icon-[lucide--external-link]"></span>
 												</a>
 											</td>
+											<td>
+												<div class="join">
+													<a
+														class="btn btn-sm btn-success btn-soft join-item"
+														href={`/?wheelId=${w.id}`}
+														aria-label={t('wheelList.actions.open')}
+														>{t('wheelList.actions.open')}</a
+													>
+													<a
+														class="btn btn-sm btn-secondary btn-soft join-item"
+														href={`/wheel-result/?wheelId=${w.id}`}
+														aria-label={t('wheelList.actions.results')}
+														>{t('wheelList.actions.results')}</a
+													>
+												</div>
+											</td>
 											<td class="whitespace-nowrap">
 												{#if w.timestampMs}
 													<div
@@ -374,6 +390,11 @@
 												{:else}
 													<span class="opacity-60">—</span>
 												{/if}
+											</td>
+											<td class="text-center">
+												<span class="badge badge-neutral font-mono">
+													{w.totalEntries || 0}
+												</span>
 											</td>
 											<td>
 												{#if w.status === 'Cancelled'}
@@ -397,27 +418,6 @@
 														{t('wheelList.status.unknown')}</span
 													>
 												{/if}
-											</td>
-											<td class="text-center">
-												<span class="badge badge-neutral font-mono">
-													{w.totalEntries || 0}
-												</span>
-											</td>
-											<td>
-												<div class="join">
-													<a
-														class="btn btn-sm btn-success btn-soft join-item"
-														href={`/?wheelId=${w.id}`}
-														aria-label={t('wheelList.actions.open')}
-														>{t('wheelList.actions.open')}</a
-													>
-													<a
-														class="btn btn-sm btn-secondary btn-soft join-item"
-														href={`/wheel-result/?wheelId=${w.id}`}
-														aria-label={t('wheelList.actions.results')}
-														>{t('wheelList.actions.results')}</a
-													>
-												</div>
 											</td>
 										</tr>
 									{/each}
@@ -470,11 +470,11 @@
 								<thead>
 									<tr>
 										<th class="w-12">{t('wheelList.publicWheels.table.number')}</th>
-										<th>{t('wheelList.publicWheels.table.wheelId')}</th>
-										<th>{t('wheelList.publicWheels.table.created')}</th>
+										<th class="w-40">{t('wheelList.publicWheels.table.wheelId')}</th>
+										<th class="w-40">{t('wheelList.publicWheels.table.actions')}</th>
+										<th class="w-24">{t('wheelList.publicWheels.table.created')}</th>
+										<th class="w-6">{t('wheelList.publicWheels.table.totalEntries')}</th>
 										<th>{t('wheelList.publicWheels.table.status')}</th>
-										<th class="w-20">{t('wheelList.publicWheels.table.totalEntries')}</th>
-										<th class="w-64">{t('wheelList.publicWheels.table.actions')}</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -494,6 +494,22 @@
 													<span class="icon-[lucide--external-link]"></span>
 												</a>
 											</td>
+											<td>
+												<div class="join">
+													<a
+														class="btn btn-sm btn-success btn-soft join-item"
+														href={`/?wheelId=${w.id}`}
+														aria-label={t('wheelList.actions.open')}
+														>{t('wheelList.actions.open')}</a
+													>
+													<a
+														class="btn btn-sm btn-secondary btn-soft join-item"
+														href={`/wheel-result/?wheelId=${w.id}`}
+														aria-label={t('wheelList.actions.results')}
+														>{t('wheelList.actions.results')}</a
+													>
+												</div>
+											</td>
 											<td class="whitespace-nowrap">
 												{#if w.timestampMs}
 													<div
@@ -507,6 +523,11 @@
 												{:else}
 													<span class="opacity-60">—</span>
 												{/if}
+											</td>
+											<td class="text-center">
+												<span class="badge badge-neutral font-mono">
+													{w.totalEntries || 0}
+												</span>
 											</td>
 											<td>
 												{#if w.status === 'Cancelled'}
@@ -530,27 +551,6 @@
 														{t('wheelList.status.unknown')}</span
 													>
 												{/if}
-											</td>
-											<td class="text-center">
-												<span class="badge badge-neutral font-mono">
-													{w.totalEntries || 0}
-												</span>
-											</td>
-											<td>
-												<div class="join">
-													<a
-														class="btn btn-sm btn-success btn-soft join-item"
-														href={`/?wheelId=${w.id}`}
-														aria-label={t('wheelList.actions.open')}
-														>{t('wheelList.actions.open')}</a
-													>
-													<a
-														class="btn btn-sm btn-secondary btn-soft join-item"
-														href={`/wheel-result/?wheelId=${w.id}`}
-														aria-label={t('wheelList.actions.results')}
-														>{t('wheelList.actions.results')}</a
-													>
-												</div>
 											</td>
 										</tr>
 									{/each}
