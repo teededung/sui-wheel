@@ -42,7 +42,7 @@
 		"@iconify-json/lucide": "^1.2.69",
 		"@iconify/tailwind4": "^1.0.6",
 		"@mysten/sui": "^1.39.1",
-		"daisyui": "^5.1.29",
+		"daisyui": "^5.1.30",
 		"date-fns": "^4.1.0",
 		"gsap": "^3.13.0",
 		"qrcode": "^1.5.4",

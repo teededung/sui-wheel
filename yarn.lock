@@ -2390,10 +2390,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"daisyui@npm:^5.1.29":
-  version: 5.1.29
-  resolution: "daisyui@npm:5.1.29"
-  checksum: 10c0/f264df62eab57b04370d37f08c14c95989927b063cc96e431fa92675efba4f46869f88be6db909ad37481968fa43bf1a10bb8dde7ab9385fbec5aa89d6bf777e
+"daisyui@npm:^5.1.30":
+  version: 5.1.30
+  resolution: "daisyui@npm:5.1.30"
+  checksum: 10c0/af6c84ae482ba956bc5ee8309992be5c6ee28b35401d3133d78703d84b8feb7f0d680a10955c9ef5e1bbca8a3b5901b22b024e77ae5394b94ce1a99c3ef61aef
   languageName: node
   linkType: hard
 
@@ -5173,7 +5173,7 @@ __metadata:
     "@sveltejs/vite-plugin-svelte": "npm:^6.2.1"
     "@tailwindcss/typography": "npm:^0.5.19"
     "@tailwindcss/vite": "npm:^4.1.14"
-    daisyui: "npm:^5.1.29"
+    daisyui: "npm:^5.1.30"
     date-fns: "npm:^4.1.0"
     eslint: "npm:^9.37.0"
     eslint-config-prettier: "npm:^10.1.8"

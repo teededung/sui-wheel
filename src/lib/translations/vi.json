@@ -7,7 +7,9 @@
     "confirm": "Xác nhận",
     "save": "Lưu",
     "edit": "Sửa",
-    "delete": "Xóa"
+    "delete": "Xóa",
+    "testnetWarning": "Cảnh báo Testnet",
+    "switchToTestnet": "Vui lòng chuyển ví của bạn sang Sui Testnet để sử dụng ứng dụng này."
   },
   "navigation": {
     "home": "Trang chủ",
@@ -156,6 +158,20 @@
     "actions": {
       "open": "Mở",
       "results": "Kết quả"
+    },
+    "publicWheels": {
+      "title": "Vòng quay công khai gần đây",
+      "description": "Khám phá các vòng quay được tạo gần đây bởi cộng đồng",
+      "loading": "Đang tải vòng quay công khai...",
+      "noWheels": "Chưa có vòng quay công khai nào.",
+      "table": {
+        "number": "#",
+        "wheelId": "ID Vòng quay",
+        "created": "Tạo lúc",
+        "status": "Trạng thái",
+        "totalEntries": "Số người tham gia",
+        "actions": "Hành động"
+      }
     }
   },
   "wheelResult": {

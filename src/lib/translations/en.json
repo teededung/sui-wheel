@@ -7,7 +7,9 @@
     "confirm": "Confirm",
     "save": "Save",
     "edit": "Edit",
-    "delete": "Delete"
+    "delete": "Delete",
+    "testnetWarning": "Testnet Warning",
+    "switchToTestnet": "Please switch your wallet to Sui Testnet to use this application."
   },
   "navigation": {
     "home": "Home",
@@ -156,6 +158,20 @@
     "actions": {
       "open": "Open",
       "results": "Results"
+    },
+    "publicWheels": {
+      "title": "Recent Public Wheels",
+      "description": "Discover wheels recently created by the community",
+      "loading": "Loading public wheels...",
+      "noWheels": "No public wheels found.",
+      "table": {
+        "number": "#",
+        "wheelId": "Wheel ID",
+        "created": "Created",
+        "status": "Status",
+        "totalEntries": "Total Entries",
+        "actions": "Actions"
+      }
     }
   },
   "wheelResult": {
