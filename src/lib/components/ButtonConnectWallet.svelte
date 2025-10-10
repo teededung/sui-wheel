@@ -16,7 +16,9 @@
 	} from 'sui-svelte-wallet-kit';
 	import { toast } from 'svelte-daisy-toaster';
 	import { shortenAddress } from '$lib/utils/string';
+	import { getNetworkDisplayName } from '$lib/utils/suiHelpers.js';
 	import { useTranslation } from '$lib/hooks/useTranslation.js';
+	import { NETWORK } from '$lib/constants.js';
 
 	// Translation hook
 	const t = useTranslation();
@@ -42,7 +44,9 @@
 	let walletLabel = $derived(wallet?.displayName || '');
 	let bal = $derived(suiBalance?.value / 1_000_000_000);
 	let balLoading = $derived(Boolean(suiBalanceLoading?.value));
-	let isTestnet = $derived(Boolean(account?.chains[0] === 'sui:testnet'));
+	let currrentNetwork = $derived(account?.chains[0] || 'sui:mainnet');
+	let networkDisplayName = $derived(getNetworkDisplayName(currrentNetwork));
+	let isNetworkMismatch = $derived(currrentNetwork !== NETWORK);
 
 	// track dropdown open state and refresh balance when opened
 	let dropdownOpen = $state(false);
@@ -78,8 +82,20 @@
 			.catch(() => toast.error(t('wallet.copyFailed'), { position: 'bottom-right' }));
 	}
 
-	function openSV(addr) {
-		const base = isTestnet ? 'https://testnet.suivision.xyz' : 'https://suivision.xyz';
+	function openAddressInSuiVision(addr) {
+		let base;
+
+		if (currrentNetwork === 'sui:mainnet') {
+			base = 'https://suivision.xyz';
+		} else if (currrentNetwork === 'sui:testnet') {
+			base = 'https://testnet.suivision.xyz';
+		} else if (currrentNetwork === 'sui:devnet') {
+			base = 'https://devnet.suivision.xyz';
+		} else {
+			// Default to mainnet for unknown networks
+			base = 'https://suivision.xyz';
+		}
+
 		window.open(`${base}/account/${addr}`, '_blank');
 	}
 
@@ -126,9 +142,12 @@
 		{#if showSwitcher && (walletLabel || walletIcon)}
 			<!-- full dropdown / switcher as before -->
 			<div
-				class="dropdown dropdown-end"
+				class="dropdown dropdown-end {isNetworkMismatch
+					? 'tooltip tooltip-bottom tooltip-error tooltip-open border-error border'
+					: ''}"
 				onfocusin={() => (dropdownOpen = true)}
 				onfocusout={() => (dropdownOpen = false)}
+				data-tip={isNetworkMismatch ? 'Network mismatch' : ''}
 			>
 				<div class="btn" role="button" tabindex="0">
 					{#if walletIcon}
@@ -169,10 +188,8 @@
 						{/if}
 						<div>
 							<h3 class="text-sm font-semibold">{walletLabel || 'Wallet'}</h3>
-							<p class="text-xs opacity-60">
-								{accounts.length > 1
-									? t('wallet.selectAccountToSwitch')
-									: t('wallet.connectedAccount')}
+							<p class="text-secondary text-xs opacity-70">
+								{networkDisplayName}
 							</p>
 						</div>
 					</div>
@@ -213,7 +230,7 @@
 											aria-label="Open in SuiVision"
 											onclick={e => {
 												e.stopPropagation();
-												openSV(acc.address);
+												openAddressInSuiVision(acc.address);
 											}}
 										>
 											<span class="icon-[lucide--external-link] h-3 w-3"></span>

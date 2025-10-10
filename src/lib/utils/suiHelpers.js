@@ -143,3 +143,20 @@ export function isTestnet(account) {
 	if (!chain) return true;
 	return chain === 'sui:testnet';
 }
+
+/**
+ * Formats network name for display
+ * @param {string} network - The network identifier (e.g., 'sui:mainnet', 'sui:testnet')
+ * @returns {string} Formatted network name for display
+ * @example
+ * getNetworkDisplayName('sui:mainnet') // returns 'Mainnet'
+ * getNetworkDisplayName('sui:testnet') // returns 'Testnet'
+ * getNetworkDisplayName('sui:devnet') // returns 'Devnet'
+ */
+export function getNetworkDisplayName(network) {
+	if (!network) return 'Unknown';
+	if (network.includes('mainnet')) return 'Mainnet';
+	if (network.includes('testnet')) return 'Testnet';
+	if (network.includes('devnet')) return 'Devnet';
+	return network.replace('sui:', '').charAt(0).toUpperCase() + network.replace('sui:', '').slice(1);
+}

@@ -1,3 +1,5 @@
+export const NETWORK = 'sui:testnet';
+
 /**
  * Mapping of all deployed package versions for backward compatibility.
  * Each key is the package ID, mapped to its metadata.
