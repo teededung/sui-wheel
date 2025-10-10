@@ -788,7 +788,7 @@
 	});
 </script>
 
-<div class="relative mx-auto max-w-[560px]">
+<div class="relative mx-auto max-w-[560px] overflow-hidden sm:overflow-visible">
 	<div class="rounded-box p-6 sm:p-3">
 		<div
 			bind:this={canvasContainerEl}
@@ -811,7 +811,7 @@
 
 			<!-- Pointer -->
 			<div
-				class="pointer-events-none absolute top-1/2 -right-7 z-10 -translate-y-1/2 sm:-right-9"
+				class="pointer-events-none absolute top-1/2 -right-6 z-10 -translate-y-1/2 sm:-right-9"
 				class:bounce={pointerBounce}
 				aria-hidden="true"
 			>
