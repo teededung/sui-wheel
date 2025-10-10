@@ -97,12 +97,21 @@
 		}
 	);
 
-	// Watch account change
+	// Watch isOrganizer change
 	watch(
-		() => account,
+		() => isOrganizer,
 		async () => {
-			if (!account && !wheelId) return;
-			await Promise.all([fetchReclaimEvents(wheelId), fetchClaimEventsForWinner(wheelId)]);
+			if (!account && !wheelId && !isOrganizer) return;
+			await fetchReclaimEvents(wheelId);
+		}
+	);
+
+	// Watch winnerInfo change
+	watch(
+		() => winnerInfo,
+		async () => {
+			if (!account && !wheelId && !winnerInfo) return;
+			await fetchClaimEventsForWinner(wheelId);
 		}
 	);
 
