@@ -11,6 +11,7 @@
 	import { shortenAddress } from '$lib/utils/string.js';
 	import { isValidSuiAddress } from '$lib/utils/suiHelpers.js';
 	import { useTranslation } from '$lib/hooks/useTranslation.js';
+	import { WHEEL_EVENTS } from '$lib/constants.js';
 
 	const t = useTranslation();
 	const suiClient = $derived(useSuiClient());
@@ -587,7 +588,7 @@
 					digest,
 					options: { showEvents: true }
 				});
-				const spinEventType = `${packageId}::${WHEEL_MODULE}::${WHEEL_EVENTS}`;
+				const spinEventType = `${packageId}::${WHEEL_MODULE}::${WHEEL_EVENTS.SPIN}`;
 				const spinEvents = (txBlock?.events || []).filter(e => {
 					const t = String(e?.type || '');
 					return t === spinEventType || t.endsWith(`::${WHEEL_MODULE}::${WHEEL_EVENTS.SPIN}`);
