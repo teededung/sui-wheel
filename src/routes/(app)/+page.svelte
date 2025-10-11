@@ -393,6 +393,25 @@
 		}
 	}
 
+	function multisetsEqual(listA, listB) {
+		if (listA.length !== listB.length) return false;
+		const countA = new Map();
+		listA.forEach(e => {
+			const key = e.toLowerCase();
+			countA.set(key, (countA.get(key) || 0) + 1);
+		});
+		const countB = new Map();
+		listB.forEach(e => {
+			const key = e.toLowerCase();
+			countB.set(key, (countB.get(key) || 0) + 1);
+		});
+		if (countA.size !== countB.size) return false;
+		for (const [key, val] of countA) {
+			if (countB.get(key) !== val) return false;
+		}
+		return true;
+	}
+
 	/**
 	 * Fetch wheel data from testnet by createdWheelId and populate read-only state
 	 */
@@ -474,18 +493,27 @@
 			poolBalanceMistOnChain = poolMist;
 
 			// Sync form states for edit mode convenience
-			// If wheel is finished, show winners first then remaining entries
+			const lowerWinners = winnersOnChain.map(w => w.addr.toLowerCase());
+			let newEntries = [];
 			if (remainingSpins === 0 && winnersOnChain.length > 0) {
 				const winnerAddresses = winnersOnChain.map(w => w.addr);
-				const remainingEntries = entriesOnChain.filter(
-					entry => !winnersOnChain.find(w => w.addr.toLowerCase() === entry.toLowerCase())
-				);
-				entries = [...winnerAddresses, ...remainingEntries];
-				entriesText = entries.join('\n');
+				// Filter previous entries to get ordered remaining
+				const orderedRemaining = entries.filter(e => !lowerWinners.includes(e.toLowerCase()));
+				newEntries = [...winnerAddresses, ...orderedRemaining];
 			} else {
-				entriesText = entriesOnChain.join('\n');
-				entries = [...entriesOnChain];
+				// Filter current entries to remove those not in on-chain remaining
+				let filtered = entries.filter(e =>
+					entriesOnChain.some(o => o.toLowerCase() === e.toLowerCase())
+				);
+				// Check if multisets equal
+				if (multisetsEqual(filtered, entriesOnChain)) {
+					newEntries = filtered;
+				} else {
+					newEntries = [...entriesOnChain];
+				}
 			}
+			entries = newEntries;
+			entriesText = entries.join('\n');
 
 			prizeAmounts = prizesOnChainMist.map(m => formatMistToSuiCompact(m));
 			delayMs = delayMsOnChain;
