@@ -7,7 +7,12 @@
 		signAndExecuteTransaction
 	} from 'sui-svelte-wallet-kit';
 	import { shortenAddress } from '$lib/utils/string.js';
-	import { formatMistToSuiCompact, isTestnet } from '$lib/utils/suiHelpers.js';
+	import {
+		formatMistToSuiCompact,
+		isTestnet,
+		highlightAddress,
+		getExplorerLink
+	} from '$lib/utils/suiHelpers.js';
 	import {
 		LATEST_PACKAGE_ID,
 		WHEEL_MODULE,
@@ -486,7 +491,7 @@
 						class: 'btn btn-primary btn-sm',
 						callback: () => {
 							window.open(
-								`https://testnet.suivision.xyz/txblock/${lastReclaim.digest}`,
+								`${getExplorerLink('testnet', 'txblock', lastReclaim.digest)}`,
 								'_blank',
 								'noopener'
 							);
@@ -568,7 +573,7 @@
 						{#if lastReclaim.digest}
 							<a
 								class="link link-primary ml-2"
-								href={`https://testnet.suivision.xyz/txblock/${lastReclaim.digest}`}
+								href={`${getExplorerLink('testnet', 'txblock', lastReclaim.digest)}`}
 								target="_blank"
 								rel="noopener noreferrer">{t('wheelResult.viewTx')}</a
 							>
@@ -576,11 +581,13 @@
 					</div>
 				{/if}
 
-				<h2 class="mt-6 mb-3 text-lg font-semibold">{t('wheelResult.winners')}</h2>
+				<h2 class="mt-6 mb-3 text-lg font-semibold">
+					{t('wheelResult.winners')} ({winners.length})
+				</h2>
 				<div class="card bg-base-200 border-base-300 mb-6 border shadow-sm">
 					<div class="card-body p-0">
 						<div class="overflow-x-auto">
-							<table class="table-zebra table">
+							<table class="table">
 								<thead>
 									<tr>
 										<th>{t('wheelResult.table.number')}</th>
@@ -625,12 +632,15 @@
 				</div>
 
 				{#if nonWinningEntries.length > 0}
-					<h2 class="mt-6 mb-3 text-lg font-semibold">{t('wheelResult.nonWinningEntries')}</h2>
+					<h2 class="mt-6 mb-3 text-lg font-semibold">
+						{t('wheelResult.nonWinningEntries')}
+						({nonWinningEntries.length})
+					</h2>
 
 					<div class="card bg-base-200 border-base-300 mb-6 border shadow-sm">
 						<div class="card-body p-0">
 							<div class="overflow-x-auto">
-								<table class="table-zebra table">
+								<table class="table">
 									<thead>
 										<tr>
 											<th>{t('wheelResult.tableNonWinning.number')}</th>
@@ -642,7 +652,7 @@
 											<tr class:active={isYou(addr)}>
 												<td class="w-12">{idx + 1}</td>
 												<td class="flex items-center font-mono"
-													>{shortenAddress(addr)}
+													>{@html highlightAddress(addr)}
 													{#if isYou(addr)}
 														<span class="badge badge-neutral badge-sm ml-2 text-xs opacity-70"
 															>{t('wheelResult.you')}</span
@@ -695,7 +705,7 @@
 												{#if lastClaim.digest}
 													<a
 														class="link link-primary hover:link-primary mt-1 flex items-center"
-														href={`https://testnet.suivision.xyz/txblock/${lastClaim.digest}`}
+														href={`${getExplorerLink('testnet', 'txblock', lastClaim.digest)}`}
 														target="_blank"
 														rel="noopener noreferrer"
 													>
@@ -792,7 +802,7 @@
 								<ButtonCopy originText={wheelId} size="xs" className="ml-1 btn-soft" />
 								<a
 									class="btn btn-soft btn-xs flex items-center gap-1"
-									href={`https://testnet.suivision.xyz/object/${wheelId}`}
+									href={`${getExplorerLink('testnet', 'object', wheelId)}`}
 									target="_blank"
 									rel="noopener noreferrer"
 									>{t('wheelResult.suivision')}

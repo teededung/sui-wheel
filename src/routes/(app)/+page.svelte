@@ -19,7 +19,8 @@
 		isValidSuiAddress,
 		parseSuiToMist,
 		formatMistToSuiCompact,
-		isTestnet
+		isTestnet,
+		getExplorerLink
 	} from '$lib/utils/suiHelpers.js';
 
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
@@ -1172,7 +1173,18 @@
 							<div class="flex items-center gap-2 text-sm opacity-70">
 								<span
 									>{t('main.wheelId')}
-									<span class="font-mono">{shortenAddress(createdWheelId)}</span></span
+									<a
+										href={getExplorerLink(
+											isOnTestnet ? 'testnet' : 'mainnet',
+											'object',
+											createdWheelId
+										)}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="link link-primary font-mono"
+									>
+										{shortenAddress(createdWheelId)}
+									</a></span
 								>
 								{#if remainingSpins === 0}
 									<span class="badge badge-success badge-sm"

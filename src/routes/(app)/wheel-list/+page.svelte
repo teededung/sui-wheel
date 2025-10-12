@@ -5,7 +5,7 @@
 	import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 	import { formatDistanceToNow, format } from 'date-fns';
 	import { shortenAddress } from '$lib/utils/string.js';
-	import { isTestnet } from '$lib/utils/suiHelpers.js';
+	import { isTestnet, getExplorerLink } from '$lib/utils/suiHelpers.js';
 	import {
 		LATEST_PACKAGE_ID,
 		WHEEL_MODULE,
@@ -350,7 +350,7 @@
 											<td>{i + 1}</td>
 											<td class="font-mono">
 												<a
-													href={`https://testnet.suivision.xyz/object/${w.id}`}
+													href={`${getExplorerLink('testnet', 'object', w.id)}`}
 													target="_blank"
 													rel="noopener noreferrer"
 													class="link link-primary hover:link-accent flex items-center gap-2"
@@ -383,7 +383,7 @@
 														class="tooltip"
 														data-tip={format(w.timestampMs, "MMMM d, yyyy 'at' h:mm a")}
 													>
-														<span class="badge badge-soft badge-success">
+														<span class="badge dark badge-soft badge-success">
 															{formatDistanceToNow(w.timestampMs, { addSuffix: true })}
 														</span>
 													</div>
@@ -483,7 +483,7 @@
 											<td>{i + 1}</td>
 											<td class="font-mono">
 												<a
-													href={`https://testnet.suivision.xyz/object/${w.id}`}
+													href={`${getExplorerLink('testnet', 'object', w.id)}`}
 													target="_blank"
 													rel="noopener noreferrer"
 													class="link link-primary hover:link-accent flex items-center gap-2"

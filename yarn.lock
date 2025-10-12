@@ -1008,9 +1008,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mysten/sui@npm:^1.39.1":
-  version: 1.39.1
-  resolution: "@mysten/sui@npm:1.39.1"
+"@mysten/sui@npm:^1.40.0":
+  version: 1.40.0
+  resolution: "@mysten/sui@npm:1.40.0"
   dependencies:
     "@graphql-typed-document-node/core": "npm:^3.2.0"
     "@mysten/bcs": "npm:1.8.0"
@@ -1024,7 +1024,7 @@ __metadata:
     graphql: "npm:^16.11.0"
     poseidon-lite: "npm:0.2.1"
     valibot: "npm:^0.36.0"
-  checksum: 10c0/036d94574509fc2095eaf9d09ce242f3cf855d4169cb5b74c541da36b23da544624bf0dadbf17384c6bd146d4c9dd0e26dd5738d2b5ab14d5c980b732c4349da
+  checksum: 10c0/d42c74d3ba93714901eba24100ffac5841645721002ee668cb18935b30216539a1fa9a3e2aa36552a959090a20be37530b4b3cca1bc7f4216297cfe9e5890311
   languageName: node
   linkType: hard
 
@@ -2390,10 +2390,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"daisyui@npm:^5.1.30":
-  version: 5.1.30
-  resolution: "daisyui@npm:5.1.30"
-  checksum: 10c0/af6c84ae482ba956bc5ee8309992be5c6ee28b35401d3133d78703d84b8feb7f0d680a10955c9ef5e1bbca8a3b5901b22b024e77ae5394b94ce1a99c3ef61aef
+"daisyui@npm:^5.2.3":
+  version: 5.2.3
+  resolution: "daisyui@npm:5.2.3"
+  checksum: 10c0/b50e58a93ceea4ce56a067f5f606acb823ed2637aa5222ad18699c3e703404e0a8441341c5ef1794ece47e04f7aa0324be34386e813374179e44a5630d2336f2
   languageName: node
   linkType: hard
 
@@ -5167,13 +5167,13 @@ __metadata:
     "@eslint/js": "npm:^9.37.0"
     "@iconify-json/lucide": "npm:^1.2.69"
     "@iconify/tailwind4": "npm:^1.0.6"
-    "@mysten/sui": "npm:^1.39.1"
+    "@mysten/sui": "npm:^1.40.0"
     "@sveltejs/adapter-netlify": "npm:^5.2.4"
     "@sveltejs/kit": "npm:^2.46.4"
     "@sveltejs/vite-plugin-svelte": "npm:^6.2.1"
     "@tailwindcss/typography": "npm:^0.5.19"
     "@tailwindcss/vite": "npm:^4.1.14"
-    daisyui: "npm:^5.1.30"
+    daisyui: "npm:^5.2.3"
     date-fns: "npm:^4.1.0"
     eslint: "npm:^9.37.0"
     eslint-config-prettier: "npm:^10.1.8"

@@ -160,3 +160,53 @@ export function getNetworkDisplayName(network) {
 	if (network.includes('devnet')) return 'Devnet';
 	return network.replace('sui:', '').charAt(0).toUpperCase() + network.replace('sui:', '').slice(1);
 }
+
+/**
+ * Highlights the first 4 characters after '0x' and last 4 characters of a SUI address for better readability
+ * @param {string} address - The SUI address to format
+ * @returns {string} HTML string with highlighted address
+ * @example
+ * highlightAddress('0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef')
+ * // returns '0x<span class="font-bold text-primary">1234</span>...cdef'
+ */
+export function highlightAddress(address) {
+	if (!address || typeof address !== 'string') return address;
+
+	const addr = address.trim();
+	if (!isValidSuiAddress(addr)) return addr;
+
+	const prefix = addr.slice(0, 2); // '0x'
+	const first4 = addr.slice(2, 6); // 4 characters after '0x'
+	const last4 = addr.slice(-4);
+	const middle = addr.slice(6, -4);
+
+	return `${prefix}<span class="font-bold text-primary">${first4}</span>${middle}<span class="font-bold text-primary">${last4}</span>`;
+}
+
+/**
+ * Generates explorer link for SUI blockchain
+ * @param {string} network - Network name ('mainnet' or 'testnet')
+ * @param {string} type - Explorer page type ('txblock', 'object', 'address', 'package')
+ * @param {string} identifier - The transaction hash, object ID, address, or package ID
+ * @returns {string} Full Suivision URL
+ * @example
+ * getExplorerLink('mainnet', 'txblock', '0x123...') // returns 'https://suivision.xyz/txblock/0x123...'
+ * getExplorerLink('testnet', 'object', '0x456...') // returns 'https://testnet.suivision.xyz/object/0x456...'
+ */
+export function getExplorerLink(network, type, identifier) {
+	const validNetworks = ['mainnet', 'testnet'];
+	const validTypes = ['txblock', 'object', 'address', 'package'];
+
+	if (!validNetworks.includes(network)) {
+		network = 'testnet'; // default fallback
+	}
+
+	if (!validTypes.includes(type)) {
+		type = 'txblock'; // default fallback
+	}
+
+	// Testnet uses subdomain, mainnet does not
+	const baseUrl = network === 'testnet' ? 'https://testnet.suivision.xyz' : 'https://suivision.xyz';
+
+	return `${baseUrl}/${type}/${identifier}`;
+}
