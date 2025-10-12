@@ -338,7 +338,7 @@
 									<tr>
 										<th class="w-12">{t('wheelList.table.number')}</th>
 										<th class="w-48">{t('wheelList.table.wheelId')}</th>
-										<th class="w-48">{t('wheelList.table.actions')}</th>
+										<th class="w-56">{t('wheelList.table.actions')}</th>
 										<th class="w-24">{t('wheelList.table.created')}</th>
 										<th class="w-12">{t('wheelList.table.totalEntries')}</th>
 										<th>{t('wheelList.table.status')}</th>
@@ -469,12 +469,12 @@
 							<table class="table-zebra table">
 								<thead>
 									<tr>
-										<th class="w-12">{t('wheelList.publicWheels.table.number')}</th>
-										<th class="w-48">{t('wheelList.publicWheels.table.wheelId')}</th>
-										<th class="w-48">{t('wheelList.publicWheels.table.actions')}</th>
-										<th class="w-24">{t('wheelList.publicWheels.table.created')}</th>
-										<th class="w-12">{t('wheelList.publicWheels.table.totalEntries')}</th>
-										<th>{t('wheelList.publicWheels.table.status')}</th>
+										<th class="w-12">{t('wheelList.table.number')}</th>
+										<th class="w-48">{t('wheelList.table.wheelId')}</th>
+										<th class="w-56">{t('wheelList.table.actions')}</th>
+										<th class="w-24">{t('wheelList.table.created')}</th>
+										<th class="w-12">{t('wheelList.table.totalEntries')}</th>
+										<th>{t('wheelList.table.status')}</th>
 									</tr>
 								</thead>
 								<tbody>

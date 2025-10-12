@@ -161,15 +161,7 @@
       "title": "Recent Public Wheels",
       "description": "Discover wheels recently created by the community",
       "loading": "Loading public wheels...",
-      "noWheels": "No public wheels found.",
-      "table": {
-        "number": "#",
-        "wheelId": "Wheel ID",
-        "created": "Created",
-        "status": "Status",
-        "totalEntries": "Total Entries",
-        "actions": "Actions"
-      }
+      "noWheels": "No public wheels found."
     }
   },
   "wheelResult": {
@@ -330,7 +322,11 @@
     "importEntries": "Import entries",
     "setupOnlineEntryForm": "Setup online entry form",
     "textareaView": "Textarea view",
+    "entriesViewModeLabel": "View mode",
+    "tableAction": "Action",
     "tableView": "Table view",
+    "tableCollapse": "Collapse",
+    "tableShowAll": "Show all",
     "xPostLinkPlaceholder": "https://x.com/username/status/1234567890",
     "xPostLinkOrId": "X post link or ID",
     "delayOptions": {

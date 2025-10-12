@@ -20,6 +20,7 @@
 		parseSuiToMist,
 		formatMistToSuiCompact,
 		isTestnet,
+		highlightAddress,
 		getExplorerLink
 	} from '$lib/utils/suiHelpers.js';
 
@@ -496,11 +497,11 @@
 			// Sync form states for edit mode convenience
 			const lowerWinners = winnersOnChain.map(w => w.addr.toLowerCase());
 			let newEntries = [];
+
+			// Show entries after the wheel is finished
 			if (remainingSpins === 0 && winnersOnChain.length > 0) {
 				const winnerAddresses = winnersOnChain.map(w => w.addr);
-				// Filter previous entries to get ordered remaining
-				const orderedRemaining = entries.filter(e => !lowerWinners.includes(e.toLowerCase()));
-				newEntries = [...winnerAddresses, ...orderedRemaining];
+				newEntries = [...winnerAddresses, ...entriesOnChain];
 			} else {
 				// Always adopt on-chain order to keep deterministic index mapping
 				// This avoids unintended detection of a shuffled order after spins
@@ -809,6 +810,22 @@
 		}
 	);
 
+	// Watch wheelFetched
+	watch(
+		() => wheelFetched,
+		() => {
+			if (!wheelFetched || !createdWheelId) return;
+			// Open prizes tab if remaining spins is 0 and wheel is created
+			if (remainingSpins === 0 && createdWheelId) {
+				activeTab = 'prizes';
+			}
+			// Set entries view mode to table if remaining spins is 0 or wheel is cancelled
+			if (remainingSpins === 0 || isCancelled) {
+				entriesViewMode = 'table';
+			}
+		}
+	);
+
 	// Update entries text when entries change
 	$effect(() => {
 		if (!entriesTextareaEl || document.activeElement !== entriesTextareaEl) {
@@ -917,11 +934,6 @@
 	let isInitialized = $state(false);
 	onMount(() => {
 		isInitialized = true;
-
-		// Open prizes tab if remaining spins is 0 and wheel is created
-		if (remainingSpins === 0 && createdWheelId) {
-			activeTab = 'prizes';
-		}
 	});
 
 	// Cleanup on component destroy
@@ -1082,7 +1094,7 @@
 								<th>#</th>
 								<th>Address</th>
 								{#if showActions}
-									<th>Actions</th>
+									<th>{t('main.tableAction')}</th>
 								{/if}
 							</tr>
 						</thead>
@@ -1094,7 +1106,7 @@
 										{#if shortAddress}
 											{shortenAddress(addr)}
 										{:else}
-											{addr}
+											{@html highlightAddress(addr)}
 										{/if}
 									</td>
 									{#if showActions}
@@ -1124,10 +1136,10 @@
 						>
 							{#if tableExpanded}
 								<span class="icon-[lucide--chevron-up] h-3 w-3"></span>
-								Collapse
+								{t('main.tableCollapse')}
 							{:else}
 								<span class="icon-[lucide--chevron-down] h-3 w-3"></span>
-								Show all ({entriesList.length})
+								{t('main.tableShowAll')} ({entriesList.length})
 							{/if}
 						</button>
 					</div>
@@ -1180,12 +1192,12 @@
 									</a></span
 								>
 								{#if remainingSpins === 0}
-									<span class="badge badge-success badge-sm"
+									<span class="badge badge-success badge-sm whitespace-nowrap"
 										><span class="icon-[lucide--check]"></span> {t('main.finished')}</span
 									>
 								{/if}
 								{#if isCancelled}
-									<span class="badge badge-warning badge-sm"
+									<span class="badge badge-warning badge-sm whitespace-nowrap"
 										><span class="icon-[lucide--circle-x]"></span> {t('main.cancelled')}</span
 									>
 								{/if}
@@ -1267,10 +1279,10 @@
 								checked={activeTab === 'entries'}
 								onclick={() => (activeTab = 'entries')}
 							/>
-							<div class="tab-content bg-base-100 border-base-300 p-6">
+							<div class="tab-content bg-base-100 border-base-300 p-4">
 								{#if createdWheelId && wheelFetched && !isEditing}
-									<div class="mb-3 flex items-center justify-between gap-2">
-										<div class="text-sm opacity-70">{t('main.entries')}</div>
+									<div class="mb-1 flex items-center justify-end gap-2">
+										<div class="text-xs opacity-70">{t('main.entriesViewModeLabel')}</div>
 										<div class="flex items-center gap-2">
 											<div class="join">
 												<button
@@ -1434,7 +1446,8 @@
 															{#if winnersOnChain.find(w => w.prize_index === i)}
 																{shortenAddress(winnersOnChain.find(w => w.prize_index === i).addr)}
 																{#if Number(spinTimesOnChain[i] || 0) > 0}
-																	<span class="badge badge-success badge-sm ml-2 text-xs opacity-70"
+																	<span
+																		class="badge badge-soft badge-success badge-sm ml-2 text-xs whitespace-nowrap opacity-70"
 																		>{formatDistanceToNow(spinTimesOnChain[i], {
 																			addSuffix: true
 																		})}</span
