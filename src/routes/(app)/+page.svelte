@@ -502,16 +502,9 @@
 				const orderedRemaining = entries.filter(e => !lowerWinners.includes(e.toLowerCase()));
 				newEntries = [...winnerAddresses, ...orderedRemaining];
 			} else {
-				// Filter current entries to remove those not in on-chain remaining
-				let filtered = entries.filter(e =>
-					entriesOnChain.some(o => o.toLowerCase() === e.toLowerCase())
-				);
-				// Check if multisets equal
-				if (multisetsEqual(filtered, entriesOnChain)) {
-					newEntries = filtered;
-				} else {
-					newEntries = [...entriesOnChain];
-				}
+				// Always adopt on-chain order to keep deterministic index mapping
+				// This avoids unintended detection of a shuffled order after spins
+				newEntries = [...entriesOnChain];
 			}
 			entries = newEntries;
 			entriesText = entries.join('\n');
