@@ -383,7 +383,7 @@
 														class="tooltip"
 														data-tip={format(w.timestampMs, "MMMM d, yyyy 'at' h:mm a")}
 													>
-														<span class="badge dark badge-soft badge-success">
+														<span class="badge badge-soft badge-success">
 															{formatDistanceToNow(w.timestampMs, { addSuffix: true })}
 														</span>
 													</div>

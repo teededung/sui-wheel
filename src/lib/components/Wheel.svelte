@@ -754,11 +754,11 @@
 					// keep secondaryWinner
 				}
 				if (lastWinner) {
-					if (!postSpinFetchRequested) {
+					if (!postSpinFetchRequested && !createdWheelId) {
 						removeEntry?.(String(winnerValue ?? ''));
 					}
 					selectedIndex = null;
-					spinAngle = 0;
+					if (!createdWheelId) spinAngle = 0;
 					if (winnerModal && !winnerModal.open) {
 						winnerModal.showModal();
 						showConfetti();
