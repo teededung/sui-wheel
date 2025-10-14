@@ -25,7 +25,7 @@
 		isCancelled,
 		entryFormEnabled,
 		accountFromWallet,
-		organizerAddress,
+		isNotOrganizer,
 		shuffledIndexOrder = []
 	} = $props();
 
@@ -49,7 +49,7 @@
 		// Disable if online entry form is active
 		if (entryFormEnabled) return true;
 		// Disable if not organizer
-		if (organizerAddress !== accountFromWallet?.address) return true;
+		if (isNotOrganizer) return true;
 		// On-chain: disable if no remaining spins
 		if (createdWheelId) {
 			if (accountFromWallet) {
@@ -523,7 +523,7 @@
 
 	async function spinOnChainAndAnimate() {
 		if (!accountFromWallet) return;
-		if (organizerAddress !== accountFromWallet.address) {
+		if (isNotOrganizer) {
 			return toast.error(t('wheel.notOrganizer'), { position: 'top-right' });
 		}
 		if (isCancelled || !createdWheelId || spinning) return;

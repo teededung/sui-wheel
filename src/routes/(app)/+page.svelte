@@ -229,6 +229,18 @@
 		}
 	});
 
+	// Organizer mismatch warning: show only when wallet is connected and organizer is known
+	let isNotOrganizer = $derived.by(() => {
+		try {
+			if (!account) return false;
+			const org = String(organizerAddress || '').trim();
+			if (!org) return false;
+			return account.address !== org;
+		} catch {
+			return false;
+		}
+	});
+
 	// Consolidated warnings visibility
 	let hasSetupWarnings = $derived.by(
 		() =>
@@ -244,7 +256,9 @@
 
 	// Final condition to show setup warnings
 	let shouldShowSetupWarnings = $derived.by(() => {
-		return hasSetupWarnings && ((isEditing && createdWheelId) || !createdWheelId);
+		return (
+			isNotOrganizer || (hasSetupWarnings && ((isEditing && createdWheelId) || !createdWheelId))
+		);
 	});
 
 	function addPrize() {
@@ -1211,7 +1225,7 @@
 				{isCancelled}
 				{entryFormEnabled}
 				accountFromWallet={account}
-				{organizerAddress}
+				{isNotOrganizer}
 				{shuffledIndexOrder}
 			/>
 		</div>
@@ -1772,6 +1786,9 @@
 													max: MAX_ENTRIES
 												})}
 											</li>
+										{/if}
+										{#if isNotOrganizer}
+											<li>{t('wheel.notOrganizer')}</li>
 										{/if}
 										{#if hasInsufficientBalance}
 											{#if suiBalance.value < 1_000_000_000}
