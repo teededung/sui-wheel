@@ -269,7 +269,7 @@
     "min": "phút",
     "sec": "giây",
     "disableOnlineEntries": "Tắt tham gia trực tuyến",
-    "createWheelAndFund": "Tạo vòng quay và nạp",
+    "createWheelAndFund": "Tạo và tài trợ",
     "createWheel": "Tạo vòng quay",
     "connectWalletToCreateAndSpin": "Kết nối ví Sui của bạn để tạo và quay vòng quay trực tiếp trên chuỗi (on-chain). Bạn vẫn có thể thử quay off-chain mà không cần kết nối ví.",
     "importEntriesByXPost": "Nhập người tham gia từ bài đăng X",

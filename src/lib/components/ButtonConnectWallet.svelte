@@ -162,7 +162,7 @@
 
 				<div
 					tabindex="-1"
-					class="dropdown-content menu bg-base-100 rounded-box border-base-300 relative z-50 w-80 border p-0 shadow-xl"
+					class="dropdown-content menu bg-base-100 rounded-box border-base-300 z-50 w-80 border p-0 shadow-xl"
 				>
 					{#if isInitialized && accAddr}
 						<div class="absolute top-2 right-2">

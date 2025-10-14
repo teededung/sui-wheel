@@ -393,7 +393,7 @@
     "walletBalanceNeedsToBeMoreThanOneSui": "Wallet balance needs to be more than 1 SUI.",
     "walletBalanceIsLessThanTotalRequired": "Wallet balance ({balance} SUI) is less than total required ({required} SUI).",
     "settingUp": "Setting up...",
-    "createWheelAndFund": "Create wheel and fund",
+    "createWheelAndFund": "Create and fund",
     "notifications": {
       "newEntriesAdded": "{count} new entr{plural} added",
       "noEntriesFoundInXPost": "No entries found in X post",
