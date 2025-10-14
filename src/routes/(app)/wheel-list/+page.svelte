@@ -34,6 +34,8 @@
 
 	// Joined wheels list fetched from DB (latest 10)
 	let joinedWheels = $state([]);
+	let joinedWheelsPageState = $state('initializing'); // initializing, loading, loaded
+	let joinedWheelsErrorMsg = $state('');
 
 	// Public wheels state
 	let publicWheelsPageState = $state('initializing'); // initializing, loading, loaded
@@ -251,16 +253,24 @@
 		}
 	}
 
-	async function loadJoinedWheels(address) {
+	async function loadJoinedWheels(address, opts = {}) {
+		const isRefresh = Boolean(opts.isRefresh);
+		if (!isRefresh) joinedWheelsPageState = 'loading';
+		joinedWheelsErrorMsg = '';
 		try {
 			// Run last: check the union of IDs from both lists currently loaded
 			const allIds = [...(wheels || []), ...(publicWheels || [])].map(w => w.id);
 			const uniqueIds = Array.from(new Set(allIds)).filter(Boolean);
-			if (uniqueIds.length === 0) return;
+			if (uniqueIds.length === 0) {
+				joinedWheels = [];
+				if (!isRefresh) joinedWheelsPageState = 'loaded';
+				return;
+			}
 
 			const addr = String(address || '').toLowerCase();
 			if (!addr) {
 				joinedWheels = [];
+				if (!isRefresh) joinedWheelsPageState = 'loaded';
 				return;
 			}
 
@@ -337,8 +347,11 @@
 			// Update joined flags on visible lists
 			wheels = wheels.map(w => ({ ...w, joined: joinedIds.has(w.id) }));
 			publicWheels = publicWheels.map(w => ({ ...w, joined: joinedIds.has(w.id) }));
-		} catch {
+		} catch (e) {
 			joinedWheels = [];
+			joinedWheelsErrorMsg = e?.message || String(e);
+		} finally {
+			if (!isRefresh) joinedWheelsPageState = 'loaded';
 		}
 	}
 
@@ -360,6 +373,7 @@
 			if (!addr) {
 				wheels = [];
 				joinedWheels = [];
+				joinedWheelsPageState = 'initializing';
 				return;
 			}
 
@@ -577,17 +591,31 @@
 	</div>
 
 	<!-- Joined Wheels Section -->
-	{#if joinedWheels.length > 0}
-		<div class="card bg-base-200 mt-8 shadow">
-			<div class="card-body">
-				<div class="mb-4">
-					<h2 class="text-lg font-semibold">Joined Wheels</h2>
-					<p class="mt-1 text-sm opacity-70">Wheels that your wallet has joined.</p>
-				</div>
-				{@render wheelsTable(joinedWheels)}
+	<div class="card bg-base-200 mt-8 shadow">
+		<div class="card-body">
+			<div class="mb-4">
+				<h2 class="text-lg font-semibold">{t('wheelList.joinedWheels.title')}</h2>
+				<p class="mt-1 text-sm opacity-70">{t('wheelList.joinedWheels.description')}</p>
 			</div>
+			{#if joinedWheelsPageState === 'initializing'}
+				<div class="flex items-center gap-2">
+					<span class="loading loading-spinner loading-sm"></span>
+					{t('wheelList.publicWheels.loading')}
+				</div>
+			{:else if joinedWheelsPageState === 'loading'}
+				<div class="space-y-3">
+					<div class="skeleton h-8 w-40"></div>
+					<div class="skeleton h-32 w-full"></div>
+				</div>
+			{:else if joinedWheelsPageState === 'loaded'}
+				{#if joinedWheels.length > 0}
+					{@render wheelsTable(joinedWheels)}
+				{:else}
+					<div class="text-sm opacity-70">{t('wheelList.joinedWheels.noWheels')}</div>
+				{/if}
+			{/if}
 		</div>
-	{/if}
+	</div>
 
 	<!-- Public Wheels Section -->
 	<div class="card bg-base-200 mt-8 shadow">

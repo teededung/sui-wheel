@@ -162,6 +162,12 @@
       "description": "Discover wheels recently created by the community",
       "loading": "Loading public wheels...",
       "noWheels": "No public wheels found."
+    },
+    "joinedWheels": {
+      "title": "Joined Wheels",
+      "description": "Wheels that your wallet has joined.",
+      "loading": "Loading joined wheels...",
+      "noWheels": "No joined wheels found."
     }
   },
   "wheelResult": {

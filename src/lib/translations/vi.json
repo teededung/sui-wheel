@@ -162,6 +162,12 @@
       "description": "Khám phá các vòng quay được tạo gần đây bởi cộng đồng",
       "loading": "Đang tải vòng quay công khai...",
       "noWheels": "Chưa có vòng quay công khai nào."
+    },
+    "joinedWheels": {
+      "title": "Vòng quay đã tham gia",
+      "description": "Các vòng quay mà ví của bạn đã tham gia.",
+      "loading": "Đang tải vòng quay đã tham gia...",
+      "noWheels": "Không tìm thấy vòng quay đã tham gia nào."
     }
   },
   "wheelResult": {
