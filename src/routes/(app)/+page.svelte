@@ -1342,49 +1342,9 @@
 								onclick={() => (activeTab = 'entries')}
 							/>
 							<div class="tab-content bg-base-100 border-base-300 p-4">
-								{#if createdWheelId && wheelFetched && !isEditing}
-									<div class="mb-1 flex items-center justify-end gap-2">
-										<div class="text-xs opacity-70">{t('main.entriesViewModeLabel')}</div>
-										<div class="flex items-center gap-2">
-											<div class="join">
-												<button
-													class="btn btn-xs join-item"
-													class:btn-primary={entriesViewMode === 'textarea'}
-													class:btn-soft={entriesViewMode !== 'textarea'}
-													onclick={() => (entriesViewMode = 'textarea')}
-													aria-label={t('main.textareaView')}
-												>
-													<span class="icon-[lucide--edit] h-4 w-4"></span>
-													{t('main.text')}
-												</button>
-												<button
-													class="btn btn-xs join-item"
-													class:btn-primary={entriesViewMode === 'table'}
-													class:btn-soft={entriesViewMode !== 'table'}
-													onclick={() => (entriesViewMode = 'table')}
-													aria-label={t('main.tableView')}
-												>
-													<span class="icon-[lucide--table] h-4 w-4"></span>
-													{t('main.table')}
-												</button>
-											</div>
-										</div>
-									</div>
-
-									{#if entriesViewMode === 'table'}
-										{@render entriesTable(entries, false, false)}
-									{:else}
-										<textarea
-											class="textarea h-48 w-full text-base"
-											placeholder={t('main.oneEntryPerLine')}
-											value={entries.join('\n')}
-											readonly
-											aria-label={t('main.entriesListReadOnly')}
-										></textarea>
-									{/if}
-								{:else}
-									<div class="mb-3 flex items-center justify-between gap-2">
-										<!-- View mode toggle -->
+								<div class="mb-1 flex items-center justify-end gap-2">
+									<div class="text-xs opacity-70">{t('main.entriesViewModeLabel')}</div>
+									<div class="flex items-center gap-2">
 										<div class="join">
 											<button
 												class="btn btn-xs join-item"
@@ -1407,73 +1367,68 @@
 												{t('main.table')}
 											</button>
 										</div>
-
-										{#if account}
-											<div class="flex items-center gap-2">
-												{#if entryFormEnabled}
-													<button
-														class="btn btn-xs btn-outline"
-														onclick={checkForNewEntries}
-														aria-label={t('main.syncOnlineEntries')}
-													>
-														<span class="icon-[lucide--refresh-cw] h-4 w-4"></span>
-														{t('main.sync')}
-													</button>
-												{/if}
-
-												<div class="dropdown dropdown-end">
-													<button
-														class="btn btn-xs btn-primary btn-soft"
-														aria-label={t('main.importEntries')}
-													>
-														<span class="icon-[lucide--list-plus] h-4 w-4"></span>
-														<span>{t('main.import')}</span>
-													</button>
-													<ul
-														class="menu dropdown-content rounded-box bg-base-200 z-[1] w-56 p-2 shadow"
-													>
-														<li>
-															<button
-																onclick={openEntryFormModal}
-																aria-label={t('main.setupOnlineEntryForm')}
-															>
-																<span class="icon-[lucide--qr-code] h-4 w-4"></span>
-																{t('main.onlineEntryForm')}
-															</button>
-														</li>
-														<li>
-															<button
-																onclick={openXImportModal}
-																aria-label={t('main.importByXPost')}
-															>
-																<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-																	<path
-																		d="M13.317 10.774L20.28 2h-1.73l-6.32 7.353L8.29 2H2.115l7.33 10.638L2.115 22h1.73l6.707-7.783L15.315 22H21.59l-7.482-10.774z"
-																	/>
-																</svg>
-																{t('main.importByXPost')}
-															</button>
-														</li>
-													</ul>
-												</div>
-											</div>
-										{/if}
 									</div>
 
+									<!-- Import buttons -->
+									<div class="dropdown dropdown-end">
+										<button
+											class="btn btn-xs btn-primary btn-soft"
+											aria-label={t('main.importEntries')}
+										>
+											<span class="icon-[lucide--list-plus] h-4 w-4"></span>
+											<span>{t('main.import')}</span>
+										</button>
+										<ul class="menu dropdown-content rounded-box bg-base-200 z-[1] w-56 p-2 shadow">
+											<li>
+												<button
+													onclick={openEntryFormModal}
+													aria-label={t('main.setupOnlineEntryForm')}
+												>
+													<span class="icon-[lucide--qr-code] h-4 w-4"></span>
+													{t('main.onlineEntryForm')}
+												</button>
+											</li>
+											{#if account}
+												<li>
+													<button onclick={openXImportModal} aria-label={t('main.importByXPost')}>
+														<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+															<path
+																d="M13.317 10.774L20.28 2h-1.73l-6.32 7.353L8.29 2H2.115l7.33 10.638L2.115 22h1.73l6.707-7.783L15.315 22H21.59l-7.482-10.774z"
+															/>
+														</svg>
+														{t('main.importByXPost')}
+													</button>
+												</li>
+											{/if}
+										</ul>
+									</div>
+								</div>
+
+								{#if createdWheelId && wheelFetched && !isEditing}
 									{#if entriesViewMode === 'table'}
-										{@render entriesTable(entries, true)}
+										{@render entriesTable(entries, false, false)}
 									{:else}
 										<textarea
 											class="textarea h-48 w-full text-base"
 											placeholder={t('main.oneEntryPerLine')}
-											bind:value={entriesText}
-											oninput={() => onEntriesTextChange(entriesText)}
-											bind:this={entriesTextareaEl}
-											disabled={spinning}
+											value={entries.join('\n')}
+											readonly
+											aria-label={t('main.entriesListReadOnly')}
 										></textarea>
-
-										{@render showDuplicateEntries()}
 									{/if}
+								{:else if entriesViewMode === 'table'}
+									{@render entriesTable(entries, true)}
+								{:else}
+									<textarea
+										class="textarea h-48 w-full text-base"
+										placeholder={t('main.oneEntryPerLine')}
+										bind:value={entriesText}
+										oninput={() => onEntriesTextChange(entriesText)}
+										bind:this={entriesTextareaEl}
+										disabled={spinning}
+									></textarea>
+
+									{@render showDuplicateEntries()}
 								{/if}
 							</div>
 
