@@ -358,7 +358,7 @@
 			// Wait for the transaction to be available across RPCs, then read object changes
 			const txBlock = await suiClient.waitForTransaction({
 				digest,
-				options: { showObjectChanges: true }
+				options: { showObjectChanges: true, showInput: true }
 			});
 			const created = (txBlock?.objectChanges || []).find(
 				ch =>
@@ -385,6 +385,51 @@
 
 			// Update URL params reactively
 			params.update({ wheelId: finalWheelId });
+
+			// Parse inputs directly from txBlock to extract used data for create_wheel
+			const inputs = txBlock?.transaction?.data?.transaction?.inputs ?? [];
+
+			// 0: u64 donation, the coin split from gas
+			const totalDonationStr = inputs?.[0]?.value ?? '0';
+
+			// 1: vector<address> - this is the entries list in the correct order
+			const orderedEntries =
+				Array.isArray(inputs?.[1]?.valueType) && inputs?.[1]?.valueType === 'vector<address>'
+					? inputs?.[1]?.value?.map(String)
+					: Array.isArray(inputs?.[1]?.value)
+						? inputs?.[1]?.value?.map(String)
+						: [];
+
+			// 2: vector<u64> - the list of prize amounts (mist)
+			const prizesMistFromInputs = Array.isArray(inputs?.[2]?.value)
+				? inputs[2].value.map(v => Number(v))
+				: [];
+
+			// Send directly to API to persist in DB
+			const payload = {
+				wheelId: finalWheelId,
+				txDigest: digest,
+				packageId,
+				organizerAddress: account?.address,
+				prizesMist: prizesMistFromInputs,
+				totalDonationMist: String(totalDonationStr),
+				network: 'testnet',
+				orderedEntries
+			};
+
+			try {
+				const resp = await fetch('/api/wheels', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(payload)
+				});
+				if (!resp?.ok) {
+					const text = await resp.text().catch(() => '');
+					console.error('Persist wheel failed:', resp?.status, text);
+				}
+			} catch (persistErr) {
+				console.error('Failed to persist wheel to Supabase:', persistErr);
+			}
 		} catch (e) {
 			setupError = e?.message || String(e);
 			toast.error(setupError || t('main.errors.failedToGetTransactionDigest'), {
@@ -398,6 +443,20 @@
 	/**
 	 * Fetch wheel data from testnet by createdWheelId and populate read-only state
 	 */
+	async function getEntriesForFinishedWheel(wheelId, winnersList, entriesOnChainList) {
+		try {
+			const resp = await fetch(`/api/wheels?wheelId=${encodeURIComponent(wheelId)}`);
+			if (resp?.ok) {
+				const data = await resp.json();
+				console.log(data);
+				const dbEntries = Array.isArray(data?.entries) ? data.entries.map(String) : [];
+				if (dbEntries.length > 0) return dbEntries;
+			}
+		} catch {}
+		const winnerAddresses = winnersList.map(w => w.addr);
+		return [...winnerAddresses, ...entriesOnChainList];
+	}
+
 	async function fetchWheelFromChain() {
 		if (!createdWheelId) return;
 		try {
@@ -481,8 +540,11 @@
 
 			// Show entries after the wheel is finished
 			if (remainingSpins === 0 && winnersOnChain.length > 0) {
-				const winnerAddresses = winnersOnChain.map(w => w.addr);
-				newEntries = [...winnerAddresses, ...entriesOnChain];
+				newEntries = await getEntriesForFinishedWheel(
+					createdWheelId,
+					winnersOnChain,
+					entriesOnChain
+				);
 			} else {
 				// Always adopt on-chain order to keep deterministic index mapping
 				// This avoids unintended detection of a shuffled order after spins
@@ -1471,14 +1533,21 @@
 										<button class="btn btn-outline" onclick={addPrize}>{t('main.addPrize')}</button>
 										<div class="text-sm">
 											<strong>{t('main.need')}:</strong>
-											<span>{formatMistToSuiCompact(totalDonationMist)} SUI</span>
+											<p>
+												<span class="text-primary font-mono"
+													>{formatMistToSuiCompact(totalDonationMist)}</span
+												> SUI
+											</p>
 										</div>
 									</div>
 
 									{#if createdWheelId && wheelFetched}
 										<div class="mt-2 text-sm">
 											<span class="opacity-70">{t('main.topUpRequired')}:</span>
-											<strong class="ml-1">{formatMistToSuiCompact(topUpMist)} SUI</strong>
+											<div class="ml-1">
+												<span class="font-mono font-bold">{formatMistToSuiCompact(topUpMist)}</span>
+												SUI
+											</div>
 										</div>
 									{/if}
 								{/if}
@@ -1735,7 +1804,7 @@
 									>
 										{#if totalDonationMist > 0n}
 											{t('main.createWheelAndFund')}
-											<span class="text-success text-bold font-mono"
+											<span class="text-success font-mono font-bold"
 												>{formatMistToSuiCompact(totalDonationMist)}</span
 											> SUI
 										{:else}

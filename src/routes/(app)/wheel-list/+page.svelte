@@ -14,6 +14,8 @@
 	} from '$lib/constants.js';
 	import { watch, IsIdle } from 'runed';
 	import { useTranslation } from '$lib/hooks/useTranslation.js';
+	import AlertTestnetWarning from '$lib/components/AlertTestnetWarning.svelte';
+	import { lazy } from 'zod';
 
 	const t = useTranslation();
 
@@ -29,6 +31,9 @@
 	let wheels = $state([]); // [{ id, digest, timestampMs }]
 	let _pollInterval = $state(null);
 	let refreshing = $state(false);
+
+	// Joined wheels list fetched from DB (latest 10)
+	let joinedWheels = $state([]);
 
 	// Public wheels state
 	let publicWheelsPageState = $state('initializing'); // initializing, loading, loaded
@@ -226,6 +231,19 @@
 			} else {
 				publicWheels = items;
 			}
+
+			// Mark joined in public list if user connected
+			try {
+				const addr = String(account?.address || '').toLowerCase();
+				if (addr) {
+					const resp = await fetch(`/api/wheels/joined?address=${encodeURIComponent(addr)}`);
+					if (resp?.ok) {
+						const data = await resp.json();
+						const set = new Set((data?.joinedIds || []).map(String));
+						publicWheels = publicWheels.map(w => ({ ...w, joined: set.has(w.id) }));
+					}
+				}
+			} catch {}
 		} catch (e) {
 			publicWheelsErrorMsg = e?.message || String(e);
 		} finally {
@@ -233,20 +251,134 @@
 		}
 	}
 
+	async function loadJoinedWheels(address) {
+		try {
+			// Run last: check the union of IDs from both lists currently loaded
+			const allIds = [...(wheels || []), ...(publicWheels || [])].map(w => w.id);
+			const uniqueIds = Array.from(new Set(allIds)).filter(Boolean);
+			if (uniqueIds.length === 0) return;
+
+			const addr = String(address || '').toLowerCase();
+			if (!addr) {
+				joinedWheels = [];
+				return;
+			}
+
+			// Check joined status for these IDs only (database)
+			const resp = await fetch('/api/wheels/joined/check', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ address: addr, wheelIds: uniqueIds })
+			});
+			if (!resp?.ok) {
+				joinedWheels = [];
+				return;
+			}
+			const data = await resp.json();
+			const joinedIds = new Set((data?.joinedIds || []).map(String));
+			if (joinedIds.size === 0) {
+				joinedWheels = [];
+				return;
+			}
+			// Enrich joined list status similar to others
+			try {
+				const ids = uniqueIds.filter(id => joinedIds.has(id));
+				const objs = await suiClient.multiGetObjects({
+					ids,
+					options: { showContent: true }
+				});
+				const idToMeta = new Map();
+				for (const o of objs || []) {
+					try {
+						const id = String(o?.data?.objectId || '');
+						const f = o?.data?.content?.fields || {};
+						const isCancelled = Boolean(f['is_cancelled']);
+						let spunCount = 0;
+						try {
+							spunCount = Number(f['spun_count'] || 0);
+						} catch {}
+						let prizesLen = 0;
+						try {
+							prizesLen = Array.isArray(f['prize_amounts']) ? f['prize_amounts'].length : 0;
+						} catch {}
+						let remainingEntriesCount = 0;
+						try {
+							remainingEntriesCount = Array.isArray(f['remaining_entries'])
+								? f['remaining_entries'].length
+								: 0;
+						} catch {}
+						const totalEntries = remainingEntriesCount + spunCount;
+						const remaining = Math.max(0, prizesLen - spunCount);
+						const status = isCancelled ? 'Cancelled' : remaining > 0 ? 'Running' : 'Finished';
+						idToMeta.set(id, { status, remainingSpins: remaining, totalEntries });
+					} catch {}
+				}
+				// Build joined list keeping existing timestamps from wheels/publicWheels when possible
+				const idToTs = new Map();
+				for (const w of wheels) idToTs.set(w.id, w.timestampMs || 0);
+				for (const w of publicWheels) if (!idToTs.has(w.id)) idToTs.set(w.id, w.timestampMs || 0);
+				joinedWheels = ids.map(id => ({
+					id,
+					digest: null,
+					timestampMs: idToTs.get(id) || 0,
+					joined: true,
+					...(idToMeta.get(id) || { status: '—', remainingSpins: 0, totalEntries: 0 })
+				}));
+			} catch {
+				// Fallback without enrichment
+				joinedWheels = Array.from(joinedIds).map(id => ({
+					id,
+					digest: null,
+					timestampMs: 0,
+					joined: true
+				}));
+			}
+
+			// Update joined flags on visible lists
+			wheels = wheels.map(w => ({ ...w, joined: joinedIds.has(w.id) }));
+			publicWheels = publicWheels.map(w => ({ ...w, joined: joinedIds.has(w.id) }));
+		} catch {
+			joinedWheels = [];
+		}
+	}
+
+	function clearJoinedWheelStatus() {
+		wheels = wheels.map(w => ({ ...w, joined: false }));
+		publicWheels = publicWheels.map(w => ({ ...w, joined: false }));
+	}
+
 	const idle = new IsIdle({ timeout: 15000 });
 
 	// Watch for account changes
 	watch(
 		() => account?.address,
-		addr => {
+		async (curr, prev) => {
+			// Prevent loop
+			if (curr === prev) return;
+
+			const addr = String(curr || '').toLowerCase();
+			if (!addr) {
+				wheels = [];
+				joinedWheels = [];
+				return;
+			}
+
+			// Clear joined wheel status when account changes
+			if (wheels.length > 0 || publicWheels.length > 0) {
+				clearJoinedWheelStatus();
+			}
+
 			if (!isOnTestnet) return;
 			pageState = 'loading';
-			if (addr) {
-				startPolling();
-				loadWheelsFor(addr);
+
+			startPolling();
+			if (publicWheels.length === 0) {
+				await Promise.all([loadWheelsFor(addr), loadPublicWheels()]);
 			} else {
-				wheels = [];
+				await loadWheelsFor(addr);
 			}
+
+			loadJoinedWheels(addr);
 		}
 	);
 
@@ -284,11 +416,6 @@
 		}
 	}
 
-	// Initialize public wheels on mount
-	onMount(() => {
-		loadPublicWheels();
-	});
-
 	// ensure polling stops on component destroy
 	onDestroy(() => {
 		stopPolling();
@@ -302,6 +429,103 @@
 	<meta property="og:description" content={t('wheelList.ogDescription')} />
 </svelte:head>
 
+{#snippet wheelsTable(rows)}
+	<div class="relative">
+		<div class="overflow-x-auto">
+			<table class="table-zebra table">
+				<thead>
+					<tr>
+						<th class="w-12">{t('wheelList.table.number')}</th>
+						<th class="w-48">{t('wheelList.table.wheelId')}</th>
+						<th class="w-56">{t('wheelList.table.actions')}</th>
+						<th class="w-24">{t('wheelList.table.created')}</th>
+						<th class="w-12">{t('wheelList.table.totalEntries')}</th>
+						<th>{t('wheelList.table.status')}</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each rows as w, i (w.id)}
+						<tr>
+							<td>{i + 1}</td>
+							<td class="font-mono">
+								<a
+									href={`${getExplorerLink('testnet', 'object', w.id)}`}
+									target="_blank"
+									rel="noopener noreferrer"
+									class="link link-primary hover:link-accent flex items-center gap-2"
+									title={`View ${w.id} on Sui Vision`}
+									aria-label={`View wheel ${shortenAddress(w.id)} on Sui Vision`}
+								>
+									{shortenAddress(w.id)}
+									<span class="icon-[lucide--external-link]"></span>
+								</a>
+							</td>
+							<td>
+								<div class="join">
+									<a
+										class="btn btn-sm btn-success btn-soft join-item"
+										href={`/?wheelId=${w.id}`}
+										aria-label={t('wheelList.actions.open')}>{t('wheelList.actions.open')}</a
+									>
+									<a
+										class="btn btn-sm btn-secondary btn-soft join-item"
+										href={`/wheel-result/?wheelId=${w.id}`}
+										aria-label={t('wheelList.actions.results')}>{t('wheelList.actions.results')}</a
+									>
+								</div>
+							</td>
+							<td class="whitespace-nowrap">
+								{#if w.timestampMs}
+									<div class="tooltip" data-tip={format(w.timestampMs, "MMMM d, yyyy 'at' h:mm a")}>
+										<span class="badge badge-soft badge-success">
+											{formatDistanceToNow(w.timestampMs, { addSuffix: true })}
+										</span>
+									</div>
+								{:else}
+									<span class="opacity-60">—</span>
+								{/if}
+							</td>
+							<td class="text-center">
+								<span class="badge badge-neutral font-mono">{w.totalEntries || 0}</span>
+							</td>
+							<td>
+								<div
+									class="tooltip"
+									class:tooltip-open={w.joined}
+									class:tooltip-right={w.joined}
+									data-tip={w.joined ? 'Joined' : ''}
+								>
+									{#if w.status === 'Cancelled'}
+										<span class="badge badge-warning"
+											><span class="icon-[lucide--circle-x]"></span>
+											{t('wheelList.status.cancelled')}</span
+										>
+									{:else if w.status === 'Running'}
+										<span class="badge badge-primary"
+											><span class="icon-[lucide--clock]"></span>
+											{t('wheelList.status.running')}</span
+										>
+									{:else if w.status === 'Finished'}
+										<span class="badge badge-success"
+											><span class="icon-[lucide--check]"></span>
+											{t('wheelList.status.finished')}</span
+										>
+									{:else}
+										<span class="badge"
+											><span class="icon-[lucide--circle-alert]"></span>
+											{t('wheelList.status.unknown')}</span
+										>
+									{/if}
+								</div>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	</div>
+{/snippet}
+
 <section class="container mx-auto px-4 py-12">
 	<div class="card bg-base-200 shadow">
 		<div class="card-body">
@@ -312,13 +536,7 @@
 				>
 			</div>
 			{#if account && !isOnTestnet}
-				<div class="alert alert-soft dark:!border-warning alert-warning">
-					<span class="icon-[lucide--alert-triangle]"></span>
-					<div>
-						<h3 class="font-bold">{t('common.testnetWarning')}</h3>
-						<div class="text-xs">{t('common.switchToTestnet')}</div>
-					</div>
-				</div>
+				<AlertTestnetWarning />
 			{:else if pageState === 'initializing'}
 				<div class="flex items-center gap-2">
 					<span class="loading loading-spinner loading-sm"></span>
@@ -338,98 +556,7 @@
 					<div class="text-sm opacity-70">{t('wheelList.noWheels')}</div>
 				{:else}
 					<div class="relative">
-						<div class="overflow-x-auto">
-							<table class="table-zebra table">
-								<thead>
-									<tr>
-										<th class="w-12">{t('wheelList.table.number')}</th>
-										<th class="w-48">{t('wheelList.table.wheelId')}</th>
-										<th class="w-56">{t('wheelList.table.actions')}</th>
-										<th class="w-24">{t('wheelList.table.created')}</th>
-										<th class="w-12">{t('wheelList.table.totalEntries')}</th>
-										<th>{t('wheelList.table.status')}</th>
-									</tr>
-								</thead>
-								<tbody>
-									{#each wheels as w, i (w.id)}
-										<tr>
-											<td>{i + 1}</td>
-											<td class="font-mono">
-												<a
-													href={`${getExplorerLink('testnet', 'object', w.id)}`}
-													target="_blank"
-													rel="noopener noreferrer"
-													class="link link-primary hover:link-accent flex items-center gap-2"
-													title={`View ${w.id} on Sui Vision`}
-													aria-label={`View wheel ${shortenAddress(w.id)} on Sui Vision`}
-												>
-													{shortenAddress(w.id)}
-													<span class="icon-[lucide--external-link]"></span>
-												</a>
-											</td>
-											<td>
-												<div class="join">
-													<a
-														class="btn btn-sm btn-success btn-soft join-item"
-														href={`/?wheelId=${w.id}`}
-														aria-label={t('wheelList.actions.open')}
-														>{t('wheelList.actions.open')}</a
-													>
-													<a
-														class="btn btn-sm btn-secondary btn-soft join-item"
-														href={`/wheel-result/?wheelId=${w.id}`}
-														aria-label={t('wheelList.actions.results')}
-														>{t('wheelList.actions.results')}</a
-													>
-												</div>
-											</td>
-											<td class="whitespace-nowrap">
-												{#if w.timestampMs}
-													<div
-														class="tooltip"
-														data-tip={format(w.timestampMs, "MMMM d, yyyy 'at' h:mm a")}
-													>
-														<span class="badge badge-soft badge-success">
-															{formatDistanceToNow(w.timestampMs, { addSuffix: true })}
-														</span>
-													</div>
-												{:else}
-													<span class="opacity-60">—</span>
-												{/if}
-											</td>
-											<td class="text-center">
-												<span class="badge badge-neutral font-mono">
-													{w.totalEntries || 0}
-												</span>
-											</td>
-											<td>
-												{#if w.status === 'Cancelled'}
-													<span class="badge badge-warning"
-														><span class="icon-[lucide--circle-x]"></span>
-														{t('wheelList.status.cancelled')}</span
-													>
-												{:else if w.status === 'Running'}
-													<span class="badge badge-primary"
-														><span class="icon-[lucide--clock]"></span>
-														{t('wheelList.status.running')}</span
-													>
-												{:else if w.status === 'Finished'}
-													<span class="badge badge-success"
-														><span class="icon-[lucide--check]"></span>
-														{t('wheelList.status.finished')}</span
-													>
-												{:else}
-													<span class="badge"
-														><span class="icon-[lucide--circle-alert]"></span>
-														{t('wheelList.status.unknown')}</span
-													>
-												{/if}
-											</td>
-										</tr>
-									{/each}
-								</tbody>
-							</table>
-						</div>
+						{@render wheelsTable(wheels)}
 						{#if refreshing}
 							<div
 								class="bg-base-300/40 pointer-events-none absolute inset-0 grid place-items-center"
@@ -448,6 +575,19 @@
 			{/if}
 		</div>
 	</div>
+
+	<!-- Joined Wheels Section -->
+	{#if joinedWheels.length > 0}
+		<div class="card bg-base-200 mt-8 shadow">
+			<div class="card-body">
+				<div class="mb-4">
+					<h2 class="text-lg font-semibold">Joined Wheels</h2>
+					<p class="mt-1 text-sm opacity-70">Wheels that your wallet has joined.</p>
+				</div>
+				{@render wheelsTable(joinedWheels)}
+			</div>
+		</div>
+	{/if}
 
 	<!-- Public Wheels Section -->
 	<div class="card bg-base-200 mt-8 shadow">
@@ -471,98 +611,7 @@
 					<div class="text-sm opacity-70">{t('wheelList.publicWheels.noWheels')}</div>
 				{:else}
 					<div class="relative">
-						<div class="overflow-x-auto">
-							<table class="table-zebra table">
-								<thead>
-									<tr>
-										<th class="w-12">{t('wheelList.table.number')}</th>
-										<th class="w-48">{t('wheelList.table.wheelId')}</th>
-										<th class="w-56">{t('wheelList.table.actions')}</th>
-										<th class="w-24">{t('wheelList.table.created')}</th>
-										<th class="w-12">{t('wheelList.table.totalEntries')}</th>
-										<th>{t('wheelList.table.status')}</th>
-									</tr>
-								</thead>
-								<tbody>
-									{#each publicWheels as w, i (w.id)}
-										<tr>
-											<td>{i + 1}</td>
-											<td class="font-mono">
-												<a
-													href={`${getExplorerLink('testnet', 'object', w.id)}`}
-													target="_blank"
-													rel="noopener noreferrer"
-													class="link link-primary hover:link-accent flex items-center gap-2"
-													title={`View ${w.id} on Sui Vision`}
-													aria-label={`View wheel ${shortenAddress(w.id)} on Sui Vision`}
-												>
-													{shortenAddress(w.id)}
-													<span class="icon-[lucide--external-link]"></span>
-												</a>
-											</td>
-											<td>
-												<div class="join">
-													<a
-														class="btn btn-sm btn-success btn-soft join-item"
-														href={`/?wheelId=${w.id}`}
-														aria-label={t('wheelList.actions.open')}
-														>{t('wheelList.actions.open')}</a
-													>
-													<a
-														class="btn btn-sm btn-secondary btn-soft join-item"
-														href={`/wheel-result/?wheelId=${w.id}`}
-														aria-label={t('wheelList.actions.results')}
-														>{t('wheelList.actions.results')}</a
-													>
-												</div>
-											</td>
-											<td class="whitespace-nowrap">
-												{#if w.timestampMs}
-													<div
-														class="tooltip"
-														data-tip={format(w.timestampMs, "MMMM d, yyyy 'at' h:mm a")}
-													>
-														<span class="badge badge-soft badge-success">
-															{formatDistanceToNow(w.timestampMs, { addSuffix: true })}
-														</span>
-													</div>
-												{:else}
-													<span class="opacity-60">—</span>
-												{/if}
-											</td>
-											<td class="text-center">
-												<span class="badge badge-neutral font-mono">
-													{w.totalEntries || 0}
-												</span>
-											</td>
-											<td>
-												{#if w.status === 'Cancelled'}
-													<span class="badge badge-warning"
-														><span class="icon-[lucide--circle-x]"></span>
-														{t('wheelList.status.cancelled')}</span
-													>
-												{:else if w.status === 'Running'}
-													<span class="badge badge-primary"
-														><span class="icon-[lucide--clock]"></span>
-														{t('wheelList.status.running')}</span
-													>
-												{:else if w.status === 'Finished'}
-													<span class="badge badge-success"
-														><span class="icon-[lucide--check]"></span>
-														{t('wheelList.status.finished')}</span
-													>
-												{:else}
-													<span class="badge"
-														><span class="icon-[lucide--circle-alert]"></span>
-														{t('wheelList.status.unknown')}</span
-													>
-												{/if}
-											</td>
-										</tr>
-									{/each}
-								</tbody>
-							</table>
-						</div>
+						{@render wheelsTable(publicWheels)}
 					</div>
 				{/if}
 			{/if}

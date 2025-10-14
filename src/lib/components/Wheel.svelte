@@ -607,6 +607,31 @@
 						? candidateIdxs[Math.floor(Math.random() * candidateIdxs.length)]
 						: -1;
 				}
+
+				// Persist winner to Supabase API
+				try {
+					const prizeIndexRaw = Number(parsed?.prize_index ?? parsed?.prizeIndex ?? -1);
+					if (
+						createdWheelId &&
+						winnerAddr &&
+						Number.isFinite(prizeIndexRaw) &&
+						prizeIndexRaw >= 0
+					) {
+						await fetch('/api/wheels/winner', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({
+								wheelId: createdWheelId,
+								winnerAddress: winnerAddr,
+								prizeIndex: prizeIndexRaw,
+								spinTxDigest: digest,
+								spinTime: new Date().toISOString()
+							})
+						});
+					}
+				} catch (persistErr) {
+					console.error('Failed to persist spin winner:', persistErr);
+				}
 				if (usedCombinedSpin && spinEvents.length > 1) {
 					const secondParsed = spinEvents[1]?.parsedJson || {};
 					const secondAddr = String(
@@ -616,6 +641,31 @@
 							''
 					).toLowerCase();
 					if (secondAddr) secondaryWinner = secondAddr;
+
+					// Handle combined spin second winner persist (best effort without prize_index)
+					try {
+						const secondPrizeIndex = Number(secondParsed?.prize_index ?? -1);
+						if (
+							createdWheelId &&
+							secondAddr &&
+							Number.isFinite(secondPrizeIndex) &&
+							secondPrizeIndex >= 0
+						) {
+							await fetch('/api/wheels/winner', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({
+									wheelId: createdWheelId,
+									winnerAddress: secondAddr,
+									prizeIndex: secondPrizeIndex,
+									spinTxDigest: digest,
+									spinTime: new Date().toISOString()
+								})
+							});
+						}
+					} catch (persistErr2) {
+						console.error('Failed to persist second winner:', persistErr2);
+					}
 				}
 			} catch {}
 
