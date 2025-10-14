@@ -155,7 +155,7 @@
 					showEvents: false
 				},
 				order: 'descending',
-				limit: 10 // Only get 10 most recent public wheels
+				limit: 20 // Only get 20 most recent public wheels
 			});
 
 			// Get transactions from single response
@@ -210,10 +210,16 @@
 							idToMeta.set(id, { status, remainingSpins: remaining, totalEntries });
 						} catch {}
 					}
-					publicWheels = items.map(it => {
-						const meta = idToMeta.get(it.id) || { status: '—', remainingSpins: 0, totalEntries: 0 };
-						return { ...it, ...meta };
-					});
+					publicWheels = items
+						.map(it => {
+							const meta = idToMeta.get(it.id) || {
+								status: '—',
+								remainingSpins: 0,
+								totalEntries: 0
+							};
+							return { ...it, ...meta };
+						})
+						.filter(w => w.status !== 'Cancelled');
 				} catch {
 					publicWheels = items;
 				}
