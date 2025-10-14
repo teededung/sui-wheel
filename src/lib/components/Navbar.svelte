@@ -70,8 +70,8 @@
 	</div>
 
 	<div class="navbar-end flex items-center gap-4">
-		<ButtonLanguageSwitch className="hidden lg:block" />
 		<ButtonThemeSwitch />
+		<ButtonLanguageSwitch className="hidden lg:block" />
 		{#if !isFaqPage && !isAboutPage}
 			<ButtonConnectWallet showBalance={false} />
 		{/if}
