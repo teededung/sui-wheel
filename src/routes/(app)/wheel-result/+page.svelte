@@ -1,6 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { Transaction } from '@mysten/sui/transactions';
+	import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 	import {
 		useSuiClient,
 		useCurrentAccount,
@@ -26,18 +27,19 @@
 	import { watch } from 'runed';
 	import { useSearchParams } from 'runed/kit';
 	import { searchParamsSchema } from '$lib/paramSchema.js';
+	import { useTranslation } from '$lib/hooks/useTranslation.js';
 
 	// Components
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
 	import ButtonCopy from '$lib/components/ButtonCopy.svelte';
-	import { useTranslation } from '$lib/hooks/useTranslation.js';
+	import AlertTestnetWarning from '$lib/components/AlertTestnetWarning.svelte';
 
 	const t = useTranslation();
-
-	const suiClient = $derived(useSuiClient());
 	const account = $derived(useCurrentAccount());
-
 	let isOnTestnet = $derived.by(() => isTestnet(account));
+	const suiClient = $derived(
+		account && isOnTestnet ? useSuiClient() : new SuiClient({ url: getFullnodeUrl('testnet') })
+	);
 
 	// Reactive URL search params
 	const params = useSearchParams(searchParamsSchema);
@@ -526,11 +528,9 @@
 
 <section class="container mx-auto px-4 py-6">
 	{#if account && !isOnTestnet}
-		<div class="alert alert-warning mb-4 text-sm">
-			<span class="icon-[lucide--triangle-alert] h-4 w-4"></span>
-			<span>{t('wheelResult.testnetWarning')}</span>
-		</div>
+		<AlertTestnetWarning className="mb-4" />
 	{/if}
+
 	<div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 		<h1 class="text-xl font-bold">{t('wheelResult.pageTitle')}</h1>
 	</div>

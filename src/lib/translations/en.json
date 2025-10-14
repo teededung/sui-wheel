@@ -170,7 +170,6 @@
     "ogTitle": "Sui Wheel — Results",
     "ogDescription": "View winners and claim prizes for a Sui Wheel on Testnet.",
     "pageTitle": "Wheel Results",
-    "testnetWarning": "This app runs on Sui Testnet. Please switch your wallet network to Testnet.",
     "lastReclaim": "Last reclaim:",
     "on": "on",
     "viewTx": "View tx",
