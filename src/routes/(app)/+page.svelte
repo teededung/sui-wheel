@@ -79,6 +79,7 @@
 	let poolBalanceMistOnChain = $state(0n);
 	let winnersOnChain = $state([]);
 	let spinTimesOnChain = $state([]);
+	let organizerAddress = $state('');
 
 	// Cancellation state
 	let isCancelled = $state(false);
@@ -470,6 +471,9 @@
 
 			// Cancellation flag
 			isCancelled = Boolean(f['is_cancelled']);
+
+			// Organizer address
+			organizerAddress = String(f['organizer'] || '');
 
 			// Entries (addresses)
 			entriesOnChain = (f['remaining_entries'] || []).map(v => String(v));
@@ -1206,7 +1210,8 @@
 				{remainingSpins}
 				{isCancelled}
 				{entryFormEnabled}
-				accountConnected={Boolean(account)}
+				accountFromWallet={account}
+				{organizerAddress}
 				{shuffledIndexOrder}
 			/>
 		</div>

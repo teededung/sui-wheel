@@ -452,7 +452,8 @@
     "congratulations": "Chúc mừng",
     "alsoAssigned": "Cũng được gán",
     "winnerWillBeAutomaticallyRemoved": "Người thắng sẽ được tự động xóa khỏi danh sách.",
-    "close": "Đóng"
+    "close": "Đóng",
+    "notOrganizer": "Bạn không phải là người tổ chức của vòng quay này."
   },
   "about": {
     "title": "Giới thiệu — Sui Wheel",

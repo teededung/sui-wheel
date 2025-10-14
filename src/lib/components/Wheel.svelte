@@ -24,7 +24,8 @@
 		remainingSpins,
 		isCancelled,
 		entryFormEnabled,
-		accountConnected,
+		accountFromWallet,
+		organizerAddress,
 		shuffledIndexOrder = []
 	} = $props();
 
@@ -47,16 +48,18 @@
 		if (spinning) return true;
 		// Disable if online entry form is active
 		if (entryFormEnabled) return true;
+		// Disable if not organizer
+		if (organizerAddress !== accountFromWallet?.address) return true;
 		// On-chain: disable if no remaining spins
 		if (createdWheelId) {
-			if (accountConnected) {
+			if (accountFromWallet) {
 				return isCancelled || remainingSpins === 0;
 			} else {
 				return entries.length < 2;
 			}
 		}
 		// Off-chain: disable if not enough entries
-		if (accountConnected && !createdWheelId) return true;
+		if (accountFromWallet && !createdWheelId) return true;
 		// Not enough entries
 		return entries.length < 2;
 	});
@@ -519,7 +522,10 @@
 	}
 
 	async function spinOnChainAndAnimate() {
-		if (!accountConnected) return;
+		if (!accountFromWallet) return;
+		if (organizerAddress !== accountFromWallet.address) {
+			return toast.error(t('wheel.notOrganizer'), { position: 'top-right' });
+		}
 		if (isCancelled || !createdWheelId || spinning) return;
 		if (createdWheelId && remainingSpins === 0) return;
 		try {
@@ -694,7 +700,7 @@
 	}
 
 	function spin() {
-		if (accountConnected) return;
+		if (accountFromWallet) return;
 		if (spinning || entries.length < 2) return;
 		const n = Math.max(1, entries.length);
 		const randomIndex = Math.floor(Math.random() * n);
@@ -904,7 +910,7 @@
 						formLoading={spinning}
 						size="lg"
 						loadingText={progressing ? t('wheel.confirming') : t('wheel.spinning')}
-						onclick={accountConnected ? spinOnChainAndAnimate : spin}
+						onclick={accountFromWallet ? spinOnChainAndAnimate : spin}
 						aria-label={t('wheel.spinTheWheel')}
 						className={`border-0 w-full h-full rounded-full text-gray-800 !pointer-events-auto cursor-pointer disabled:cursor-not-allowed disabled:!shadow-lg disabled:opacity-70 disabled:text-gray-500 shadow-lg ring-2 ring-amber-300/80 bg-gradient-to-b from-amber-200 to-amber-500 hover:from-amber-200 hover:to-amber-600 transition-all duration-200 font-extrabold uppercase ${isSpinDisabled ? 'text-xs' : ''}`}
 						disabled={isSpinDisabled}
@@ -926,7 +932,7 @@
 			</div>
 		{/if}
 
-		{#if accountConnected && createdWheelId}
+		{#if accountFromWallet && createdWheelId}
 			<div class="mt-4 flex justify-center">
 				<div
 					class="badge badge-lg badge-primary rounded px-2 py-1 text-center text-xs font-medium shadow"

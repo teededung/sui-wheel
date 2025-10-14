@@ -452,7 +452,8 @@
     "congratulations": "Congratulations",
     "alsoAssigned": "Also assigned",
     "winnerWillBeAutomaticallyRemoved": "The winner will be automatically removed from the list.",
-    "close": "Close"
+    "close": "Close",
+    "notOrganizer": "You are not the organizer of this wheel."
   },
   "about": {
     "title": "About — Sui Wheel",
