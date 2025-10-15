@@ -9,7 +9,8 @@
     "edit": "Sửa",
     "delete": "Xóa",
     "testnetWarning": "Cảnh báo Testnet",
-    "switchToTestnet": "Vui lòng chuyển ví của bạn sang Sui Testnet để sử dụng ứng dụng này."
+    "switchToTestnet": "Vui lòng chuyển ví của bạn sang Sui Testnet để sử dụng ứng dụng này.",
+    "back": "Quay lại"
   },
   "navigation": {
     "home": "Trang chủ",
@@ -372,7 +373,8 @@
       "totalDonationMustBeGreaterThan0": "Tổng tài trợ phải lớn hơn 0",
       "wheelObjectIdNotFound": "Không tìm thấy ID đối tượng vòng quay sau khi tạo",
       "failedToGetTransactionDigest": "Không thể lấy mã giao dịch",
-      "failedToCancelWheel": "Không thể hủy vòng quay."
+      "failedToCancelWheel": "Không thể hủy vòng quay.",
+      "wheelNotFound": "Không tìm thấy vòng quay."
     },
     "success": {
       "wheelCreatedAndFunded": "Đã tạo và tài trợ thành công. Chúng ta có thể quay ngay bây giờ.",

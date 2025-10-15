@@ -9,7 +9,8 @@
     "edit": "Edit",
     "delete": "Delete",
     "testnetWarning": "Testnet Warning",
-    "switchToTestnet": "Please switch your wallet to Sui Testnet to use this application."
+    "switchToTestnet": "Please switch your wallet to Sui Testnet to use this application.",
+    "back": "Back"
   },
   "navigation": {
     "home": "Home",
@@ -359,7 +360,8 @@
       "totalDonationMustBeGreaterThan0": "Total donation must be greater than 0",
       "wheelObjectIdNotFound": "Wheel object id not found after creation",
       "failedToGetTransactionDigest": "Failed to get transaction digest",
-      "failedToCancelWheel": "Failed to cancel wheel."
+      "failedToCancelWheel": "Failed to cancel wheel.",
+      "wheelNotFound": "Wheel not found."
     },
     "success": {
       "wheelCreatedAndFunded": "Successfully created and funded. We can spin it now.",
