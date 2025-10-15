@@ -1,13 +1,12 @@
 import { json } from '@sveltejs/kit';
-import { supabaseAdmin } from '$lib/server/supabaseAdmin.js';
 
 /** @type {import('./$types').RequestHandler} */
-export async function GET({ url }) {
+export async function GET({ url, locals }) {
 	try {
 		const address = String(url.searchParams.get('address') || '').toLowerCase();
 		if (!address) return json({ success: false, message: 'Missing address' }, { status: 400 });
 
-		const { data, error } = await supabaseAdmin
+		const { data, error } = await locals.supabaseAdmin
 			.from('wheel_entries')
 			.select('wheel_id')
 			.eq('entry_address', address)

@@ -37,10 +37,11 @@
 	let joinedWheelsPageState = $state('initializing'); // initializing, loading, loaded
 	let joinedWheelsErrorMsg = $state('');
 
-	// Public wheels state
-	let publicWheelsPageState = $state('initializing'); // initializing, loading, loaded
+	// Public wheels state (server-provided)
+	const { data } = $props();
+	let publicWheelsPageState = $state('loaded'); // already loaded from server
 	let publicWheelsErrorMsg = $state('');
-	let publicWheels = $state([]); // [{ id, digest, timestampMs, status, remainingSpins, totalEntries }]
+	let publicWheels = $state(Array.isArray(data?.publicWheels) ? data.publicWheels : []); // [{ id, digest, timestampMs, status, remainingSpins, totalEntries }]
 
 	async function loadWheelsFor(address, opts = {}) {
 		if (!address) return;
@@ -141,117 +142,12 @@
 		}
 	}
 
-	async function loadPublicWheels(opts = {}) {
-		const isRefresh = Boolean(opts.isRefresh);
-		if (!isRefresh) publicWheelsPageState = 'loading';
-		publicWheelsErrorMsg = '';
-
-		try {
-			const response = await suiClient.queryTransactionBlocks({
-				filter: {
-					MoveFunction: {
-						package: LATEST_PACKAGE_ID,
-						module: WHEEL_MODULE,
-						function: WHEEL_FUNCTIONS.CREATE
-					}
-				},
-				options: {
-					showObjectChanges: true,
-					showInput: true,
-					showEffects: false,
-					showEvents: false
-				},
-				order: 'descending',
-				limit: 20 // Only get 20 most recent public wheels
-			});
-
-			// Get transactions from single response
-			const transactions = response?.data || [];
-
-			const items = [];
-			for (const tx of transactions) {
-				const created = (tx?.objectChanges || []).find(
-					ch =>
-						ch?.type === 'created' &&
-						String(ch?.objectType || '').endsWith(`::${WHEEL_MODULE}::${WHEEL_STRUCT}`)
-				);
-				if (created?.objectId) {
-					items.push({
-						id: created.objectId,
-						digest: tx?.digest,
-						timestampMs: Number(tx?.timestampMs || 0)
-					});
-				}
-			}
-
-			// Enrich items with on-chain status (Cancelled / Running / Finished)
-			if (items.length > 0) {
-				try {
-					const objs = await suiClient.multiGetObjects({
-						ids: items.map(i => i.id),
-						options: { showContent: true }
-					});
-					const idToMeta = new Map();
-					for (const o of objs || []) {
-						try {
-							const id = String(o?.data?.objectId || '');
-							const f = o?.data?.content?.fields || {};
-							const isCancelled = Boolean(f['is_cancelled']);
-							let spunCount = 0;
-							try {
-								spunCount = Number(f['spun_count'] || 0);
-							} catch {}
-							let prizesLen = 0;
-							try {
-								prizesLen = Array.isArray(f['prize_amounts']) ? f['prize_amounts'].length : 0;
-							} catch {}
-							let remainingEntriesCount = 0;
-							try {
-								remainingEntriesCount = Array.isArray(f['remaining_entries'])
-									? f['remaining_entries'].length
-									: 0;
-							} catch {}
-							const totalEntries = remainingEntriesCount + spunCount;
-							const remaining = Math.max(0, prizesLen - spunCount);
-							const status = isCancelled ? 'Cancelled' : remaining > 0 ? 'Running' : 'Finished';
-							idToMeta.set(id, { status, remainingSpins: remaining, totalEntries });
-						} catch {}
-					}
-					publicWheels = items
-						.map(it => {
-							const meta = idToMeta.get(it.id) || {
-								status: '—',
-								remainingSpins: 0,
-								totalEntries: 0
-							};
-							return { ...it, ...meta };
-						})
-						.filter(w => w.status !== 'Cancelled');
-				} catch {
-					publicWheels = items;
-				}
-			} else {
-				publicWheels = items;
-			}
-
-			// Mark joined in public list if user connected
-			try {
-				const addr = String(account?.address || '').toLowerCase();
-				if (addr) {
-					const resp = await fetch(`/api/wheels/joined?address=${encodeURIComponent(addr)}`);
-					if (resp?.ok) {
-						const data = await resp.json();
-						const set = new Set((data?.joinedIds || []).map(String));
-						publicWheels = publicWheels.map(w => ({ ...w, joined: set.has(w.id) }));
-					}
-				}
-			} catch {}
-		} catch (e) {
-			publicWheelsErrorMsg = e?.message || String(e);
-		} finally {
-			if (!isRefresh) publicWheelsPageState = 'loaded';
+	// Keep public wheels in sync if `data` changes
+	$effect(() => {
+		if (Array.isArray(data?.publicWheels)) {
+			publicWheels = data.publicWheels;
 		}
-	}
+	});
 
 	async function loadJoinedWheels(address, opts = {}) {
 		const isRefresh = Boolean(opts.isRefresh);
@@ -356,6 +252,7 @@
 	}
 
 	function clearJoinedWheelStatus() {
+		joinedWheels = [];
 		wheels = wheels.map(w => ({ ...w, joined: false }));
 		publicWheels = publicWheels.map(w => ({ ...w, joined: false }));
 	}
@@ -366,33 +263,33 @@
 	watch(
 		() => account?.address,
 		async (curr, prev) => {
-			// Prevent loop
-			if (curr === prev) return;
-
-			const addr = String(curr || '').toLowerCase();
-			if (!addr) {
-				wheels = [];
-				joinedWheels = [];
-				joinedWheelsPageState = 'initializing';
-				return;
-			}
-
 			// Clear joined wheel status when account changes
-			if (wheels.length > 0 || publicWheels.length > 0) {
-				clearJoinedWheelStatus();
+			if (curr === undefined && pageState === 'loaded') {
+				return clearJoinedWheelStatus();
 			}
 
-			if (!isOnTestnet) return;
-			pageState = 'loading';
+			// Prevent loop
+			if (curr === prev) {
+				if (curr === undefined && prev === undefined && pageState === 'initializing') {
+					pageState = 'loading';
+					joinedWheelsPageState = 'loaded';
+					return;
+				}
+			} else if (curr !== prev) {
+				// Clear joined wheel status when account changes
+				if (wheels.length > 0 || publicWheels.length > 0) {
+					clearJoinedWheelStatus();
+				}
 
-			startPolling();
-			if (publicWheels.length === 0) {
-				await Promise.all([loadWheelsFor(addr), loadPublicWheels()]);
-			} else {
-				await loadWheelsFor(addr);
+				// Only load user's wheels on testnet
+				if (isOnTestnet) {
+					pageState = 'loading';
+					startPolling();
+					await loadWheelsFor(curr);
+				}
+
+				loadJoinedWheels(curr);
 			}
-
-			loadJoinedWheels(addr);
 		}
 	);
 
@@ -540,6 +437,13 @@
 	</div>
 {/snippet}
 
+{#snippet skeleton()}
+	<div class="space-y-3">
+		<div class="skeleton h-8 w-40"></div>
+		<div class="skeleton h-32 w-full"></div>
+	</div>
+{/snippet}
+
 <section class="container mx-auto px-4 py-12">
 	<div class="card bg-base-200 shadow">
 		<div class="card-body">
@@ -558,10 +462,7 @@
 				</div>
 			{:else if pageState === 'loading'}
 				{#if accountLoading.value && !account}
-					<div class="space-y-3">
-						<div class="skeleton h-8 w-40"></div>
-						<div class="skeleton h-32 w-full"></div>
-					</div>
+					{@render skeleton()}
 				{:else if !account}
 					<div class="flex items-center gap-2">{t('wheelList.connectWallet')}</div>
 				{/if}
@@ -603,10 +504,7 @@
 					{t('wheelList.publicWheels.loading')}
 				</div>
 			{:else if joinedWheelsPageState === 'loading'}
-				<div class="space-y-3">
-					<div class="skeleton h-8 w-40"></div>
-					<div class="skeleton h-32 w-full"></div>
-				</div>
+				{@render skeleton()}
 			{:else if joinedWheelsPageState === 'loaded'}
 				{#if joinedWheels.length > 0}
 					{@render wheelsTable(joinedWheels)}

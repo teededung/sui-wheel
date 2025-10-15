@@ -1,8 +1,7 @@
 import { json } from '@sveltejs/kit';
-import { supabaseAdmin } from '$lib/server/supabaseAdmin.js';
 
 /** @type {import('./$types').RequestHandler} */
-export async function POST({ request }) {
+export async function POST({ request, locals }) {
 	try {
 		const body = await request.json();
 		const {
@@ -25,7 +24,7 @@ export async function POST({ request }) {
 		};
 		if (spinTime) row.spin_time = new Date(spinTime).toISOString();
 
-		const { error: upsertErr } = await supabaseAdmin
+		const { error: upsertErr } = await locals.supabaseAdmin
 			.from('wheel_winners')
 			.upsert(row, { onConflict: 'wheel_id,prize_index' });
 

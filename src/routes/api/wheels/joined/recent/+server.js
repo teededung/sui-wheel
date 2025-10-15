@@ -1,8 +1,7 @@
 import { json } from '@sveltejs/kit';
-import { supabaseAdmin } from '$lib/server/supabaseAdmin.js';
 
 /** @type {import('./$types').RequestHandler} */
-export async function GET({ url }) {
+export async function GET({ url, locals }) {
 	try {
 		const address = String(url.searchParams.get('address') || '').toLowerCase();
 		const limit = Math.max(1, Math.min(50, Number(url.searchParams.get('limit') || 10)));
@@ -11,7 +10,7 @@ export async function GET({ url }) {
 		// Join wheel_entries -> wheels to get created_at and tx_digest, order by wheels.created_at desc
 		// Fetch more rows than needed to allow de-duplication by wheel_id
 		const fetchLimit = Math.max(limit, 50);
-		const { data, error } = await supabaseAdmin
+		const { data, error } = await locals.supabaseAdmin
 			.from('wheel_entries')
 			.select('wheel_id, wheels(created_at, tx_digest)')
 			.eq('entry_address', address)

@@ -1,8 +1,7 @@
 import { json } from '@sveltejs/kit';
-import { supabaseAdmin } from '$lib/server/supabaseAdmin.js';
 
 /** @type {import('./$types').RequestHandler} */
-export async function POST({ request }) {
+export async function POST({ request, locals }) {
 	try {
 		const body = await request.json();
 		const {
@@ -21,7 +20,7 @@ export async function POST({ request }) {
 		}
 
 		// Upsert wheel row
-		const { error: wheelErr } = await supabaseAdmin.from('wheels').upsert(
+		const { error: wheelErr } = await locals.supabaseAdmin.from('wheels').upsert(
 			{
 				wheel_id: wheelId,
 				tx_digest: txDigest,
@@ -42,7 +41,7 @@ export async function POST({ request }) {
 		// Insert ordered entries (clear previous first)
 		if (Array.isArray(orderedEntries) && orderedEntries.length > 0) {
 			// Delete existing entries for idempotency
-			const { error: delErr } = await supabaseAdmin
+			const { error: delErr } = await locals.supabaseAdmin
 				.from('wheel_entries')
 				.delete()
 				.eq('wheel_id', wheelId);
@@ -55,7 +54,7 @@ export async function POST({ request }) {
 				entry_address: String(entry),
 				entry_index: idx
 			}));
-			const { error: insErr } = await supabaseAdmin.from('wheel_entries').insert(rows);
+			const { error: insErr } = await locals.supabaseAdmin.from('wheel_entries').insert(rows);
 			if (insErr) {
 				console.error('[api/wheels] insert entries error', insErr);
 				return json({ success: false, message: 'Failed to save entries' }, { status: 500 });
@@ -70,14 +69,14 @@ export async function POST({ request }) {
 }
 
 /** @type {import('./$types').RequestHandler} */
-export async function GET({ url }) {
+export async function GET({ url, locals }) {
 	try {
 		const wheelId = url.searchParams.get('wheelId');
 		if (!wheelId) {
 			return json({ success: false, message: 'Missing wheelId' }, { status: 400 });
 		}
 
-		const { data: entries, error: err } = await supabaseAdmin
+		const { data: entries, error: err } = await locals.supabaseAdmin
 			.from('wheel_entries')
 			.select('entry_address, entry_index')
 			.eq('wheel_id', wheelId)
