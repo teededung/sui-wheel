@@ -15,7 +15,6 @@
 	import { watch, IsIdle } from 'runed';
 	import { useTranslation } from '$lib/hooks/useTranslation.js';
 	import AlertTestnetWarning from '$lib/components/AlertTestnetWarning.svelte';
-	import { lazy } from 'zod';
 
 	const t = useTranslation();
 
