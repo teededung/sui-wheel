@@ -527,10 +527,7 @@
 					{t('wheelList.publicWheels.loading')}
 				</div>
 			{:else if publicWheelsPageState === 'loading'}
-				<div class="space-y-3">
-					<div class="skeleton h-8 w-40"></div>
-					<div class="skeleton h-32 w-full"></div>
-				</div>
+				{@render skeleton()}
 			{:else if publicWheelsPageState === 'loaded'}
 				{#if publicWheels.length === 0}
 					<div class="text-sm opacity-70">{t('wheelList.publicWheels.noWheels')}</div>
