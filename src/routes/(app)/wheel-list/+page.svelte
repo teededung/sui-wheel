@@ -252,7 +252,9 @@
 
 	function clearJoinedWheelStatus() {
 		joinedWheels = [];
-		wheels = wheels.map(w => ({ ...w, joined: false }));
+		if (wheels.length > 0) {
+			wheels = wheels.map(w => ({ ...w, joined: false }));
+		}
 		publicWheels = publicWheels.map(w => ({ ...w, joined: false }));
 	}
 
@@ -262,8 +264,10 @@
 	watch(
 		() => account?.address,
 		async (curr, prev) => {
-			// Clear joined wheel status when account changes
+			// Clear user's wheels and joined wheels status when no account is connected
 			if (curr === undefined && pageState === 'loaded') {
+				wheels = [];
+				pageState = 'loading';
 				return clearJoinedWheelStatus();
 			}
 
@@ -444,6 +448,7 @@
 {/snippet}
 
 <section class="container mx-auto px-4 py-12">
+	<!-- User's Wheels Section -->
 	<div class="card bg-base-200 shadow">
 		<div class="card-body">
 			<div class="mb-4 flex items-center justify-between">
@@ -505,7 +510,9 @@
 			{:else if joinedWheelsPageState === 'loading'}
 				{@render skeleton()}
 			{:else if joinedWheelsPageState === 'loaded'}
-				{#if joinedWheels.length > 0}
+				{#if !account}
+					<div class="flex items-center gap-2">{t('wheelList.connectWallet')}</div>
+				{:else if joinedWheels.length > 0}
 					{@render wheelsTable(joinedWheels)}
 				{:else}
 					<div class="text-sm opacity-70">{t('wheelList.joinedWheels.noWheels')}</div>
