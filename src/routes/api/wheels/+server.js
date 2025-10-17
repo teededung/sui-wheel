@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import { cache } from '$lib/server/cache.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals }) {
@@ -58,6 +59,16 @@ export async function POST({ request, locals }) {
 			if (insErr) {
 				console.error('[api/wheels] insert entries error', insErr);
 				return json({ success: false, message: 'Failed to save entries' }, { status: 500 });
+			}
+
+			// Freshness: invalidate cache keys for affected addresses
+			try {
+				const uniqueAddresses = Array.from(
+					new Set(orderedEntries.map(a => String(a).toLowerCase()))
+				);
+				await Promise.all(uniqueAddresses.map(addr => cache.del(`joined:${addr}`)));
+			} catch (e) {
+				console.warn('[api/wheels] cache invalidation warning', e);
 			}
 		}
 
