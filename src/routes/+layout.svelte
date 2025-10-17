@@ -37,7 +37,12 @@
 	const zkLoginGoogle = {
 		apiKey: PUBLIC_ENOKI_API_KEY,
 		googleClientId: PUBLIC_GOOGLE_CLIENT_ID,
-		network: 'testnet'
+		network: 'testnet',
+		redirectUrls: [
+			'http://localhost:5177',
+			'https://sui-wheel.netlify.app',
+			'https://sui-wheel.netlify.app/wheel-list'
+		]
 	};
 </script>
 

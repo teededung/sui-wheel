@@ -876,23 +876,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mysten/bcs@npm:1.8.0":
-  version: 1.8.0
-  resolution: "@mysten/bcs@npm:1.8.0"
+"@mysten/bcs@npm:1.8.1":
+  version: 1.8.1
+  resolution: "@mysten/bcs@npm:1.8.1"
   dependencies:
     "@mysten/utils": "npm:0.2.0"
     "@scure/base": "npm:^1.2.6"
-  checksum: 10c0/0be5ce820acff75bfecf3fe7adcb74c335813df5b2bca46a24006f21d8a4b5211a4e4e3e8faa7fe5ef5dee3242581d2361a66c13ce8efd1932e280f7fa9e1d80
+  checksum: 10c0/0f364fefc4431dfe6cf0ec999125f7c7b0fca1d123c3e37e1753841a294ab17f1e30eb760e97d188a7725e4fbd4fff2a4a3647786631b0208c99c6c05d16046b
   languageName: node
   linkType: hard
 
-"@mysten/enoki@npm:^0.12.2":
-  version: 0.12.2
-  resolution: "@mysten/enoki@npm:0.12.2"
+"@mysten/enoki@npm:^0.12.6":
+  version: 0.12.6
+  resolution: "@mysten/enoki@npm:0.12.6"
   dependencies:
-    "@mysten/signers": "npm:0.5.1"
-    "@mysten/sui": "npm:1.39.0"
-    "@mysten/wallet-standard": "npm:0.18.0"
+    "@mysten/signers": "npm:0.5.5"
+    "@mysten/sui": "npm:1.42.0"
+    "@mysten/wallet-standard": "npm:0.19.2"
     "@nanostores/react": "npm:^1.0.0"
     "@wallet-standard/ui": "npm:^1.0.1"
     idb-keyval: "npm:^6.2.2"
@@ -906,7 +906,7 @@ __metadata:
       optional: true
     react:
       optional: true
-  checksum: 10c0/17bf2c09b8442efc482065fd50ca7f23d5eedccff0058a2bdeb31ed8d89a8b606e39a6b0233fe7e80eb49e89e37dcecffa98f53a05b547911143c796940070d8
+  checksum: 10c0/31d52a79b9b209beb38ea5e8b916182de54a0c2ba501421481ff2a98020ae840fcdc49871bdb48d38ad5cec9788adb4fcd3110af8cb94044789c50dbfbe8da7f
   languageName: node
   linkType: hard
 
@@ -920,17 +920,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mysten/signers@npm:0.5.1":
-  version: 0.5.1
-  resolution: "@mysten/signers@npm:0.5.1"
+"@mysten/signers@npm:0.5.5":
+  version: 0.5.5
+  resolution: "@mysten/signers@npm:0.5.5"
   dependencies:
     "@google-cloud/kms": "npm:^4.5.0"
     "@mysten/ledgerjs-hw-app-sui": "npm:0.6.0"
-    "@mysten/sui": "npm:1.39.0"
-    "@noble/curves": "npm:^1.9.4"
+    "@mysten/sui": "npm:1.42.0"
+    "@noble/curves": "npm:=1.9.4"
     "@noble/hashes": "npm:^1.8.0"
     asn1-ts: "npm:^8.0.2"
-  checksum: 10c0/7e3484e2e7a80e347bf8c718f2f1d2aca14633e4cf1a1ed4e445b87a57dbc7e0a6a5136651f8b985512dc33131b79bd0b81332f12f45f0027ca2c4cd0e0ad522
+  checksum: 10c0/cf3614c15e00423a5e2e2079152c2ffc2512670314776aeaa86f504540104d1815305c7861bd1104daf787d8e544b0468bf6170db0772aebbf87c3d3ba994f38
   languageName: node
   linkType: hard
 
@@ -968,15 +968,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mysten/sui@npm:1.39.0":
-  version: 1.39.0
-  resolution: "@mysten/sui@npm:1.39.0"
+"@mysten/sui@npm:1.42.0, @mysten/sui@npm:^1.42.0":
+  version: 1.42.0
+  resolution: "@mysten/sui@npm:1.42.0"
   dependencies:
     "@graphql-typed-document-node/core": "npm:^3.2.0"
-    "@mysten/bcs": "npm:1.8.0"
+    "@mysten/bcs": "npm:1.8.1"
     "@mysten/utils": "npm:0.2.0"
-    "@noble/curves": "npm:^1.9.4"
+    "@noble/curves": "npm:=1.9.4"
     "@noble/hashes": "npm:^1.8.0"
+    "@protobuf-ts/grpcweb-transport": "npm:^2.11.1"
+    "@protobuf-ts/runtime": "npm:^2.11.1"
+    "@protobuf-ts/runtime-rpc": "npm:^2.11.1"
     "@scure/base": "npm:^1.2.6"
     "@scure/bip32": "npm:^1.7.0"
     "@scure/bip39": "npm:^1.6.0"
@@ -984,7 +987,7 @@ __metadata:
     graphql: "npm:^16.11.0"
     poseidon-lite: "npm:0.2.1"
     valibot: "npm:^0.36.0"
-  checksum: 10c0/5e79e9ad05b2549b30bff6615086b10d244d41cf88e0bb7953d0e2f85533c46616c1e3407542fee6d11bfd1c2413aa96ea68a80d95d21b3524310dda2c43fb0e
+  checksum: 10c0/1d5dd1f8cb2c860812e9ea25ac7ab270c78a9de0c9dc2de5ef34a6fab682fe6b506f1a143928aca48070223145f7194f5e45a655dc860e06c56e9b71b242dbda
   languageName: node
   linkType: hard
 
@@ -1005,26 +1008,6 @@ __metadata:
     tweetnacl: "npm:^1.0.3"
     valibot: "npm:^0.36.0"
   checksum: 10c0/2c00a694c8f795e65c366043df493cb8babeab61591ff22b5f2337246ad71802285b4d0e80b262e9e58c401ceb4d33c41bf1ca7800a2baac3119443f752e72b3
-  languageName: node
-  linkType: hard
-
-"@mysten/sui@npm:^1.40.0":
-  version: 1.40.0
-  resolution: "@mysten/sui@npm:1.40.0"
-  dependencies:
-    "@graphql-typed-document-node/core": "npm:^3.2.0"
-    "@mysten/bcs": "npm:1.8.0"
-    "@mysten/utils": "npm:0.2.0"
-    "@noble/curves": "npm:^1.9.4"
-    "@noble/hashes": "npm:^1.8.0"
-    "@scure/base": "npm:^1.2.6"
-    "@scure/bip32": "npm:^1.7.0"
-    "@scure/bip39": "npm:^1.6.0"
-    gql.tada: "npm:^1.8.13"
-    graphql: "npm:^16.11.0"
-    poseidon-lite: "npm:0.2.1"
-    valibot: "npm:^0.36.0"
-  checksum: 10c0/d42c74d3ba93714901eba24100ffac5841645721002ee668cb18935b30216539a1fa9a3e2aa36552a959090a20be37530b4b3cca1bc7f4216297cfe9e5890311
   languageName: node
   linkType: hard
 
@@ -1066,13 +1049,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mysten/wallet-standard@npm:0.18.0, @mysten/wallet-standard@npm:^0.18.0":
-  version: 0.18.0
-  resolution: "@mysten/wallet-standard@npm:0.18.0"
+"@mysten/wallet-standard@npm:0.19.2, @mysten/wallet-standard@npm:^0.19.2":
+  version: 0.19.2
+  resolution: "@mysten/wallet-standard@npm:0.19.2"
   dependencies:
-    "@mysten/sui": "npm:1.39.0"
+    "@mysten/sui": "npm:1.42.0"
     "@wallet-standard/core": "npm:1.1.1"
-  checksum: 10c0/af5f14210db0e0dc93089ca8926a5e6f07ca81f05861b237e4d064c67afefa03cffa9022d77e0739946bc65413c1540a6d7be44cfaf529a46702656f2340b86a
+  checksum: 10c0/ce852f4aade22539238de254f3b272c93e53aa20f98978adf28bf1f98f2a42903c4d3084e67b41624de3719e7435321905e47da72c46d6aac7060d8b0e385dfd
   languageName: node
   linkType: hard
 
@@ -1121,21 +1104,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@noble/curves@npm:=1.9.4":
+  version: 1.9.4
+  resolution: "@noble/curves@npm:1.9.4"
+  dependencies:
+    "@noble/hashes": "npm:1.8.0"
+  checksum: 10c0/c5ac42bf0c4ac822ee7c107f7b5647140a4209bce6929cdf21a38bc575be8aa91c130c4d4bea5a8a3100c53728fc0c6757382f005779cd14b10ea9a00f1a4592
+  languageName: node
+  linkType: hard
+
 "@noble/curves@npm:^1.4.2, @noble/curves@npm:^1.8.1, @noble/curves@npm:~1.9.0":
   version: 1.9.3
   resolution: "@noble/curves@npm:1.9.3"
   dependencies:
     "@noble/hashes": "npm:1.8.0"
   checksum: 10c0/cadea78e50261997d9c4d5050af5fcec9307a4ff7dad3cbda61c432167e2a02d7bcbfdd959586c140a371d9987170d0571ff3347d24a05f462f1d5c7b0cae900
-  languageName: node
-  linkType: hard
-
-"@noble/curves@npm:^1.9.4":
-  version: 1.9.4
-  resolution: "@noble/curves@npm:1.9.4"
-  dependencies:
-    "@noble/hashes": "npm:1.8.0"
-  checksum: 10c0/c5ac42bf0c4ac822ee7c107f7b5647140a4209bce6929cdf21a38bc575be8aa91c130c4d4bea5a8a3100c53728fc0c6757382f005779cd14b10ea9a00f1a4592
   languageName: node
   linkType: hard
 
@@ -1186,6 +1169,32 @@ __metadata:
   version: 1.0.0-next.29
   resolution: "@polka/url@npm:1.0.0-next.29"
   checksum: 10c0/0d58e081844095cb029d3c19a659bfefd09d5d51a2f791bc61eba7ea826f13d6ee204a8a448c2f5a855c17df07b37517373ff916dd05801063c0568ae9937684
+  languageName: node
+  linkType: hard
+
+"@protobuf-ts/grpcweb-transport@npm:^2.11.1":
+  version: 2.11.1
+  resolution: "@protobuf-ts/grpcweb-transport@npm:2.11.1"
+  dependencies:
+    "@protobuf-ts/runtime": "npm:^2.11.1"
+    "@protobuf-ts/runtime-rpc": "npm:^2.11.1"
+  checksum: 10c0/5d3d23cab51cf1572dfe2bc787981903254c71420943a2b2bdce9d5417291d7001b8ec64fbde7c93448382bb0909ebbf511712fb4bcd92074ce8240d669e23e3
+  languageName: node
+  linkType: hard
+
+"@protobuf-ts/runtime-rpc@npm:^2.11.1":
+  version: 2.11.1
+  resolution: "@protobuf-ts/runtime-rpc@npm:2.11.1"
+  dependencies:
+    "@protobuf-ts/runtime": "npm:^2.11.1"
+  checksum: 10c0/20337ea721a619a93c3888fbbe768c8334a8ed67a759a33aefb2a5c587fff690ca8fcb8dc97f9b7590012d9f4c43a6b9020f72dd2fc57f004c26eeca93a51982
+  languageName: node
+  linkType: hard
+
+"@protobuf-ts/runtime@npm:^2.11.1":
+  version: 2.11.1
+  resolution: "@protobuf-ts/runtime@npm:2.11.1"
+  checksum: 10c0/6071c0373251e915cebb449fb7bf3254e946534edf4c4eb6e89933989a3ab5dcb148ed82cc0ea844bbc2f4346d0dc76f852c2b5f900a6bdaa35e5fb2cb4666f9
   languageName: node
   linkType: hard
 
@@ -1555,9 +1564,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sveltejs/kit@npm:^2.46.5":
-  version: 2.46.5
-  resolution: "@sveltejs/kit@npm:2.46.5"
+"@sveltejs/kit@npm:^2.47.0":
+  version: 2.47.0
+  resolution: "@sveltejs/kit@npm:2.47.0"
   dependencies:
     "@standard-schema/spec": "npm:^1.0.0"
     "@sveltejs/acorn-typescript": "npm:^1.0.5"
@@ -1582,7 +1591,7 @@ __metadata:
       optional: true
   bin:
     svelte-kit: svelte-kit.js
-  checksum: 10c0/ce5a418e7bb716642aef00c556c3d16ca57eedca9fae663023389dec5a011bdf46e2c7bc94f91b1efd59b31b64c70e10c41da60145be017ffdee18a705df6636
+  checksum: 10c0/8c213eff94472995952930e0b16cf2e1dca106f7364387c9bc6cfc5f16433c4171f54cf29960f774726c6b2974571148cb011faeff46b889b81f5efd7c8d3e48
   languageName: node
   linkType: hard
 
@@ -2477,10 +2486,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"daisyui@npm:^5.3.2":
-  version: 5.3.2
-  resolution: "daisyui@npm:5.3.2"
-  checksum: 10c0/d5d1471c284b8b4f28468392ef18bd20b25fd73d9db2ee26db1706c7fd6448e3f02c2e5ceab207d86c82d6d1fe9340e94396432ace83c229177a6d6939a1f7ec
+"daisyui@npm:^5.3.7":
+  version: 5.3.7
+  resolution: "daisyui@npm:5.3.7"
+  checksum: 10c0/24dede8fc40cdba7ccc5804514e726f34228fb4694edaafc9e6592c55cf358a81a35ea0064bf28193519620a65d76151328eb711a1283480caa0630b0f44af85
   languageName: node
   linkType: hard
 
@@ -5225,18 +5234,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sui-svelte-wallet-kit@npm:^0.8.2":
-  version: 0.8.2
-  resolution: "sui-svelte-wallet-kit@npm:0.8.2"
+"sui-svelte-wallet-kit@npm:^0.8.4":
+  version: 0.8.4
+  resolution: "sui-svelte-wallet-kit@npm:0.8.4"
   dependencies:
-    "@mysten/enoki": "npm:^0.12.2"
-    "@mysten/sui": "npm:1.39.0"
-    "@mysten/wallet-standard": "npm:^0.18.0"
+    "@mysten/enoki": "npm:^0.12.6"
+    "@mysten/sui": "npm:1.42.0"
+    "@mysten/wallet-standard": "npm:^0.19.2"
     "@suiet/wallet-sdk": "npm:^0.5.0"
     "@wallet-standard/core": "npm:^1.1.1"
   peerDependencies:
     svelte: ^5.0.0
-  checksum: 10c0/08e1caca83bc6e0392d9429c96b94b97bbc54426b5811a323d46b517e7df8c42565b592b23b00c019beb3b545463482c159479b7056704dada26b707b539fb9a
+  checksum: 10c0/06afeb93903b203680fe72e8452b872010bde0bfec27d55dee9576b59c608248eb6e23bf169a60c8cf28d3f952642e61a8ee1fc93a99c5bd0624dae7031d4d7f
   languageName: node
   linkType: hard
 
@@ -5248,14 +5257,14 @@ __metadata:
     "@eslint/js": "npm:^9.37.0"
     "@iconify-json/lucide": "npm:^1.2.69"
     "@iconify/tailwind4": "npm:^1.0.6"
-    "@mysten/sui": "npm:^1.40.0"
+    "@mysten/sui": "npm:^1.42.0"
     "@supabase/supabase-js": "npm:^2.75.0"
     "@sveltejs/adapter-netlify": "npm:^5.2.4"
-    "@sveltejs/kit": "npm:^2.46.5"
+    "@sveltejs/kit": "npm:^2.47.0"
     "@sveltejs/vite-plugin-svelte": "npm:^6.2.1"
     "@tailwindcss/typography": "npm:^0.5.19"
     "@tailwindcss/vite": "npm:^4.1.14"
-    daisyui: "npm:^5.3.2"
+    daisyui: "npm:^5.3.7"
     date-fns: "npm:^4.1.0"
     eslint: "npm:^9.37.0"
     eslint-config-prettier: "npm:^10.1.8"
@@ -5268,8 +5277,8 @@ __metadata:
     qrcode: "npm:^1.5.4"
     rettiwt-api: "npm:^6.0.6"
     runed: "npm:^0.35.1"
-    sui-svelte-wallet-kit: "npm:^0.8.2"
-    svelte: "npm:^5.40.0"
+    sui-svelte-wallet-kit: "npm:^0.8.4"
+    svelte: "npm:^5.40.2"
     svelte-check: "npm:^4.3.3"
     svelte-daisy-toaster: "npm:^0.5.5"
     tailwindcss: "npm:^4.1.14"
@@ -5344,9 +5353,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"svelte@npm:^5.40.0":
-  version: 5.40.0
-  resolution: "svelte@npm:5.40.0"
+"svelte@npm:^5.40.2":
+  version: 5.40.2
+  resolution: "svelte@npm:5.40.2"
   dependencies:
     "@jridgewell/remapping": "npm:^2.3.4"
     "@jridgewell/sourcemap-codec": "npm:^1.5.0"
@@ -5362,7 +5371,7 @@ __metadata:
     locate-character: "npm:^3.0.0"
     magic-string: "npm:^0.30.11"
     zimmerframe: "npm:^1.1.2"
-  checksum: 10c0/43e955a0012dca10f1595bbce939d3bd1231aee4870de8b013c37f03bb28c895320224cb351fff93901e1a6827b49ca2d152f77044f597c163a7a8ad689cb353
+  checksum: 10c0/74072f93ff20f62a797c9c09023028c5dfd31b3a1339fe897a6660f49e9c878936835f067a3ded26731b07bd8608027912f18f05cb8a71985e2824d2070ceed1
   languageName: node
   linkType: hard
 
