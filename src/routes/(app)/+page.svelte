@@ -29,7 +29,7 @@
 	import Wheel from '$lib/components/Wheel.svelte';
 	import { wheelContext } from '$lib/context/wheel.js';
 	import { useTranslation } from '$lib/hooks/useTranslation.js';
-	import QRCode from 'qrcode';
+	import { qr } from '@svelte-put/qr/svg';
 
 	import {
 		LATEST_PACKAGE_ID,
@@ -85,44 +85,35 @@
 	// Cancellation state
 	let isCancelled = $state(false);
 
-	// QR code for results link when wheel is finished
-	let qrDataUrl = $state('');
+	// QR code URL for results link when wheel is finished
+	let resultQRUrl = $state('');
 	$effect(() => {
 		try {
-			if (createdWheelId && remainingSpins === 0 && typeof window !== 'undefined') {
-				const url = `${window.location.origin}/wheel-result?wheelId=${createdWheelId}`;
-				QRCode.toDataURL(url, { width: 256, margin: 1 })
-					.then(u => (qrDataUrl = u))
-					.catch(() => (qrDataUrl = ''));
+			if (createdWheelId && remainingSpins === 0) {
+				resultQRUrl = `${page.url.origin}/wheel-result?wheelId=${createdWheelId}`;
 			} else {
-				qrDataUrl = '';
+				resultQRUrl = '';
 			}
 		} catch {
-			qrDataUrl = '';
+			resultQRUrl = '';
 		}
 	});
 
-	// QR code for entry form
-	let entryFormQRDataUrl = $state('');
+	// QR code URL for entry form
 	$effect(() => {
 		try {
-			if (entryFormEnabled && typeof window !== 'undefined') {
+			if (entryFormEnabled) {
 				// Use wheelTempId if wheel not created yet, otherwise use createdWheelId
 				const wheelId = createdWheelId || generateWheelTempId();
 				const nameParam = entryFormModalName
 					? `&name=${encodeURIComponent(entryFormModalName)}`
 					: '';
-				const url = `${window.location.origin}/entry-form?wheelId=${wheelId}&type=${entryFormType}${nameParam}`;
+				const url = `${page.url.origin}/entry-form?wheelId=${wheelId}&type=${entryFormType}${nameParam}`;
 				entryFormQRUrl = url;
-				QRCode.toDataURL(url, { width: 256, margin: 1 })
-					.then(u => (entryFormQRDataUrl = u))
-					.catch(() => (entryFormQRDataUrl = ''));
 			} else {
-				entryFormQRDataUrl = '';
 				entryFormQRUrl = '';
 			}
 		} catch {
-			entryFormQRDataUrl = '';
 			entryFormQRUrl = '';
 		}
 	});
@@ -687,6 +678,26 @@
 	let entryFormEndTime = $state(null); // End time timestamp
 	let entryFormTimer = $state(null); // Timer reference
 	let remainingTime = $state(0); // Remaining time in seconds
+
+	// QR Lightbox modal
+	let qrLightboxEl = $state(null);
+	let qrLightboxUrl = $state('');
+	let qrLightboxTitle = $state('');
+	function openQRLightbox(url, title) {
+		try {
+			qrLightboxUrl = url || '';
+			qrLightboxTitle = title || 'QR';
+			if (qrLightboxEl && typeof qrLightboxEl.showModal === 'function') {
+				qrLightboxEl.showModal();
+			}
+		} catch {}
+	}
+
+	function closeQRLightbox() {
+		try {
+			qrLightboxEl?.close?.();
+		} catch {}
+	}
 
 	async function openXImportModal() {
 		xImportInput = '';
@@ -1625,13 +1636,19 @@
 										/>
 									</div>
 
-									{#if qrDataUrl}
+									{#if resultQRUrl}
 										<div class="mt-3 flex items-center gap-3">
-											<img
-												src={qrDataUrl}
-												alt={t('main.resultQr')}
-												class="rounded-box border-base-300 bg-base-100 mb-3 h-64 w-64 border p-2 shadow"
-											/>
+											<button
+												type="button"
+												class="rounded-box bg-base-100 border-base-300 mb-3 w-128 cursor-zoom-in border p-2 shadow"
+												aria-label={t('main.resultQr')}
+												onclick={() => openQRLightbox(resultQRUrl, t('main.resultQr'))}
+											>
+												<svg
+													use:qr={{ data: resultQRUrl, logo: '/sui-wheel-logo-small.png' }}
+													aria-hidden="true"
+												/>
+											</button>
 
 											<div class="flex w-full flex-col items-center gap-2 text-center opacity-80">
 												<span class="icon-[lucide--smartphone] h-8 w-8"></span>
@@ -1650,13 +1667,19 @@
 										<ButtonCopy originText={entryFormQRUrl} size="xs" className="btn-soft" />
 									</div>
 
-									{#if entryFormQRDataUrl}
+									{#if entryFormQRUrl}
 										<div class="mt-3 flex items-center gap-3">
-											<img
-												src={entryFormQRDataUrl}
-												alt={t('main.entryFormQr')}
-												class="rounded-box border-base-300 bg-base-100 mb-3 h-64 w-64 border p-2 shadow"
-											/>
+											<button
+												type="button"
+												class="rounded-box bg-base-100 border-base-300 mb-3 w-128 cursor-zoom-in border p-2 shadow"
+												aria-label={t('main.entryFormQr')}
+												onclick={() => openQRLightbox(entryFormQRUrl, t('main.entryFormQr'))}
+											>
+												<svg
+													use:qr={{ data: entryFormQRUrl, logo: '/sui-wheel-logo-small.png' }}
+													aria-hidden="true"
+												/>
+											</button>
 											<div class="flex w-full flex-col items-center gap-2">
 												{#if remainingTime > 0}
 													<div
@@ -1698,7 +1721,7 @@
 										</div>
 									{/if}
 
-									<div class="mt-2">
+									<div class="mt-2 sm:text-center">
 										<button
 											class="btn btn-sm btn-outline btn-error"
 											onclick={disableOnlineEntries}
@@ -1836,6 +1859,32 @@
 		</div>
 	</div>
 </section>
+
+<!-- QR Lightbox Modal -->
+<dialog class="modal" bind:this={qrLightboxEl} aria-label={qrLightboxTitle} tabindex="-1">
+	<div class="modal-box w-11/12 max-w-2xl">
+		<h3 class="mb-3 text-center text-lg font-semibold">{qrLightboxTitle}</h3>
+		<div class="flex items-center justify-center">
+			{#if qrLightboxUrl}
+				<svg
+					use:qr={{ data: qrLightboxUrl, logo: '/sui-wheel-logo-small.png' }}
+					class="rounded-box bg-base-100 border-base-300 w-128 p-2 shadow"
+					role="img"
+					aria-label={qrLightboxTitle}
+				/>
+			{/if}
+		</div>
+
+		<div class="mt-4 flex justify-center">
+			<button class="btn" onclick={closeQRLightbox} aria-label="Close QR Lightbox">
+				{t('main.close')}
+			</button>
+		</div>
+	</div>
+	<form method="dialog" class="modal-backdrop" aria-label="Close">
+		<button>{t('main.close')}</button>
+	</form>
+</dialog>
 
 <!-- X Import Modal -->
 <dialog id="x_import_modal" class="modal modal-middle" bind:this={xImportDialogEl}>
