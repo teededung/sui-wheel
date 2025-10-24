@@ -27,10 +27,11 @@ export const load = async () => {
 				showEvents: false
 			},
 			order: 'descending',
-			limit: 20
+			limit: 30
 		});
 
 		const transactions = response?.data || [];
+
 		const items = [];
 		for (const tx of transactions) {
 			const created = (tx?.objectChanges || []).find(
