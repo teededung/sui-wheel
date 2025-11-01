@@ -93,6 +93,27 @@
 	// Cancellation state
 	let isCancelled = $state(false);
 
+	// Off-chain winners history (only for off-chain wheels) -----------------------------
+	let offchainWinners = $state([]);
+
+	// StateHistory to track off-chain winners
+	const offchainWinnersHistory = new StateHistory(
+		() => offchainWinners,
+		value => {
+			offchainWinners = value;
+		}
+	);
+
+	// Get current winners from history log
+	const currentWinnersFromHistory = $derived.by(() => {
+		return offchainWinnersHistory.log.at(-1)?.snapshot || [];
+	});
+
+	// Real-time clock for history timestamps
+	let currentTime = $state(Date.now());
+	let historyTimer = $state(null);
+	// -------------------------------------------------------------------------------------
+
 	// QR code URL for results link when wheel is finished
 	let resultQRUrl = $state('');
 	$effect(() => {
@@ -179,21 +200,6 @@
 	// Index order state: maps current `entries` positions -> original indices in `entriesOnChain`
 	let shuffledIndexOrder = $state([]);
 
-	// Off-chain winners history (only for off-chain wheels)
-	let offchainWinners = $state([]);
-
-	// StateHistory to track off-chain winners
-	const offchainWinnersHistory = new StateHistory(
-		() => offchainWinners,
-		value => {
-			offchainWinners = value;
-		}
-	);
-
-	// Real-time clock for history timestamps
-	let currentTime = $state(Date.now());
-	let historyTimer = $state(null);
-
 	// Expose helpers to Wheel component via context
 	function setWheelSpinning(v) {
 		spinning = Boolean(v);
@@ -207,10 +213,7 @@
 				timestamp: Date.now()
 			};
 			offchainWinners = [...offchainWinners, newWinner];
-			// Start timer if this is the first winner
-			if (offchainWinners.length === 1) {
-				startHistoryTimer();
-			}
+			// Timer will auto-start via watch on currentWinnersFromHistory.length
 		}
 	}
 
@@ -1056,7 +1059,7 @@
 	// Start/stop history timer
 	function startHistoryTimer() {
 		if (historyTimer) return;
-		if (offchainWinners.length === 0) return;
+		if (currentWinnersFromHistory.length === 0) return;
 		historyTimer = setInterval(() => {
 			currentTime = Date.now();
 		}, 1000); // Update every second
@@ -1069,11 +1072,11 @@
 		}
 	}
 
-	// Watch offchainWinners to start/stop timer
+	// Watch currentWinnersFromHistory to start/stop timer
 	watch(
-		() => offchainWinners.length,
+		() => currentWinnersFromHistory.length,
 		() => {
-			if (offchainWinners.length > 0) {
+			if (currentWinnersFromHistory.length > 0) {
 				startHistoryTimer();
 			} else {
 				stopHistoryTimer();
@@ -1543,14 +1546,14 @@
 										type="radio"
 										name="wheel_tabs"
 										class="tab"
-										aria-label={`${t('main.history')} (${offchainWinners.length})`}
+										aria-label={`${t('main.history')} (${currentWinnersFromHistory.length})`}
 										checked={activeTab === 'history'}
 										onclick={() => (activeTab = 'history')}
 									/>
 									<div class="tab-content bg-base-100 border-base-300 p-6">
 										<div class="mb-4 flex items-center justify-between">
 											<h3 class="text-lg font-semibold">{t('main.history')}</h3>
-											{#if offchainWinners.length > 0}
+											{#if currentWinnersFromHistory.length > 0}
 												<button
 													class="btn btn-sm btn-outline btn-error"
 													onclick={() => {
@@ -1567,7 +1570,7 @@
 
 										<p class="mb-4 text-sm opacity-70">{t('main.historyNote')}</p>
 
-										{#if offchainWinners.length === 0}
+										{#if currentWinnersFromHistory.length === 0}
 											<div class="text-base-content/50 py-8 text-center text-sm">
 												{t('main.noHistory')}
 											</div>
@@ -1582,7 +1585,7 @@
 														</tr>
 													</thead>
 													<tbody>
-														{#each offchainWinners as winner, i}
+														{#each currentWinnersFromHistory as winner, i}
 															<tr>
 																<td class="w-12">{i + 1}</td>
 																<td class="font-mono">
