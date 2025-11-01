@@ -41,7 +41,8 @@
 		setSpinning,
 		onShuffle,
 		onClearAllEntries,
-		removeEntry
+		removeEntry,
+		onOffchainWinner
 	} = ctx;
 
 	let isSpinDisabled = $derived.by(() => {
@@ -810,7 +811,9 @@
 					// keep secondaryWinner
 				}
 				if (lastWinner) {
+					// Notify parent about off-chain winner for history tracking
 					if (!postSpinFetchRequested && !createdWheelId) {
+						onOffchainWinner?.(lastWinner);
 						removeEntry?.(String(winnerValue ?? ''));
 					}
 					selectedIndex = null;

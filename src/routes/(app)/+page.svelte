@@ -1,12 +1,13 @@
 <script>
 	import { onMount } from 'svelte';
-	import { watch } from 'runed';
+	import { watch, StateHistory } from 'runed';
 	import { page } from '$app/state';
 	import { useSearchParams } from 'runed/kit';
 	import { searchParamsSchema } from '$lib/paramSchema.js';
 	import { Transaction } from '@mysten/sui/transactions';
 	import { toast } from 'svelte-daisy-toaster';
 	import { formatDistanceToNow } from 'date-fns';
+	import { vi } from 'date-fns/locale';
 	import {
 		useSuiClient,
 		useCurrentAccount,
@@ -29,6 +30,7 @@
 	import Wheel from '$lib/components/Wheel.svelte';
 	import { wheelContext } from '$lib/context/wheel.js';
 	import { useTranslation } from '$lib/hooks/useTranslation.js';
+	import { getLanguageContext } from '$lib/context/language.js';
 	import { qr } from '@svelte-put/qr/svg';
 
 	import {
@@ -45,6 +47,12 @@
 	const suiClient = $derived(useSuiClient());
 	const account = $derived(useCurrentAccount());
 	let isOnTestnet = $derived.by(() => isTestnet(account));
+
+	// Get current language for date-fns locale
+	const languageContext = getLanguageContext();
+	const dateLocale = $derived.by(() => {
+		return languageContext?.language?.code === 'vi' ? vi : undefined;
+	});
 
 	// State
 	let entries = $state([
@@ -171,9 +179,39 @@
 	// Index order state: maps current `entries` positions -> original indices in `entriesOnChain`
 	let shuffledIndexOrder = $state([]);
 
+	// Off-chain winners history (only for off-chain wheels)
+	let offchainWinners = $state([]);
+
+	// StateHistory to track off-chain winners
+	const offchainWinnersHistory = new StateHistory(
+		() => offchainWinners,
+		value => {
+			offchainWinners = value;
+		}
+	);
+
+	// Real-time clock for history timestamps
+	let currentTime = $state(Date.now());
+	let historyTimer = $state(null);
+
 	// Expose helpers to Wheel component via context
 	function setWheelSpinning(v) {
 		spinning = Boolean(v);
+	}
+
+	// Handle off-chain winner (called from Wheel component)
+	function handleOffchainWinner(winnerAddress) {
+		if (!createdWheelId && winnerAddress) {
+			const newWinner = {
+				address: String(winnerAddress),
+				timestamp: Date.now()
+			};
+			offchainWinners = [...offchainWinners, newWinner];
+			// Start timer if this is the first winner
+			if (offchainWinners.length === 1) {
+				startHistoryTimer();
+			}
+		}
 	}
 
 	// Remove entry value from entries array
@@ -1015,6 +1053,34 @@
 		isInitialized = true;
 	});
 
+	// Start/stop history timer
+	function startHistoryTimer() {
+		if (historyTimer) return;
+		if (offchainWinners.length === 0) return;
+		historyTimer = setInterval(() => {
+			currentTime = Date.now();
+		}, 1000); // Update every second
+	}
+
+	function stopHistoryTimer() {
+		if (historyTimer) {
+			clearInterval(historyTimer);
+			historyTimer = null;
+		}
+	}
+
+	// Watch offchainWinners to start/stop timer
+	watch(
+		() => offchainWinners.length,
+		() => {
+			if (offchainWinners.length > 0) {
+				startHistoryTimer();
+			} else {
+				stopHistoryTimer();
+			}
+		}
+	);
+
 	// Cleanup on component destroy
 	onMount(() => {
 		// Handle browser close/refresh
@@ -1040,6 +1106,7 @@
 				clearInterval(entryFormTimer);
 				entryFormTimer = null;
 			}
+			stopHistoryTimer();
 			window.removeEventListener('beforeunload', handleBeforeUnload);
 		};
 	});
@@ -1127,7 +1194,8 @@
 		setSpinning: setWheelSpinning,
 		onShuffle: handleShuffle,
 		onClearAllEntries: clearAllEntries,
-		removeEntry: removeEntryValue
+		removeEntry: removeEntryValue,
+		onOffchainWinner: handleOffchainWinner
 	});
 </script>
 
@@ -1315,6 +1383,9 @@
 												poolBalanceMistOnChain = 0n;
 												activeTab = 'entries';
 												entriesViewMode = 'textarea';
+												// Reset off-chain history
+												offchainWinnersHistory.clear();
+												stopHistoryTimer();
 											}}>{t('main.newWheel')}</button
 										>
 									{/if}
@@ -1466,6 +1537,79 @@
 									{/if}
 								</div>
 
+								<!-- History tab (only for off-chain wheels without wallet connected) -->
+								{#if !createdWheelId && !account}
+									<input
+										type="radio"
+										name="wheel_tabs"
+										class="tab"
+										aria-label={`${t('main.history')} (${offchainWinners.length})`}
+										checked={activeTab === 'history'}
+										onclick={() => (activeTab = 'history')}
+									/>
+									<div class="tab-content bg-base-100 border-base-300 p-6">
+										<div class="mb-4 flex items-center justify-between">
+											<h3 class="text-lg font-semibold">{t('main.history')}</h3>
+											{#if offchainWinners.length > 0}
+												<button
+													class="btn btn-sm btn-outline btn-error"
+													onclick={() => {
+														offchainWinnersHistory.clear();
+														stopHistoryTimer();
+													}}
+													aria-label={t('main.clearHistory')}
+												>
+													<span class="icon-[lucide--trash-2] h-4 w-4"></span>
+													{t('main.clearHistory')}
+												</button>
+											{/if}
+										</div>
+
+										<p class="mb-4 text-sm opacity-70">{t('main.historyNote')}</p>
+
+										{#if offchainWinners.length === 0}
+											<div class="text-base-content/50 py-8 text-center text-sm">
+												{t('main.noHistory')}
+											</div>
+										{:else}
+											<div class="overflow-x-auto">
+												<table class="table-zebra table">
+													<thead>
+														<tr>
+															<th>#</th>
+															<th>{t('main.winner')}</th>
+															<th>{t('main.timestamp')}</th>
+														</tr>
+													</thead>
+													<tbody>
+														{#each offchainWinners as winner, i}
+															<tr>
+																<td class="w-12">{i + 1}</td>
+																<td class="font-mono">
+																	{isValidSuiAddress(winner.address)
+																		? shortenAddress(winner.address)
+																		: winner.address}
+																</td>
+																<td class="text-sm opacity-70">
+																	{(() => {
+																		// Reference currentTime to trigger reactivity
+																		void currentTime;
+																		return formatDistanceToNow(new Date(winner.timestamp), {
+																			addSuffix: true,
+																			includeSeconds: true,
+																			locale: dateLocale
+																		});
+																	})()}
+																</td>
+															</tr>
+														{/each}
+													</tbody>
+												</table>
+											</div>
+										{/if}
+									</div>
+								{/if}
+
 								<!-- Prizes tab -->
 								{#if account || createdWheelId}
 									<input
@@ -1503,7 +1647,8 @@
 																			<span
 																				class="badge badge-soft badge-success badge-sm ml-2 text-xs whitespace-nowrap opacity-70"
 																				>{formatDistanceToNow(spinTimesOnChain[i], {
-																					addSuffix: true
+																					addSuffix: true,
+																					locale: dateLocale
 																				})}</span
 																			>
 																		{/if}
