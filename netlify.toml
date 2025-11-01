@@ -1,6 +1,6 @@
 [build]
-  command = "yarn build"
+  command = "pnpm build"
   publish = "build"
 
 [build.environment]
-  NODE_VERSION = "22.12.0"
+  NODE_VERSION = "22.13.1"
