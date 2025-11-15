@@ -5,6 +5,8 @@
 	import ButtonLanguageSwitch from './ButtonLanguageSwitch.svelte';
 	import { getLanguageContext } from '$lib/context/language.js';
 	import logo from '$lib/assets/sui-wheel-logo-small.png';
+	import flagUS from '$lib/assets/flag-us.svg';
+	import flagVN from '$lib/assets/flag-vn.svg';
 
 	let isFaqPage = $derived(page.url.pathname === '/faq');
 	let isAboutPage = $derived(page.url.pathname === '/about');
@@ -21,11 +23,11 @@
 	<div class="navbar-start">
 		<!-- Mobile dropdown menu -->
 		<div class="dropdown lg:hidden">
-			<div tabindex="0" role="button" class="btn btn-ghost pl-1" aria-label="Open navigation menu">
+			<div tabindex="0" role="button" class="btn pl-1 btn-ghost" aria-label="Open navigation menu">
 				<span class="icon-[lucide--menu] h-7 w-7"></span>
 			</div>
 			<ul
-				class="menu sm:menu-sm dropdown-content bg-base-200 rounded-box z-10 mt-3 w-52 p-2 shadow"
+				class="dropdown-content menu z-10 mt-3 w-52 rounded-box bg-base-200 p-2 shadow sm:menu-sm"
 			>
 				<li><a href="/wheel-list" aria-label="Go to Wheel List">Wheel List</a></li>
 				<li><a href="/about" aria-label="Go to About">About</a></li>
@@ -37,7 +39,7 @@
 						onclick={() => selectLanguage('en')}
 						class={`w-full text-left ${!isVi ? 'active' : ''}`}
 					>
-						<img src="/flag-us.svg" alt="USA flag" class="h-5 w-6 rounded-sm" />
+						<img src={flagUS} alt="USA flag" class="h-5 w-6 rounded-sm" />
 						<span>English</span>
 					</button>
 				</li>
@@ -46,7 +48,7 @@
 						onclick={() => selectLanguage('vi')}
 						class={`w-full text-left ${isVi ? 'active' : ''}`}
 					>
-						<img src="/flag-vn.svg" alt="Vietnam flag" class="h-5 w-6 rounded-sm" />
+						<img src={flagVN} alt="Vietnam flag" class="h-5 w-6 rounded-sm" />
 						<span>Tiếng Việt</span>
 					</button>
 				</li>
