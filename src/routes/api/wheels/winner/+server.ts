@@ -1,9 +1,15 @@
 import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 
-/** @type {import('./$types').RequestHandler} */
-export async function POST({ request, locals }) {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
-		const body = await request.json();
+		const body = await request.json() as {
+			wheelId?: string;
+			winnerAddress?: string;
+			prizeIndex?: number;
+			spinTxDigest?: string;
+			spinTime?: string;
+		};
 		const {
 			wheelId,
 			winnerAddress,
@@ -16,7 +22,13 @@ export async function POST({ request, locals }) {
 			return json({ success: false, message: 'Missing required fields' }, { status: 400 });
 		}
 
-		const row = {
+		const row: {
+			wheel_id: string;
+			winner_address: string;
+			prize_index: number;
+			spin_tx_digest: string;
+			spin_time?: string;
+		} = {
 			wheel_id: wheelId,
 			winner_address: String(winnerAddress).toLowerCase(),
 			prize_index: prizeIndex,
@@ -38,4 +50,4 @@ export async function POST({ request, locals }) {
 		console.error('[api/wheels/winner] POST error', err);
 		return json({ success: false, message: 'Internal server error' }, { status: 500 });
 	}
-}
+};

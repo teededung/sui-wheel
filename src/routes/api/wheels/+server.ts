@@ -1,9 +1,18 @@
 import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 
-/** @type {import('./$types').RequestHandler} */
-export async function POST({ request, locals }) {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
-		const body = await request.json();
+		const body = await request.json() as {
+			wheelId?: string;
+			txDigest?: string;
+			packageId?: string;
+			organizerAddress?: string;
+			prizesMist?: bigint[];
+			totalDonationMist?: bigint | null;
+			network?: string;
+			orderedEntries?: string[];
+		};
 		const {
 			wheelId,
 			txDigest,
@@ -49,7 +58,7 @@ export async function POST({ request, locals }) {
 				console.error('[api/wheels] delete entries error', delErr);
 			}
 
-			const rows = orderedEntries.map((entry, idx) => ({
+			const rows = orderedEntries.map((entry: string, idx: number) => ({
 				wheel_id: wheelId,
 				entry_address: String(entry),
 				entry_index: idx
@@ -66,10 +75,9 @@ export async function POST({ request, locals }) {
 		console.error('[api/wheels] POST error', err);
 		return json({ success: false, message: 'Internal server error' }, { status: 500 });
 	}
-}
+};
 
-/** @type {import('./$types').RequestHandler} */
-export async function GET({ url, locals }) {
+export const GET: RequestHandler = async ({ url, locals }) => {
 	try {
 		const wheelId = url.searchParams.get('wheelId');
 		if (!wheelId) {
@@ -87,9 +95,9 @@ export async function GET({ url, locals }) {
 			return json({ success: false, message: 'Failed to fetch entries' }, { status: 500 });
 		}
 
-		return json({ success: true, entries: (entries ?? []).map(r => r.entry_address) });
+		return json({ success: true, entries: (entries ?? []).map((r: { entry_address: string }) => r.entry_address) });
 	} catch (e) {
 		console.error('[api/wheels] GET error', e);
 		return json({ success: false, message: 'Internal server error' }, { status: 500 });
 	}
-}
+};

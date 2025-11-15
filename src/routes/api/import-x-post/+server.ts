@@ -8,7 +8,7 @@ import { isValidSuiAddress } from '$lib/utils/suiHelpers.js';
  * - Direct Tweet ID (digits)
  * - X/Twitter URL (twitter.com|x.com)/.../status/<id>
  */
-function extractTweetId(rawInput) {
+function extractTweetId(rawInput: unknown): string {
 	const input = String(rawInput || '').trim();
 	if (!input) return '';
 
@@ -32,9 +32,15 @@ function extractTweetId(rawInput) {
 	return '';
 }
 
-export async function POST({ request }) {
+import type { RequestHandler } from './$types';
+
+export const POST: RequestHandler = async ({ request }) => {
 	try {
-		const body = await request.json().catch(() => ({}));
+		const body = (await request.json().catch(() => ({}))) as {
+			id?: string;
+			url?: string;
+			input?: string;
+		};
 		const candidate = body?.id ?? body?.url ?? body?.input ?? '';
 		const tweetId = extractTweetId(candidate);
 
@@ -64,7 +70,8 @@ export async function POST({ request }) {
 				if (!list.length) break;
 
 				for (const item of list) {
-					const id = String(item?.id ?? item?.tweetId ?? '');
+					const tweetItem = item as unknown as { id?: string; tweetId?: string; [key: string]: unknown };
+					const id = String(tweetItem?.id ?? tweetItem?.tweetId ?? '');
 					if (!id || seenIds.has(id)) continue;
 					seenIds.add(id);
 					replies.push(item);
@@ -83,7 +90,7 @@ export async function POST({ request }) {
 			);
 
 			// Sort replies by createdAt ascending (earliest first)
-			replies.sort((a, b) => {
+			replies.sort((a: { createdAt?: unknown }, b: { createdAt?: unknown }) => {
 				const aMs = Date.parse(String(a?.createdAt ?? ''));
 				const bMs = Date.parse(String(b?.createdAt ?? ''));
 				return (Number.isNaN(aMs) ? Infinity : aMs) - (Number.isNaN(bMs) ? Infinity : bMs);
@@ -91,9 +98,15 @@ export async function POST({ request }) {
 
 			// Extract SUI addresses from reply texts (chronological order)
 			const addressRegex = /0x[a-fA-F0-9]{64}/g;
-			const addressesAll = [];
+			const addressesAll: string[] = [];
 			for (const item of replies) {
-				const textCandidates = [item?.fullText, item?.text, item?.legacy?.full_text];
+				const tweetItem = item as unknown as {
+					fullText?: string;
+					text?: string;
+					legacy?: { full_text?: string };
+					[key: string]: unknown;
+				};
+				const textCandidates = [tweetItem?.fullText, tweetItem?.text, tweetItem?.legacy?.full_text];
 				const sourceText = String(
 					textCandidates.find(v => typeof v === 'string' && v.length > 0) || ''
 				);
@@ -136,24 +149,26 @@ export async function POST({ request }) {
 			});
 		} catch (err) {
 			console.error('[import-x-post] Rettiwt error:', err);
+			const error = err as { message?: string } | Error;
 			return json(
 				{
 					success: false,
 					error: 'Failed to fetch tweet replies',
-					message: err?.message || String(err)
+					message: error?.message || String(err)
 				},
 				{ status: 502 }
 			);
 		}
 	} catch (e) {
 		console.error('[import-x-post] Unexpected server error:', e);
+		const error = e as { message?: string } | Error;
 		return json(
 			{
 				success: false,
 				error: 'Unexpected server error',
-				message: e?.message || String(e)
+				message: error?.message || String(e)
 			},
 			{ status: 500 }
 		);
 	}
-}
+};

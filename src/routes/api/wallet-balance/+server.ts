@@ -1,7 +1,8 @@
 import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import { getSuiBalance } from '$lib/server/suiHelpers.js';
 
-export async function GET({ url }) {
+export const GET: RequestHandler = async ({ url }) => {
 	const address = url.searchParams.get('address');
 
 	if (!address) {
@@ -19,13 +20,14 @@ export async function GET({ url }) {
 		});
 	} catch (error) {
 		console.error('Error fetching wallet balance:', error);
+		const err = error as { message?: string } | Error;
 
 		return json(
 			{
 				error: 'Failed to fetch wallet balance',
-				message: error.message
+				message: err?.message || String(error)
 			},
 			{ status: 500 }
 		);
 	}
-}
+};

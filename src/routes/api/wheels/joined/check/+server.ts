@@ -1,9 +1,12 @@
 import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 
-/** @type {import('./$types').RequestHandler} */
-export async function POST({ request, locals }) {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
-		const body = await request.json();
+		const body = await request.json() as {
+			address?: string;
+			wheelIds?: unknown[];
+		};
 		const address = String(body?.address || '').toLowerCase();
 		const wheelIds = Array.isArray(body?.wheelIds) ? body.wheelIds.map(String) : [];
 		if (!address || wheelIds.length === 0) {
@@ -34,7 +37,7 @@ export async function POST({ request, locals }) {
 			);
 		}
 
-		const allJoined = Array.from(new Set((data || []).map(r => String(r.wheel_id))));
+		const allJoined = Array.from(new Set((data || []).map((r: { wheel_id: string }) => String(r.wheel_id))));
 		const joinedIds = allJoined.filter(id => wheelIdsSet.has(id));
 		return json({ success: true, joinedIds });
 	} catch (e) {
@@ -45,4 +48,4 @@ export async function POST({ request, locals }) {
 			{ status: 500 }
 		);
 	}
-}
+};

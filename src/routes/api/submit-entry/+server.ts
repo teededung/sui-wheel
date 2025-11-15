@@ -1,13 +1,20 @@
 import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import { isValidSuiAddress } from '$lib/utils/suiHelpers.js';
 import { MAX_ENTRIES } from '$lib/constants.js';
 
+interface WheelMetadata {
+	createdAt: number;
+	endTime?: number;
+	duration?: number;
+}
+
 // In-memory storage for demo purposes
 // In production, you'd use a database
-const wheelEntries = new Map();
+const wheelEntries = new Map<string, string[]>();
 
 // Auto-cleanup system for expired wheels
-const wheelMetadata = new Map(); // Store metadata like creation time and duration
+const wheelMetadata = new Map<string, WheelMetadata>(); // Store metadata like creation time and duration
 
 // Cleanup expired wheels every 30 minutes
 setInterval(
@@ -24,8 +31,7 @@ setInterval(
 	30 * 60 * 1000
 );
 
-/** @type {import('./$types').RequestHandler} */
-export async function POST({ request, url }) {
+export const POST: RequestHandler = async ({ request, url }) => {
 	try {
 		// Check if this is a clear request (GET-style parameters in POST)
 		const clear = url.searchParams.get('clear');
@@ -42,7 +48,11 @@ export async function POST({ request, url }) {
 			});
 		}
 
-		let requestData;
+		let requestData: {
+			wheelId?: string;
+			entry?: string;
+			entryType?: string;
+		};
 		try {
 			requestData = await request.json();
 		} catch (error) {
@@ -86,6 +96,9 @@ export async function POST({ request, url }) {
 		}
 
 		const existingEntries = wheelEntries.get(wheelId);
+		if (!existingEntries) {
+			return json({ success: false, message: 'Wheel not found' }, { status: 400 });
+		}
 
 		// Check if wheel is full (MAX_ENTRIES entries limit)
 		if (existingEntries.length >= MAX_ENTRIES) {
@@ -114,10 +127,9 @@ export async function POST({ request, url }) {
 		console.error('Submit entry error:', error);
 		return json({ success: false, message: 'Internal server error' }, { status: 500 });
 	}
-}
+};
 
-/** @type {import('./$types').RequestHandler} */
-export async function GET({ url }) {
+export const GET: RequestHandler = async ({ url }) => {
 	try {
 		const wheelId = url.searchParams.get('wheelId');
 		const clear = url.searchParams.get('clear');
@@ -158,4 +170,4 @@ export async function GET({ url }) {
 		console.error('Get entries error:', error);
 		return json({ success: false, message: 'Internal server error' }, { status: 500 });
 	}
-}
+};

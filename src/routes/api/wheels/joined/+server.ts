@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 
-/** @type {import('./$types').RequestHandler} */
-export async function GET({ url, locals }) {
+export const GET: RequestHandler = async ({ url, locals }) => {
 	try {
 		const address = String(url.searchParams.get('address') || '').toLowerCase();
 		if (!address) return json({ success: false, message: 'Missing address' }, { status: 400 });
@@ -17,10 +17,10 @@ export async function GET({ url, locals }) {
 			return json({ success: false, message: 'Failed to fetch joined wheels' }, { status: 500 });
 		}
 
-		const joinedIds = Array.from(new Set((data ?? []).map(r => r.wheel_id)));
+		const joinedIds = Array.from(new Set((data ?? []).map((r: { wheel_id: string }) => r.wheel_id)));
 		return json({ success: true, joinedIds });
 	} catch (e) {
 		console.error('[api/wheels/joined] GET error', e);
 		return json({ success: false, message: 'Internal server error' }, { status: 500 });
 	}
-}
+};
