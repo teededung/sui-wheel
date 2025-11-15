@@ -1,4 +1,5 @@
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import type { PageServerLoad } from './$types';
 import {
 	LATEST_PACKAGE_ID,
 	WHEEL_MODULE,
@@ -7,9 +8,9 @@ import {
 	NETWORK
 } from '$lib/constants.js';
 
-/** @type {import('./$types').PageServerLoad} */
-export const load = async () => {
-	const suiClient = new SuiClient({ url: getFullnodeUrl(NETWORK.split(':')[1]) });
+export const load: PageServerLoad = async () => {
+	const networkPart = NETWORK.split(':')[1] as 'mainnet' | 'testnet' | 'devnet' | 'localnet';
+	const suiClient = new SuiClient({ url: getFullnodeUrl(networkPart) });
 
 	try {
 		const response = await suiClient.queryTransactionBlocks({
@@ -32,13 +33,13 @@ export const load = async () => {
 
 		const transactions = response?.data || [];
 
-		const items = [];
+		const items: Array<{ id: string; digest?: string; timestampMs: number }> = [];
 		for (const tx of transactions) {
 			const created = (tx?.objectChanges || []).find(
-				ch =>
+				(ch: { type?: string; objectType?: string; objectId?: string }) =>
 					ch?.type === 'created' &&
 					String(ch?.objectType || '').endsWith(`::${WHEEL_MODULE}::${WHEEL_STRUCT}`)
-			);
+			) as { objectId?: string } | undefined;
 			if (created?.objectId) {
 				items.push({
 					id: created.objectId,
@@ -55,11 +56,11 @@ export const load = async () => {
 					ids: items.map(i => i.id),
 					options: { showContent: true }
 				});
-				const idToMeta = new Map();
+				const idToMeta = new Map<string, { status: string; remainingSpins: number; totalEntries: number }>();
 				for (const o of objs || []) {
 					try {
 						const id = String(o?.data?.objectId || '');
-						const f = o?.data?.content?.fields || {};
+						const f = (o?.data?.content as { fields?: Record<string, unknown> } | undefined)?.fields || {};
 						const isCancelled = Boolean(f['is_cancelled']);
 						let spunCount = 0;
 						try {
@@ -99,6 +100,6 @@ export const load = async () => {
 
 		return { publicWheels };
 	} catch {
-		return { publicWheels: [] };
+		return { publicWheels: [] as Array<{ id: string; digest?: string; timestampMs: number }> };
 	}
 };
