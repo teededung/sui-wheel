@@ -9,7 +9,7 @@ import { MIST_PER_SUI } from '../constants.js';
  * parseSuiToMist("1,5") // returns 1500000000n (comma separator)
  * parseSuiToMist(2) // returns 2000000000n
  */
-export function parseSuiToMist(input) {
+export function parseSuiToMist(input: string | number | null | undefined): bigint {
 	// Parse decimal string SUI to BigInt MIST (9 decimals)
 	let str = String(input ?? '').trim();
 	// Normalize comma decimal to dot and strip spaces
@@ -34,7 +34,7 @@ export function parseSuiToMist(input) {
  * formatMistToSui(1500000000n) // returns "1.500000"
  * formatMistToSui("2000000000") // returns "2.000000"
  */
-export function formatMistToSui(mist) {
+export function formatMistToSui(mist: bigint | number | string): string {
 	try {
 		const v = Number(mist) / MIST_PER_SUI;
 		return Number.isFinite(v) ? v.toFixed(6) : '0';
@@ -52,7 +52,7 @@ export function formatMistToSui(mist) {
  * formatMistToSuiCompact(2000000000n) // returns "2"
  * formatMistToSuiCompact("2500000000") // returns "2.5"
  */
-export function formatMistToSuiCompact(mist) {
+export function formatMistToSuiCompact(mist: bigint | number | string): string {
 	try {
 		const v = Number(mist) / MIST_PER_SUI;
 		if (!Number.isFinite(v)) return '0';
@@ -71,7 +71,7 @@ export function formatMistToSuiCompact(mist) {
  * isValidSuiAddress("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef") // returns true
  * isValidSuiAddress("invalid_address") // returns false
  */
-export function isValidSuiAddress(address) {
+export function isValidSuiAddress(address: string): boolean {
 	// SUI addresses start with 0x and are 64 characters long
 	const suiAddressRegex = /^0x[a-fA-F0-9]{64}$/;
 	return suiAddressRegex.test(address);
@@ -87,7 +87,7 @@ export function isValidSuiAddress(address) {
  * isSuiAccount({ chains: ["eth:mainnet", "btc:mainnet"] }) // returns false
  * isSuiAccount({}) // returns false
  */
-export function isSuiAccount(acc) {
+export function isSuiAccount(acc: { chains: string[] }): boolean {
 	return (acc.chains ?? []).some(c => c.startsWith('sui:'));
 }
 
@@ -96,7 +96,7 @@ export function isSuiAccount(acc) {
  * @param {string|number} balance - The balance in MIST units (smallest unit of SUI)
  * @returns {string} - The formatted balance in SUI
  */
-export function formatSui(balance = '0') {
+export function formatSui(balance: string | number | null | undefined = '0'): string {
 	try {
 		// Handle null, undefined, empty string
 		if (balance == null || balance === '') {
@@ -137,7 +137,7 @@ export function formatSui(balance = '0') {
  * @param {Object} account - The account object to check
  * @returns {boolean} True if the account is on the SUI testnet, false otherwise
  */
-export function isTestnet(account) {
+export function isTestnet(account: { chains: string[] }): boolean {
 	if (!account) return true;
 	const chain = account?.chains[0];
 	if (!chain) return true;
@@ -153,7 +153,7 @@ export function isTestnet(account) {
  * getNetworkDisplayName('sui:testnet') // returns 'Testnet'
  * getNetworkDisplayName('sui:devnet') // returns 'Devnet'
  */
-export function getNetworkDisplayName(network) {
+export function getNetworkDisplayName(network: string): string {
 	if (!network) return 'Unknown';
 	if (network.includes('mainnet')) return 'Mainnet';
 	if (network.includes('testnet')) return 'Testnet';
@@ -169,7 +169,7 @@ export function getNetworkDisplayName(network) {
  * highlightAddress('0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef')
  * // returns '0x<span class="font-bold text-primary">1234</span>...cdef'
  */
-export function highlightAddress(address) {
+export function highlightAddress(address: string): string {
 	if (!address || typeof address !== 'string') return address;
 
 	const addr = address.trim();
@@ -193,7 +193,7 @@ export function highlightAddress(address) {
  * getExplorerLink('mainnet', 'txblock', '0x123...') // returns 'https://suivision.xyz/txblock/0x123...'
  * getExplorerLink('testnet', 'object', '0x456...') // returns 'https://testnet.suivision.xyz/object/0x456...'
  */
-export function getExplorerLink(network, type, identifier) {
+export function getExplorerLink(network: string, type: string, identifier: string): string {
 	const validNetworks = ['mainnet', 'testnet'];
 	const validTypes = ['txblock', 'object', 'address', 'package'];
 

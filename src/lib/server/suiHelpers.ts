@@ -1,7 +1,7 @@
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { SuiClient } from '@mysten/sui/client';
 
-export function createKeypairFromPrivateKey(privateKey) {
+export function createKeypairFromPrivateKey(privateKey: string | Uint8Array) {
 	if (!privateKey) {
 		throw new Error('Private key is required');
 	}
@@ -12,7 +12,8 @@ export function createKeypairFromPrivateKey(privateKey) {
 		return keypair;
 	} catch (error) {
 		console.error('Failed to create keypair:', error);
-		throw new Error(`Invalid private key format: ${error.message}`);
+		const err = error as { message?: string } | Error;
+		throw new Error(`Invalid private key format: ${err?.message || String(error)}`);
 	}
 }
 
@@ -26,7 +27,7 @@ export const suiClient = new SuiClient({
  * @param {string} address - The wallet address to check balance for
  * @returns {Promise<number>} - Balance in SUI (not MIST)
  */
-export async function getSuiBalance(address) {
+export async function getSuiBalance(address: string) {
 	try {
 		const response = await suiClient.getBalance({
 			owner: address,

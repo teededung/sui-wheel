@@ -4,15 +4,21 @@
  * @param {*} b - Second value.
  * @returns {boolean} True if deeply equal.
  */
-export const deepEqual = (a, b) =>
-	a === b || (a && b && a.length === b.length && JSON.stringify(a) === JSON.stringify(b));
+export const deepEqual = (a: unknown, b: unknown): boolean => {
+	if (a === b) return true;
+	if (!a || !b) return false;
+	if (Array.isArray(a) && Array.isArray(b) && a.length === b.length) {
+		return JSON.stringify(a) === JSON.stringify(b);
+	}
+	return false;
+};
 
 /**
  * Shortens a blockchain address for display (first 6 + last 4 chars with ellipsis).
  * @param {string|undefined|null} address - Address to shorten.
  * @returns {string} Shortened address or 'Unknown'.
  */
-export function shortenAddress(address) {
+export function shortenAddress(address: string | null | undefined): string {
 	if (!address || address.length < 10) return address || 'Unknown';
 	return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
 }
@@ -23,7 +29,7 @@ export function shortenAddress(address) {
  * @param {Array<any>} b - Second array.
  * @returns {boolean} True if shallowly equal.
  */
-export function arraysShallowEqual(a, b) {
+export function arraysShallowEqual<T>(a: T[], b: T[]): boolean {
 	// Compare two string arrays by value and order
 	if (a === b) return true;
 	if (!Array.isArray(a) || !Array.isArray(b)) return false;
@@ -39,14 +45,14 @@ export function arraysShallowEqual(a, b) {
  * @param {Array<any>} items - Array to shuffle (mutates in place).
  * @returns {Array<any>|undefined} Shuffled array or undefined if <2 items.
  */
-export function shuffleArray(items) {
+export function shuffleArray<T>(items: T[]): T[] | undefined {
 	if (items.length < 2) return;
 
 	// Create a copy of the current entries for comparison
 	const previousEntries = [...items];
 
 	// Helper function for Fisher-Yates shuffle (unbiased random shuffle)
-	function fisherYatesShuffle(arr) {
+	function fisherYatesShuffle(arr: T[]): T[] {
 		const shuffled = [...arr];
 		for (let i = shuffled.length - 1; i > 0; i--) {
 			const j = Math.floor(Math.random() * (i + 1));
@@ -56,9 +62,10 @@ export function shuffleArray(items) {
 	}
 
 	// Shuffle until the result differs from the previous entries
+	let shuffled: T[];
 	do {
-		items = fisherYatesShuffle(items);
-	} while (arraysShallowEqual(items, previousEntries));
+		shuffled = fisherYatesShuffle(items);
+	} while (arraysShallowEqual(shuffled, previousEntries));
 
-	return items;
+	return shuffled;
 }
