@@ -1,6 +1,7 @@
 <script>
 	import { onMount, onDestroy } from 'svelte';
 	import { gsap } from 'gsap';
+	import logo from "$lib/assets/sui-wheel-logo.png";
 
 	// Props - allow customization of entries and colors
 	let {
@@ -336,7 +337,7 @@
 
 		<!-- Logo in center -->
 		<div class="pointer-events-none absolute inset-0 flex items-center justify-center">
-			<img src="/sui-wheel-logo.png" alt="Sui Wheel Logo" class="h-{logoSize} w-auto" />
+			<img src={logo} alt="Sui Wheel Logo" class="h-{logoSize} w-auto" />
 		</div>
 	</div>
 </div>

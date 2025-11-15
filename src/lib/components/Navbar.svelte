@@ -4,6 +4,7 @@
 	import ButtonConnectWallet from './ButtonConnectWallet.svelte';
 	import ButtonLanguageSwitch from './ButtonLanguageSwitch.svelte';
 	import { getLanguageContext } from '$lib/context/language.js';
+	import logo from '$lib/assets/sui-wheel-logo-small.png';
 
 	let isFaqPage = $derived(page.url.pathname === '/faq');
 	let isAboutPage = $derived(page.url.pathname === '/about');
@@ -54,7 +55,7 @@
 
 		<!-- Logo -->
 		<a href="/" class="flex items-center gap-2 text-xl">
-			<img src="/sui-wheel-logo-small.png" alt="Sui wheel logo" class="h-8 rounded-full" />
+			<img src={logo} alt="Sui wheel logo" class="h-8 rounded-full" />
 			<span class="text-md hidden lg:block">Sui Wheel</span>
 		</a>
 	</div>

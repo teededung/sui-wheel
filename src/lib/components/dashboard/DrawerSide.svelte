@@ -1,10 +1,11 @@
 <script>
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { getContext } from 'svelte';
+	import logo from "$lib/assets/first-mover-vn-logo.png";
 
 	const navItems = getContext('navItems');
-	let path = $derived($page.url.pathname);
+	let path = $derived(page.url.pathname);
 
 	const openSubMenus = $state({});
 
@@ -22,7 +23,7 @@
 			<a href="/"
 				><img
 					class="mask mask-squircle w-8"
-					src="/first-mover-logo.jpg"
+					src={logo}
 					alt="Homepage"
 				/>Homepage</a
 			>

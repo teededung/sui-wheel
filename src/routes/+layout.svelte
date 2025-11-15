@@ -1,6 +1,7 @@
 <script>
 	/* ------------ Imports & constants ------------ */
 	import '../app.css';
+	import favicon from '$lib/assets/sui-wheel-logo-small.png';
 	import { SuiModule } from 'sui-svelte-wallet-kit';
 	import { Toaster, setToastState } from 'svelte-daisy-toaster';
 	import { PUBLIC_ENOKI_API_KEY, PUBLIC_GOOGLE_CLIENT_ID } from '$env/static/public';
@@ -45,6 +46,10 @@
 		]
 	};
 </script>
+
+<svelte:head>
+	<link rel="icon" href={favicon} />
+</svelte:head>
 
 <SuiModule autoConnect={true} autoSuiNS={true} autoSuiBalance={true} {walletConfig} {zkLoginGoogle}>
 	{@render children()}

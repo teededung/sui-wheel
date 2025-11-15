@@ -1,8 +1,8 @@
 <script>
-	import Footer from '$lib/components/Footer.svelte';
-	import WheelImage from '$lib/components/WheelImage.svelte';
 	import { onMount } from 'svelte';
 	import { useTranslation } from '$lib/hooks/useTranslation.js';
+	import WheelImage from '$lib/components/WheelImage.svelte';
+	import logo from "$lib/assets/sui-wheel-logo.png";
 
 	// Translation hook
 	const t = useTranslation();
@@ -31,7 +31,7 @@
 			<div class="max-w-4xl">
 				<!-- Logo -->
 				<div class="mb-8">
-					<img src="/sui-wheel-logo.png" alt="Sui Wheel Logo" class="mx-auto h-24 w-auto" />
+					<img src={logo} alt="Sui Wheel Logo" class="mx-auto h-24 w-auto" />
 				</div>
 
 				<!-- Main Title -->

@@ -1,6 +1,8 @@
 <script>
 	import { onMount } from 'svelte';
 	import { getLanguageContext } from '$lib/context/language.js';
+	import flagVN from "$lib/assets/flag-vn.svg";
+	import flagUS from "$lib/assets/flag-us.svg";
 
 	/** @type {{className?: string}} */
 	let { className = '' } = $props();
@@ -22,10 +24,10 @@
 	<div class={`dropdown dropdown-end dropdown-hover ${className}`}>
 		<div tabindex="0" role="button" class="btn btn-ghost">
 			{#if isVi}
-				<img src="/flag-vn.svg" alt="Vietnam flag" class="h-6 w-7 rounded-sm" />
+				<img src={flagVN} alt="Vietnam flag" class="h-6 w-7 rounded-sm" />
 				<span>Tiếng Việt</span>
 			{:else}
-				<img src="/flag-us.svg" alt="USA flag" class="h-6 w-7 rounded-sm" />
+				<img src={flagUS} alt="USA flag" class="h-6 w-7 rounded-sm" />
 				<span>English</span>
 			{/if}
 		</div>
@@ -35,7 +37,7 @@
 					onclick={() => selectLanguage('en')}
 					class={`w-full text-left ${!isVi ? 'active' : ''}`}
 				>
-					<img src="/flag-us.svg" alt="USA flag" class="h-5 w-6 rounded-sm" />
+					<img src={flagUS} alt="USA flag" class="h-5 w-6 rounded-sm" />
 					<span>English</span>
 				</button>
 			</li>
@@ -44,7 +46,7 @@
 					onclick={() => selectLanguage('vi')}
 					class={`w-full text-left ${isVi ? 'active' : ''}`}
 				>
-					<img src="/flag-vn.svg" alt="Vietnam flag" class="h-5 w-6 rounded-sm" />
+					<img src={flagVN} alt="Vietnam flag" class="h-5 w-6 rounded-sm" />
 					<span>Tiếng Việt</span>
 				</button>
 			</li>

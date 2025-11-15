@@ -1,8 +1,12 @@
+<script>
+	import logo from "$lib/assets/sui-wheel-logo-small.png";
+</script>
+
 <footer class="footer bg-base-200 text-base-content mt-auto px-4 py-6">
 	<div class="container mx-auto flex flex-col items-center gap-3">
 		<!-- Logo -->
 		<a href="/">
-			<img src="/sui-wheel-logo-small.png" alt="Sui Wheel" class="h-12 w-auto" />
+			<img src={logo} alt="Sui Wheel" class="h-12 w-auto" />
 		</a>
 
 		<p class="text-center">Sui Wheel — Spin & Win</p>
