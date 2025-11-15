@@ -10,7 +10,8 @@
     "delete": "Delete",
     "testnetWarning": "Testnet Warning",
     "switchToTestnet": "Please switch your wallet to Sui Testnet to use this application.",
-    "back": "Back"
+    "back": "Back",
+    "contractVersionMismatch": "Contract version mismatch. Please refresh the page and try again."
   },
   "navigation": {
     "home": "Home",
@@ -211,7 +212,7 @@
     "startsIn": "Starts in",
     "claimExpiredOn": "Claim window expired on",
     "wheelId": "Wheel ID:",
-    "suivision": "Suivision",
+    "explorer": "Explorer",
     "status": "Status:",
     "remainingPoolBalance": "Remaining pool balance:",
     "reclaiming": "Reclaiming...",

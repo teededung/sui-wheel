@@ -9,7 +9,7 @@ import {
 } from '$lib/constants.js';
 
 export const load: PageServerLoad = async () => {
-	const networkPart = NETWORK.split(':')[1] as 'mainnet' | 'testnet' | 'devnet' | 'localnet';
+	const networkPart = NETWORK.split(':')[1] as 'mainnet' | 'testnet' | 'devnet';
 	const suiClient = new SuiClient({ url: getFullnodeUrl(networkPart) });
 
 	try {

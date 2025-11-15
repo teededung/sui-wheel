@@ -62,6 +62,7 @@
 		WHEEL_FUNCTIONS,
 		RANDOM_OBJECT_ID,
 		CLOCK_OBJECT_ID,
+		VERSION_OBJECT_ID,
 		fetchWheelFromChain,
 		setSpinning,
 		onShuffle,
@@ -612,6 +613,8 @@
 			// Add remaining arguments
 			if (RANDOM_OBJECT_ID) txArgs.push(tx.object(RANDOM_OBJECT_ID));
 			if (CLOCK_OBJECT_ID) txArgs.push(tx.object(CLOCK_OBJECT_ID));
+			// Version object validates transaction against current contract version
+			if (VERSION_OBJECT_ID) txArgs.push(tx.object(VERSION_OBJECT_ID));
 
 			tx.moveCall({
 				target: `${packageId}::${WHEEL_MODULE}::${targetFn}`,

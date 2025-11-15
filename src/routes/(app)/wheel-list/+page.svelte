@@ -171,7 +171,7 @@
 		}
 	});
 
-	async function loadJoinedWheels(address: string, opts: { isRefresh?: boolean } = {}) {
+	async function loadJoinedWheels(address: string, opts: { isRefresh?: boolean } = {}) {		
 		const isRefresh = Boolean(opts.isRefresh);
 		if (!isRefresh) joinedWheelsPageState = 'loading';
 		joinedWheelsErrorMsg = '';
@@ -193,21 +193,97 @@
 			}
 
 			// Check joined status for these IDs only (database)
-			const resp = await fetch('/api/wheels/joined/check', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ address: addr, wheelIds: uniqueIds })
-			});
-			if (!resp?.ok) {
-				joinedWheels = [];
-				return;
+			let joinedIds = new Set<string>();
+			try {
+				const resp = await fetch('/api/wheels/joined/check', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ address: addr, wheelIds: uniqueIds })
+				});			
+
+				if (resp?.ok) {
+					const data = await resp.json();
+					joinedIds = new Set((data?.joinedIds || []).map(String));
+				}
+			} catch (dbError) {
+				console.warn('Database check failed, will fallback to on-chain:', dbError);
 			}
-			const data = await resp.json();
-			const joinedIds = new Set((data?.joinedIds || []).map(String));
+
+			// Fallback: if database failed or returned no results, check on-chain
+			if (joinedIds.size === 0) {
+				try {
+					const objs = await suiClient.multiGetObjects({
+						ids: uniqueIds,
+						options: { showContent: true }
+					});
+					
+					// Check each wheel for user participation
+					for (const o of objs || []) {
+						try {
+							const wheelId = String(o?.data?.objectId || '');
+							const content = o?.data?.content as
+								| { dataType?: string; fields?: Record<string, unknown> }
+								| undefined;
+							const f = (content?.dataType === 'moveObject' ? content?.fields : {}) || {};
+							
+							// Skip cancelled wheels
+							const isCancelled = Boolean(f['is_cancelled']);
+							if (isCancelled) continue;
+							
+							// Check winners array first (already spun entries)
+							const winners = Array.isArray(f['winners']) ? f['winners'] : [];
+							const hasWon = winners.some((winner: any) => {
+								try {
+									const winnerAddr = String(winner?.fields?.addr || '').toLowerCase();
+									return winnerAddr === addr;
+								} catch {
+									return false;
+								}
+							});
+							
+							if (hasWon) {
+								joinedIds.add(wheelId);
+								continue;
+							}
+							
+							// Check remaining_entries (not yet spun)
+							const entries = Array.isArray(f['remaining_entries']) ? f['remaining_entries'] : [];
+							if (entries.length === 0) continue;
+							
+							// Fetch entry objects to check user addresses
+							const entryObjs = await suiClient.multiGetObjects({
+								ids: entries.map((e: any) => String(e)),
+								options: { showContent: true }
+							});
+							
+							const hasEntry = entryObjs.some((entryObj: any) => {
+								try {
+									const entryContent = entryObj?.data?.content as
+										| { dataType?: string; fields?: Record<string, unknown> }
+										| undefined;
+									const fields = (entryContent?.dataType === 'moveObject' ? entryContent?.fields : {}) || {};
+									const userAddr = String(fields['user'] || '').toLowerCase();
+									return userAddr === addr;
+								} catch {
+									return false;
+								}
+							});
+							
+							if (hasEntry) {
+								joinedIds.add(wheelId);
+							}
+						} catch {}
+					}
+				} catch (onChainError) {
+					console.error('On-chain fallback also failed:', onChainError);
+				}
+			}
+
 			if (joinedIds.size === 0) {
 				joinedWheels = [];
 				return;
 			}
+
 			// Enrich joined list status similar to others
 			try {
 				const ids = uniqueIds.filter((id) => joinedIds.has(id));

@@ -1,4 +1,4 @@
-<script lang="ts">
+<script>
 	import logo from "$lib/assets/sui-wheel-logo-small.png";
 </script>
 

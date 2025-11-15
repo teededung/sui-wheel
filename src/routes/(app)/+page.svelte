@@ -32,6 +32,7 @@
 	import { useTranslation } from '$lib/hooks/useTranslation.js';
 	import { getLanguageContext } from '$lib/context/language.js';
 	import { qr } from '@svelte-put/qr/svg';
+	import logo from "$lib/assets/sui-wheel-logo-small.png";
 
 	import {
 		LATEST_PACKAGE_ID,
@@ -40,7 +41,8 @@
 		MINIMUM_PRIZE_AMOUNT,
 		MAX_ENTRIES,
 		RANDOM_OBJECT_ID,
-		CLOCK_OBJECT_ID
+		CLOCK_OBJECT_ID,
+		VERSION_OBJECT_ID
 	} from '$lib/constants.js';
 
 	const t = useTranslation();
@@ -386,7 +388,9 @@
 					tx.pure.vector('address', addrList),
 					tx.pure.vector('u64', prizeMistList),
 					tx.pure.u64(BigInt(Number(delayMs || 0)) * 60000n),
-					tx.pure.u64(BigInt(Number(claimWindowMs || 0)) * 60000n)
+					tx.pure.u64(BigInt(Number(claimWindowMs || 0)) * 60000n),
+					// Version object validates transaction against current contract version
+					tx.object(VERSION_OBJECT_ID)
 				]
 			});
 
@@ -495,7 +499,16 @@
 			}
 		} catch (e) {
 			const error = e as { message?: string } | Error;
-			setupError = error?.message || String(e);
+			const errorMessage = error?.message || String(e);
+			
+			// Check for version mismatch error
+			if (errorMessage.includes('EInvalidPackageVersion') || 
+			    errorMessage.toLowerCase().includes('version')) {
+				setupError = t('main.errors.contractVersionMismatch') || 'Contract version mismatch. Please refresh the page and try again.';
+			} else {
+				setupError = errorMessage;
+			}
+			
 			toast({
 				type: 'error',
 				message: setupError || t('main.errors.failedToGetTransactionDigest'),
@@ -719,7 +732,11 @@
 			// Call cancel_wheel_and_reclaim_pool and capture the optional Coin
 			const optCoin = tx.moveCall({
 				target: `${packageId}::${WHEEL_MODULE}::cancel_wheel_and_reclaim_pool`,
-				arguments: [wheelRef]
+				arguments: [
+					wheelRef,
+					// Version object validates transaction against current contract version
+					tx.object(VERSION_OBJECT_ID)
+				]
 			});
 
 			// Handle the optional reclaim by transferring to sender if present
@@ -759,7 +776,15 @@
 			isCancelled = true;
 		} catch (e) {
 			const error = e as { message?: string } | Error;
-			setupError = error?.message || String(e);
+			const errorMessage = error?.message || String(e);
+			
+			// Check for version mismatch error
+			if (errorMessage.includes('EInvalidPackageVersion') || 
+			    errorMessage.toLowerCase().includes('version')) {
+				setupError = t('common.contractVersionMismatch');
+			} else {
+				setupError = errorMessage;
+			}
 		} finally {
 			cancelLoading = false;
 		}
@@ -1274,6 +1299,7 @@
 		WHEEL_FUNCTIONS,
 		RANDOM_OBJECT_ID,
 		CLOCK_OBJECT_ID,
+		VERSION_OBJECT_ID,
 		fetchWheelFromChain,
 		setSpinning: setWheelSpinning,
 		onShuffle: handleShuffle,
@@ -1874,7 +1900,7 @@
 												onclick={() => openQRLightbox(resultQRUrl, t('main.resultQr'))}
 											>
 												<svg
-													use:qr={{ data: resultQRUrl, logo: '/sui-wheel-logo-small.png' }}
+													use:qr={{ data: resultQRUrl, logo }}
 													aria-hidden="true"
 												/>
 											</button>
@@ -1905,7 +1931,7 @@
 												onclick={() => openQRLightbox(entryFormQRUrl, t('main.entryFormQr'))}
 											>
 												<svg
-													use:qr={{ data: entryFormQRUrl, logo: '/sui-wheel-logo-small.png' }}
+													use:qr={{ data: entryFormQRUrl, logo }}
 													aria-hidden="true"
 												/>
 											</button>
@@ -2097,7 +2123,7 @@
 		<div class="flex items-center justify-center">
 			{#if qrLightboxUrl}
 				<svg
-					use:qr={{ data: qrLightboxUrl, logo: '/sui-wheel-logo-small.png' }}
+					use:qr={{ data: qrLightboxUrl, logo }}
 					class="w-128 rounded-box border-base-300 bg-base-100 p-2 shadow"
 					role="img"
 					aria-label={qrLightboxTitle}

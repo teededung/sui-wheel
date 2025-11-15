@@ -11,6 +11,7 @@ export interface WheelContext {
 	WHEEL_FUNCTIONS?: Record<string, string>;
 	RANDOM_OBJECT_ID?: string;
 	CLOCK_OBJECT_ID?: string;
+	VERSION_OBJECT_ID?: string;
 	fetchWheelFromChain?: () => Promise<void>;
 	setSpinning?: (value: boolean) => void;
 	onShuffle?: () => void;

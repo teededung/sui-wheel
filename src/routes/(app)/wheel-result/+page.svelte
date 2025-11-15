@@ -19,7 +19,8 @@
 		WHEEL_FUNCTIONS,
 		WHEEL_STRUCT,
 		CLOCK_OBJECT_ID,
-		WHEEL_EVENTS
+		WHEEL_EVENTS,
+		VERSION_OBJECT_ID
 	} from '$lib/constants.js';
 	import { toast } from 'svelte-daisy-toaster';
 	import { format, formatDistanceToNow } from 'date-fns';
@@ -456,7 +457,12 @@
 			// Call claim to get a Coin<SUI> back in the PTB
 			const claimedCoin = tx.moveCall({
 				target: `${LATEST_PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.CLAIM}`,
-				arguments: [tx.object(wheelId), tx.object(CLOCK_OBJECT_ID)]
+				arguments: [
+					tx.object(wheelId), 
+					tx.object(CLOCK_OBJECT_ID),
+					// Version object validates transaction against current contract version
+					tx.object(VERSION_OBJECT_ID)
+				]
 			});
 			// Transfer the returned coin to the sender's address
 			tx.transferObjects([claimedCoin], tx.pure.address(account?.address));
@@ -478,7 +484,15 @@
 			await fetchData(wheelId);
 			await fetchClaimEventsForWinner(wheelId);
 		} catch (e) {
-			error = (e as { message?: string })?.message || String(e);
+			const errorMessage = (e as { message?: string })?.message || String(e);
+			
+			// Check for version mismatch error
+			if (errorMessage.includes('EInvalidPackageVersion') || 
+			    errorMessage.toLowerCase().includes('version')) {
+				error = t('common.contractVersionMismatch');
+			} else {
+				error = errorMessage;
+			}
 		} finally {
 			claimLoading = false;
 			if (toastInstance) {
@@ -550,7 +564,12 @@
 			// Call reclaim_pool to get Coin<SUI> and transfer to organizer (sender)
 			const coin = tx.moveCall({
 				target: `${LATEST_PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.RECLAIM}`,
-				arguments: [tx.object(wheelId), tx.object(CLOCK_OBJECT_ID)]
+				arguments: [
+					tx.object(wheelId), 
+					tx.object(CLOCK_OBJECT_ID),
+					// Version object validates transaction against current contract version
+					tx.object(VERSION_OBJECT_ID)
+				]
 			});
 			tx.transferObjects([coin], tx.pure.address(account.address));
 
@@ -591,12 +610,18 @@
 				});
 			}
 		} catch (e) {
-			error = (e as { message?: string })?.message || String(e);
-			// Parse error for user-friendly msg, e.g., if includes 'EReclaimTooEarly'
-			if (error.includes('EReclaimTooEarly')) {
+			const errorMessage = (e as { message?: string })?.message || String(e);
+			
+			// Check for version mismatch error first
+			if (errorMessage.includes('EInvalidPackageVersion') || 
+			    errorMessage.toLowerCase().includes('version')) {
+				error = t('common.contractVersionMismatch');
+			} else if (errorMessage.includes('EReclaimTooEarly')) {
 				error = t('wheelResult.errors.reclaimWindowNotYetOpen');
-			} else if (error.includes('ENoRemaining')) {
+			} else if (errorMessage.includes('ENoRemaining')) {
 				error = t('wheelResult.errors.noRemainingFunds');
+			} else {
+				error = errorMessage;
 			}
 		} finally {
 			reclaimLoading = false;
@@ -900,7 +925,7 @@
 									href={`${getExplorerLink('testnet', 'object', wheelId)}`}
 									target="_blank"
 									rel="noopener noreferrer"
-									>{t('wheelResult.suivision')}
+									>{t('wheelResult.explorer')}
 									<span class="icon-[lucide--external-link]"></span></a
 								>
 							</div>

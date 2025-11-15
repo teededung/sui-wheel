@@ -18,7 +18,7 @@ importers:
         specifier: ^1.1.0
         version: 1.1.0(tailwindcss@4.1.17)
       '@mysten/sui':
-        specifier: ^1.44.0
+        specifier: ^1.45.0
         version: 1.45.0(typescript@5.9.3)
       '@supabase/supabase-js':
         specifier: ^2.81.1
@@ -30,8 +30,8 @@ importers:
         specifier: ^1.35.6
         version: 1.35.6
       daisyui:
-        specifier: ^5.5.4
-        version: 5.5.4
+        specifier: ^5.5.5
+        version: 5.5.5
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
@@ -52,7 +52,7 @@ importers:
         version: 0.8.8(react@19.2.0)(svelte@5.43.6)(typescript@5.9.3)
       svelte-daisy-toaster:
         specifier: ^0.6.1
-        version: 0.6.1(daisyui@5.5.4)(svelte@5.43.6)(tailwindcss@4.1.17)
+        version: 0.6.1(daisyui@5.5.5)(svelte@5.43.6)(tailwindcss@4.1.17)
       zod:
         specifier: ^4.1.12
         version: 4.1.12
@@ -1192,8 +1192,8 @@ packages:
     resolution: {integrity: sha512-OytmFH+13/QXONJcC75QNdMtKpceNk3u8ThBjyyYjkEcy/ekBwR1mMAuNvi3gdBPW3N5TlCzQ0WZw8H0lN/bDw==}
     engines: {node: '>=20'}
 
-  daisyui@5.5.4:
-    resolution: {integrity: sha512-opuf6YHsGxOqWtPXEHFCGDC0HxNIYW6DgXB9GRNfFJL4garzEoHCEWqcuvMTjFK2Al2aHgHYFrpqLxd5x2qopQ==}
+  daisyui@5.5.5:
+    resolution: {integrity: sha512-ekvI93ZkWIJoCOtDl0D2QMxnWvTejk9V5nWBqRv+7t0xjiBXqAK5U6o6JE2RPvlIC3EqwNyUoIZSdHX9MZK3nw==}
 
   data-urls@6.0.0:
     resolution: {integrity: sha512-BnBS08aLUM+DKamupXs3w2tJJoqU+AkaE/+6vQxi/G/DPmIZFJJp9Dkb1kM03AZx8ADehDUZgsNxju3mPXZYIA==}
@@ -3595,7 +3595,7 @@ snapshots:
       '@csstools/css-syntax-patches-for-csstree': 1.0.16
       css-tree: 3.1.0
 
-  daisyui@5.5.4: {}
+  daisyui@5.5.5: {}
 
   data-urls@6.0.0:
     dependencies:
@@ -4667,9 +4667,9 @@ snapshots:
     transitivePeerDependencies:
       - picomatch
 
-  svelte-daisy-toaster@0.6.1(daisyui@5.5.4)(svelte@5.43.6)(tailwindcss@4.1.17):
+  svelte-daisy-toaster@0.6.1(daisyui@5.5.5)(svelte@5.43.6)(tailwindcss@4.1.17):
     dependencies:
-      daisyui: 5.5.4
+      daisyui: 5.5.5
       svelte: 5.43.6
       tailwindcss: 4.1.17
 

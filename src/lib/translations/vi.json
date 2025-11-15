@@ -10,7 +10,8 @@
     "delete": "Xóa",
     "testnetWarning": "Cảnh báo Testnet",
     "switchToTestnet": "Vui lòng chuyển ví của bạn sang Sui Testnet để sử dụng ứng dụng này.",
-    "back": "Quay lại"
+    "back": "Quay lại",
+    "contractVersionMismatch": "Phiên bản hợp đồng không khớp. Vui lòng làm mới trang và thử lại."
   },
   "navigation": {
     "home": "Trang chủ",
@@ -211,7 +212,7 @@
     "startsIn": "Bắt đầu sau",
     "claimExpiredOn": "Thời hạn nhận giải hết vào",
     "wheelId": "ID:",
-    "suivision": "Suivision",
+    "explorer": "Explorer",
     "status": "Trạng thái:",
     "remainingPoolBalance": "Số dư pool còn lại:",
     "reclaiming": "Đang thu hồi...",
