@@ -1,9 +1,12 @@
-<script>
+<script lang="ts">
+	interface Props {
+		className?: string;
+	}
+
 	let isDark = $state(false);
 	let isInitialized = $state(false);
 
-	/** @type {{className?: string}} */
-	let { className = '' } = $props();
+	let { className = '' }: Props = $props();
 
 	$effect(() => {
 		// Đọc theme từ document thay vì localStorage để đồng bộ với themes.js
@@ -12,8 +15,9 @@
 		isInitialized = true;
 	});
 
-	function toggleTheme(event) {
-		isDark = event.target.checked;
+	function toggleTheme(event: Event) {
+		const target = event.target as HTMLInputElement;
+		isDark = target.checked;
 		const newTheme = isDark ? 'dark' : 'light';
 		localStorage.setItem('theme', newTheme);
 		document.documentElement.setAttribute('data-theme', newTheme);

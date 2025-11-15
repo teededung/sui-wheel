@@ -1,8 +1,15 @@
-<script>
-	let { originText, originHtml, className = '', size = 'xs' } = $props();
+<script lang="ts">
+	interface Props {
+		originText: string;
+		originHtml?: string;
+		className?: string;
+		size?: string;
+	}
+
+	let { originText, originHtml, className = '', size = 'xs' }: Props = $props();
 
 	let copiedText = $state('');
-	let timeoutId = $state(null);
+	let timeoutId = $state<ReturnType<typeof setTimeout> | null>(null);
 
 	/**
 	 * copyContent:
@@ -60,7 +67,7 @@
 	onclick={() => copyContent()}
 >
 	{#if copiedText !== '' && copiedText === originText}
-		<span class="icon-[lucide--check] text-success h-4 w-4"></span>
+		<span class="icon-[lucide--check] h-4 w-4 text-success"></span>
 		<span>Copied</span>
 	{:else}
 		<span class="icon-[lucide--copy] h-3 w-3"></span>

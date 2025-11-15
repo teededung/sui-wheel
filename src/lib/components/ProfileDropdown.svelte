@@ -1,25 +1,34 @@
-<script>
+<script lang="ts">
 	import { getContext } from 'svelte';
 	import { toast } from 'svelte-daisy-toaster';
 
+	interface User {
+		name?: string;
+		email?: string;
+	}
+
+	interface Props {
+		user?: User;
+	}
+
 	// Get user from props or context (props takes priority)
-	let { user: userProp } = $props();
-	let userFromContext = getContext('authedUser');
+	let { user: userProp }: Props = $props();
+	let userFromContext = getContext<User | undefined>('authedUser');
 	let user = $derived(userProp || userFromContext);
 
 	// Extract first letter from email or fallback to 'U' for User
-	function getInitials(email) {
+	function getInitials(email: string | undefined): string {
 		if (!email) return 'U';
 		return email.charAt(0).toUpperCase();
 	}
 
 	// Get user name or email for display
-	function getDisplayName(user) {
+	function getDisplayName(user: User | undefined): string {
 		return user?.name || user?.email || 'User';
 	}
 
 	// Generate background color based on email
-	function getAvatarColor(email) {
+	function getAvatarColor(email: string | undefined): string {
 		if (!email) return 'bg-neutral';
 		const colors = [
 			'bg-primary',
@@ -29,7 +38,7 @@
 			'bg-success',
 			'bg-warning'
 		];
-		const hash = email.split('').reduce((a, b) => {
+		const hash = email.split('').reduce((a: number, b: string) => {
 			a = (a << 5) - a + b.charCodeAt(0);
 			return a & a;
 		}, 0);

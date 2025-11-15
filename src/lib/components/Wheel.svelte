@@ -1,8 +1,8 @@
-<script>
+<script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { IsIdle, watch } from 'runed';
 	import { gsap } from 'gsap';
-	import { Transaction } from '@mysten/sui/transactions';
+	import { Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 	import { toast } from 'svelte-daisy-toaster';
 	import { useSuiClient, signAndExecuteTransaction } from 'sui-svelte-wallet-kit';
 
@@ -12,6 +12,31 @@
 	import { isValidSuiAddress } from '$lib/utils/suiHelpers.js';
 	import { useTranslation } from '$lib/hooks/useTranslation.js';
 	import { WHEEL_EVENTS } from '$lib/constants.js';
+
+	interface LabelLayout {
+		displayText: string;
+		font: string;
+	}
+
+	interface Props {
+		entries: string[];
+		spinning: boolean;
+		createdWheelId?: string;
+		remainingSpins?: number;
+		isCancelled?: boolean;
+		entryFormEnabled?: boolean;
+		accountFromWallet?: boolean;
+		isNotOrganizer?: boolean;
+		shuffledIndexOrder?: number[];
+	}
+
+	interface SpinOptions {
+		marginFraction?: number;
+		extraTurnsMin?: number;
+		extraTurnsMax?: number;
+		duration?: number;
+		easePower?: number;
+	}
 
 	const t = useTranslation();
 	const suiClient = $derived(useSuiClient());
@@ -27,7 +52,7 @@
 		accountFromWallet,
 		isNotOrganizer,
 		shuffledIndexOrder = []
-	} = $props();
+	}: Props = $props();
 
 	// Context deps/APIs from parent
 	const ctx = wheelContext.get();
@@ -69,7 +94,7 @@
 	const idle = new IsIdle({ timeout: 15000 });
 	let progressing = $state(false);
 	let muted = $state(false);
-	let selectedIndex = $state(null);
+	let selectedIndex = $state<number | null>(null);
 	let spinAngle = $state(0);
 	let pointerIndex = $state(0);
 	let pointerColor = $state('#ef4444');
@@ -81,30 +106,30 @@
 	let pointerBounce = $state(false);
 
 	// Canvas/layout
-	let labelLayouts = $state([]);
-	let canvasEl = $state(null);
-	let canvasContainerEl = $state(null);
-	let ctx2d;
+	let labelLayouts = $state<LabelLayout[]>([]);
+	let canvasEl = $state<HTMLCanvasElement | null>(null);
+	let canvasContainerEl = $state<HTMLDivElement | null>(null);
+	let ctx2d: CanvasRenderingContext2D | null = null;
 	let wheelSize = $state(0);
-	let offscreenCanvas;
-	let offscreenCtx;
+	let offscreenCanvas: HTMLCanvasElement | null = null;
+	let offscreenCtx: CanvasRenderingContext2D | null = null;
 
 	// Audio
-	let winAudio;
-	let audioContext;
-	let tickBuffer;
-	let tickGainNode;
+	let winAudio: HTMLAudioElement | null = null;
+	let audioContext: AudioContext | null = null;
+	let tickBuffer: AudioBuffer | null = null;
+	let tickGainNode: GainNode | null = null;
 	let tickSourceIndex = 0;
 
 	// Modal
-	let winnerModal = $state(null);
+	let winnerModal = $state<HTMLDialogElement | null>(null);
 
 	// Animation state
-	let currentTween;
-	let idleTween;
+	let currentTween: ReturnType<typeof gsap.to> | null = null;
+	let idleTween: ReturnType<typeof gsap.to> | null = null;
 	const idleAnimState = { angle: 0 };
 	const animState = { angle: 0 };
-	let lastTickIndex = null;
+	let lastTickIndex: number | null = null;
 	let lastAngle = 0;
 
 	const segmentColors = [
@@ -125,7 +150,10 @@
 
 		// Initialize Web Audio API for instant tick sounds
 		try {
-			audioContext = new (window.AudioContext || window.webkitAudioContext)();
+			const AudioContextClass =
+				window.AudioContext ||
+				(window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+			audioContext = new AudioContextClass();
 			tickGainNode = audioContext.createGain();
 			tickGainNode.connect(audioContext.destination);
 			tickGainNode.gain.value = 1; // Volume control
@@ -151,7 +179,7 @@
 	);
 
 	// Resize/canvas setup
-	let resizeObserver;
+	let resizeObserver: ResizeObserver | null = null;
 	function setupCanvas() {
 		if (!canvasEl || !canvasContainerEl) return;
 		const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -168,7 +196,9 @@
 		canvasEl.style.height = `${size}px`;
 		canvasEl.width = newWidth;
 		canvasEl.height = newHeight;
-		ctx2d = canvasEl.getContext('2d');
+		const ctx = canvasEl.getContext('2d');
+		if (!ctx) return;
+		ctx2d = ctx;
 		ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
 		ctx2d.imageSmoothingEnabled = true;
 		ctx2d.imageSmoothingQuality = 'high';
@@ -176,7 +206,9 @@
 		offscreenCanvas = document.createElement('canvas');
 		offscreenCanvas.width = newWidth;
 		offscreenCanvas.height = newHeight;
-		offscreenCtx = offscreenCanvas.getContext('2d');
+		const offCtx = offscreenCanvas.getContext('2d');
+		if (!offCtx) return;
+		offscreenCtx = offCtx;
 		offscreenCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 		offscreenCtx.imageSmoothingEnabled = true;
 		offscreenCtx.imageSmoothingQuality = 'high';
@@ -210,11 +242,11 @@
 		}
 	});
 
-	function mod(v, n) {
+	function mod(v: number, n: number): number {
 		return ((v % n) + n) % n;
 	}
 
-	function fireTickForIndex(idx) {
+	function fireTickForIndex(idx: number) {
 		// Play a short tick sound when the pointer passes an entry boundary
 		if (muted) return;
 		if (!audioContext || !tickBuffer || !tickGainNode) return;
@@ -504,12 +536,12 @@
 		labelLayouts = layouts;
 	}
 
-	function getGsapEaseFromPower(power = 4) {
+	function getGsapEaseFromPower(power = 4): string {
 		const p = Math.max(1, Math.min(4, Math.floor(Number(power) || 4)));
 		return `power${p}.out`;
 	}
 
-	function normalizeAngle(radians) {
+	function normalizeAngle(radians: number): number {
 		const tau = Math.PI * 2;
 		return ((radians % tau) + tau) % tau;
 	}
@@ -525,7 +557,7 @@
 	async function spinOnChainAndAnimate() {
 		if (!accountFromWallet) return;
 		if (isNotOrganizer) {
-			return toast.error(t('wheel.notOrganizer'), { position: 'top-right' });
+			return toast({ type: 'error', message: t('wheel.notOrganizer'), position: 'top-right' });
 		}
 		if (isCancelled || !createdWheelId || spinning) return;
 		if (createdWheelId && remainingSpins === 0) return;
@@ -539,12 +571,12 @@
 			let remainingEntriesList = entries;
 			try {
 				remainingEntriesList = remainingEntriesList
-					.map(s => String(s ?? '').trim())
-					.filter(s => s.length > 0);
+					.map((s: string) => String(s ?? '').trim())
+					.filter((s: string) => s.length > 0);
 			} catch {}
 			const uniqueLeft = (() => {
 				try {
-					const set = new Set(remainingEntriesList.map(s => s.toLowerCase()));
+					const set = new Set(remainingEntriesList.map((s: string) => s.toLowerCase()));
 					return set.size;
 				} catch {
 					return Math.max(0, remainingEntriesList?.length || 0);
@@ -558,17 +590,19 @@
 			const isOrderShuffled =
 				shuffledIndexOrder.length > 0 && !shuffledIndexOrder.every((val, idx) => val === idx);
 
-			let targetFn;
+			let targetFn: string;
 			if (shouldAssignLast) {
 				targetFn = isOrderShuffled
-					? WHEEL_FUNCTIONS.SPIN_AND_ASSIGN_LAST_WITH_ORDER
-					: WHEEL_FUNCTIONS.SPIN_AND_ASSIGN_LAST;
+					? (WHEEL_FUNCTIONS?.SPIN_AND_ASSIGN_LAST_WITH_ORDER ?? 'spin_and_assign_last_with_order')
+					: (WHEEL_FUNCTIONS?.SPIN_AND_ASSIGN_LAST ?? 'spin_and_assign_last');
 			} else {
-				targetFn = isOrderShuffled ? WHEEL_FUNCTIONS.SPIN_WITH_ORDER : WHEEL_FUNCTIONS.SPIN;
+				targetFn = isOrderShuffled
+					? (WHEEL_FUNCTIONS?.SPIN_WITH_ORDER ?? 'spin_with_order')
+					: (WHEEL_FUNCTIONS?.SPIN ?? 'spin');
 			}
 
 			// Build transaction arguments
-			const txArgs = [tx.object(createdWheelId)];
+			const txArgs: TransactionArgument[] = [tx.object(createdWheelId)];
 
 			// Add shuffled order if needed (must come after wheel object)
 			if (isOrderShuffled) {
@@ -576,8 +610,8 @@
 			}
 
 			// Add remaining arguments
-			txArgs.push(tx.object(RANDOM_OBJECT_ID));
-			txArgs.push(tx.object(CLOCK_OBJECT_ID));
+			if (RANDOM_OBJECT_ID) txArgs.push(tx.object(RANDOM_OBJECT_ID));
+			if (CLOCK_OBJECT_ID) txArgs.push(tx.object(CLOCK_OBJECT_ID));
 
 			tx.moveCall({
 				target: `${packageId}::${WHEEL_MODULE}::${targetFn}`,
@@ -596,17 +630,17 @@
 					options: { showEvents: true }
 				});
 				const spinEventType = `${packageId}::${WHEEL_MODULE}::${WHEEL_EVENTS.SPIN}`;
-				const spinEvents = (txBlock?.events || []).filter(e => {
+				const spinEvents = (txBlock?.events || []).filter((e) => {
 					const t = String(e?.type || '');
 					return t === spinEventType || t.endsWith(`::${WHEEL_MODULE}::${WHEEL_EVENTS.SPIN}`);
 				});
 				const firstEv = spinEvents?.[0];
-				const parsed = firstEv?.parsedJson || {};
+				const parsed = (firstEv?.parsedJson || {}) as Record<string, unknown>;
 				const winnerAddr = String(
 					parsed?.winner ?? parsed?.winner_address ?? parsed?.winnerAddress ?? ''
 				).toLowerCase();
 				if (winnerAddr) {
-					const candidateIdxs = entries.reduce((acc, a, i) => {
+					const candidateIdxs = entries.reduce((acc: number[], a: string, i: number) => {
 						if (String(a ?? '').toLowerCase() === winnerAddr) acc.push(i);
 						return acc;
 					}, []);
@@ -617,7 +651,7 @@
 
 				// Persist winner to Supabase API
 				try {
-					const prizeIndexRaw = Number(parsed?.prize_index ?? parsed?.prizeIndex ?? -1);
+					const prizeIndexRaw = Number((parsed?.prize_index ?? parsed?.prizeIndex ?? -1) as number);
 					if (
 						createdWheelId &&
 						winnerAddr &&
@@ -640,7 +674,7 @@
 					console.error('Failed to persist spin winner:', persistErr);
 				}
 				if (usedCombinedSpin && spinEvents.length > 1) {
-					const secondParsed = spinEvents[1]?.parsedJson || {};
+					const secondParsed = (spinEvents[1]?.parsedJson || {}) as Record<string, unknown>;
 					const secondAddr = String(
 						secondParsed?.winner ??
 							secondParsed?.winner_address ??
@@ -651,7 +685,7 @@
 
 					// Handle combined spin second winner persist (best effort without prize_index)
 					try {
-						const secondPrizeIndex = Number(secondParsed?.prize_index ?? -1);
+						const secondPrizeIndex = Number((secondParsed?.prize_index ?? -1) as number);
 						if (
 							createdWheelId &&
 							secondAddr &&
@@ -694,7 +728,12 @@
 				easePower: 3
 			});
 		} catch (e) {
-			toast.error(e?.message || String(e), { position: 'bottom-right' });
+			const error = e as { message?: string } | Error;
+			toast({
+				type: 'error',
+				message: error?.message || String(e),
+				position: 'bottom-right'
+			});
 			setSpinning?.(false);
 			progressing = false;
 		}
@@ -716,12 +755,15 @@
 
 	function showConfetti() {
 		try {
-			const cf = typeof window !== 'undefined' ? window.confetti : undefined;
+			const cf =
+				typeof window !== 'undefined'
+					? (window as unknown as { confetti?: (opts: unknown) => void }).confetti
+					: undefined;
 			if (typeof cf === 'function') {
 				const duration = 3000;
 				const animationEnd = Date.now() + duration;
 				const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 1000 };
-				function randomInRange(min, max) {
+				function randomInRange(min: number, max: number): number {
 					return Math.random() * (max - min) + min;
 				}
 				const interval = setInterval(function () {
@@ -747,7 +789,7 @@
 		} catch {}
 	}
 
-	function spinToIndex(targetIndex, opts = {}) {
+	function spinToIndex(targetIndex: number, opts: SpinOptions = {}) {
 		const n = Math.max(1, entries.length);
 		if (spinning || n < 1) return;
 		const idx = Math.max(0, Math.min(n - 1, Number(targetIndex) | 0));
@@ -805,8 +847,10 @@
 					} catch {}
 				}
 				const winnerIndex = selectedIndex;
-				const winnerValue = entries[winnerIndex];
-				lastWinner = String(winnerValue ?? '');
+				if (winnerIndex !== null) {
+					const winnerValue = entries[winnerIndex];
+					lastWinner = String(winnerValue ?? '');
+				}
 				if (usedCombinedSpin && secondaryWinner) {
 					// keep secondaryWinner
 				}
@@ -814,11 +858,14 @@
 					// Notify parent about off-chain winner for history tracking
 					if (!postSpinFetchRequested && !createdWheelId) {
 						onOffchainWinner?.(lastWinner);
-						removeEntry?.(String(winnerValue ?? ''));
+						if (selectedIndex !== null) {
+							const winnerValue = entries[selectedIndex];
+							removeEntry?.(String(winnerValue ?? ''));
+						}
 					}
 					selectedIndex = null;
 					if (!createdWheelId) spinAngle = 0;
-					if (winnerModal && !winnerModal.open) {
+					if (winnerModal) {
 						winnerModal.showModal();
 						showConfetti();
 					}
@@ -856,7 +903,7 @@
 		>
 			<!-- Sound toggle -->
 			<button
-				class="btn btn-circle btn-sm tooltip absolute top-2 right-2 z-20 bg-white/90 shadow-lg backdrop-blur-sm transition-all duration-200 hover:bg-white"
+				class="tooltip btn absolute top-2 right-2 z-20 btn-circle bg-white/90 shadow-lg backdrop-blur-sm transition-all duration-200 btn-sm hover:bg-white"
 				onclick={() => (muted = !muted)}
 				aria-label={muted ? t('wheel.soundOff') : t('wheel.soundOn')}
 				title={t('wheel.toggleSound')}
@@ -902,7 +949,7 @@
 			</div>
 
 			<!-- Wheel -->
-			<canvas bind:this={canvasEl} class="rounded-box pointer-events-none mx-auto block"></canvas>
+			<canvas bind:this={canvasEl} class="pointer-events-none mx-auto block rounded-box"></canvas>
 
 			<!-- Spin button -->
 			<div
@@ -926,9 +973,9 @@
 
 		{#if selectedIndex !== null && entries[selectedIndex]}
 			<div class="mt-3 text-center">
-				<div class="badge badge-lg badge-success animate-pulse">🎯 {t('wheel.winner')}</div>
+				<div class="badge animate-pulse badge-lg badge-success">🎯 {t('wheel.winner')}</div>
 				<div
-					class="text-success bg-success/10 border-success/20 mt-2 rounded-lg border px-4 py-2 text-lg font-bold break-words"
+					class="mt-2 rounded-lg border border-success/20 bg-success/10 px-4 py-2 text-lg font-bold break-words text-success"
 				>
 					{entries[selectedIndex]}
 				</div>
@@ -938,14 +985,14 @@
 		{#if accountFromWallet && createdWheelId}
 			<div class="mt-4 flex justify-center">
 				<div
-					class="badge badge-lg badge-primary rounded px-2 py-1 text-center text-xs font-medium shadow"
+					class="badge rounded badge-lg px-2 py-1 text-center text-xs font-medium shadow badge-primary"
 				>
 					{t('wheel.remainingSpins')}: {Math.max(0, remainingSpins || 0)}
 				</div>
 			</div>
 		{/if}
 
-		{#if !createdWheelId || (createdWheelId && remainingSpins > 0)}
+		{#if !createdWheelId || (createdWheelId && (remainingSpins ?? 0) > 0)}
 			<div class="mt-4 flex flex-wrap justify-center gap-2">
 				<button
 					class="btn btn-outline"
@@ -965,7 +1012,7 @@
 </div>
 
 <dialog bind:this={winnerModal} class="modal">
-	<div class="modal-box w-">
+	<div class="w- modal-box">
 		<h3 class="mb-6 text-center text-2xl font-bold">🎉 {t('wheel.congratulations')}!</h3>
 		<div class="text-center">
 			<div class="relative">

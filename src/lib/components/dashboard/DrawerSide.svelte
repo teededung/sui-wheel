@@ -1,15 +1,23 @@
-<script>
+<script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { getContext } from 'svelte';
 	import logo from "$lib/assets/first-mover-vn-logo.png";
 
-	const navItems = getContext('navItems');
+	interface NavItem {
+		slug: string;
+		title: string;
+		icon?: string;
+		hide?: boolean;
+		subNav?: NavItem[];
+	}
+
+	const navItems = getContext<NavItem[]>('navItems');
 	let path = $derived(page.url.pathname);
 
-	const openSubMenus = $state({});
+	const openSubMenus = $state<Record<string, boolean>>({});
 
-	function toggleSubMenu(slug) {
+	function toggleSubMenu(slug: string) {
 		openSubMenus[slug] = !openSubMenus[slug];
 	}
 </script>
@@ -33,8 +41,8 @@
 				<li>
 					<a
 						class:menu-active={path === `${section.slug}` ||
-							(section.subNav && section.subNav.some(sub => path === sub.slug))}
-						href={section.subNav ? null : section.slug}
+							(section.subNav && section.subNav.some((sub: NavItem) => path === sub.slug))}
+						href={section.subNav ? undefined : section.slug}
 						onclick={e => {
 							e.preventDefault();
 							if (section.subNav) {

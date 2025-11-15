@@ -1,5 +1,5 @@
-<script>
-	import { onDestroy, onMount } from 'svelte';
+<script lang="ts">
+	import { onDestroy } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { useSuiClient, useCurrentAccount, accountLoading } from 'sui-svelte-wallet-kit';
 	import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
@@ -19,7 +19,10 @@
 	const t = useTranslation();
 
 	const account = $derived(useCurrentAccount());
-	let isOnTestnet = $derived(isTestnet(account));
+	let isOnTestnet = $derived.by(() => {
+		if (!account || !account.chains) return false;
+		return isTestnet({ chains: account.chains });
+	});
 
 	const suiClient = $derived(
 		account && isOnTestnet ? useSuiClient() : new SuiClient({ url: getFullnodeUrl('testnet') })
@@ -27,12 +30,30 @@
 
 	let pageState = $state('initializing'); // initializing, loading, loaded
 	let errorMsg = $state('');
-	let wheels = $state([]); // [{ id, digest, timestampMs }]
-	let _pollInterval = $state(null);
+	let wheels = $state<
+		Array<{
+			id: string;
+			digest?: string;
+			timestampMs: number;
+			status?: string;
+			remainingSpins?: number;
+			totalEntries?: number;
+		}>
+	>([]);
+	let _pollInterval = $state<ReturnType<typeof setInterval> | null>(null);
 	let refreshing = $state(false);
 
 	// Joined wheels list fetched from DB (latest 10)
-	let joinedWheels = $state([]);
+	let joinedWheels = $state<
+		Array<{
+			id: string;
+			digest?: string;
+			timestampMs: number;
+			status?: string;
+			remainingSpins?: number;
+			totalEntries?: number;
+		}>
+	>([]);
 	let joinedWheelsPageState = $state('initializing'); // initializing, loading, loaded
 	let joinedWheelsErrorMsg = $state('');
 
@@ -42,7 +63,7 @@
 	let publicWheelsErrorMsg = $state('');
 	let publicWheels = $state(Array.isArray(data?.publicWheels) ? data.publicWheels : []); // [{ id, digest, timestampMs, status, remainingSpins, totalEntries }]
 
-	async function loadWheelsFor(address, opts = {}) {
+	async function loadWheelsFor(address: string, opts: { isRefresh?: boolean } = {}) {
 		if (!address) return;
 		const isRefresh = Boolean(opts.isRefresh);
 		if (!isRefresh) pageState = 'loading';
@@ -72,15 +93,14 @@
 			const senderLc = String(address).toLowerCase();
 			const items = [];
 			for (const tx of transactions) {
-				const txSender = String(
-					tx?.transaction?.data?.sender || tx?.transaction?.sender || ''
-				).toLowerCase();
+				const txData = tx?.transaction?.data as { sender?: string } | undefined;
+				const txSender = String(txData?.sender || '').toLowerCase();
 				if (txSender !== senderLc) continue;
 				const created = (tx?.objectChanges || []).find(
-					ch =>
+					(ch: { type?: string; objectType?: string; objectId?: string }) =>
 						ch?.type === 'created' &&
 						String(ch?.objectType || '').endsWith(`::${WHEEL_MODULE}::${WHEEL_STRUCT}`)
-				);
+				) as { objectId?: string } | undefined;
 				if (created?.objectId) {
 					items.push({
 						id: created.objectId,
@@ -94,14 +114,17 @@
 			if (items.length > 0) {
 				try {
 					const objs = await suiClient.multiGetObjects({
-						ids: items.map(i => i.id),
+						ids: items.map((i) => i.id),
 						options: { showContent: true }
 					});
 					const idToMeta = new Map();
 					for (const o of objs || []) {
 						try {
 							const id = String(o?.data?.objectId || '');
-							const f = o?.data?.content?.fields || {};
+							const content = o?.data?.content as
+								| { dataType?: string; fields?: Record<string, unknown> }
+								| undefined;
+							const f = (content?.dataType === 'moveObject' ? content?.fields : {}) || {};
 							const isCancelled = Boolean(f['is_cancelled']);
 							let spunCount = 0;
 							try {
@@ -123,7 +146,7 @@
 							idToMeta.set(id, { status, remainingSpins: remaining, totalEntries });
 						} catch {}
 					}
-					wheels = items.map(it => {
+					wheels = items.map((it) => {
 						const meta = idToMeta.get(it.id) || { status: '—', remainingSpins: 0, totalEntries: 0 };
 						return { ...it, ...meta };
 					});
@@ -134,7 +157,7 @@
 				wheels = items;
 			}
 		} catch (e) {
-			errorMsg = e?.message || String(e);
+			errorMsg = (e as { message?: string })?.message || String(e);
 		} finally {
 			if (!isRefresh) pageState = 'loaded';
 			refreshing = false;
@@ -148,13 +171,13 @@
 		}
 	});
 
-	async function loadJoinedWheels(address, opts = {}) {
+	async function loadJoinedWheels(address: string, opts: { isRefresh?: boolean } = {}) {
 		const isRefresh = Boolean(opts.isRefresh);
 		if (!isRefresh) joinedWheelsPageState = 'loading';
 		joinedWheelsErrorMsg = '';
 		try {
 			// Run last: check the union of IDs from both lists currently loaded
-			const allIds = [...(wheels || []), ...(publicWheels || [])].map(w => w.id);
+			const allIds = [...(wheels || []), ...(publicWheels || [])].map((w) => w.id);
 			const uniqueIds = Array.from(new Set(allIds)).filter(Boolean);
 			if (uniqueIds.length === 0) {
 				joinedWheels = [];
@@ -187,7 +210,7 @@
 			}
 			// Enrich joined list status similar to others
 			try {
-				const ids = uniqueIds.filter(id => joinedIds.has(id));
+				const ids = uniqueIds.filter((id) => joinedIds.has(id));
 				const objs = await suiClient.multiGetObjects({
 					ids,
 					options: { showContent: true }
@@ -196,7 +219,10 @@
 				for (const o of objs || []) {
 					try {
 						const id = String(o?.data?.objectId || '');
-						const f = o?.data?.content?.fields || {};
+						const content = o?.data?.content as
+							| { dataType?: string; fields?: Record<string, unknown> }
+							| undefined;
+						const f = (content?.dataType === 'moveObject' ? content?.fields : {}) || {};
 						const isCancelled = Boolean(f['is_cancelled']);
 						let spunCount = 0;
 						try {
@@ -222,7 +248,7 @@
 				const idToTs = new Map();
 				for (const w of wheels) idToTs.set(w.id, w.timestampMs || 0);
 				for (const w of publicWheels) if (!idToTs.has(w.id)) idToTs.set(w.id, w.timestampMs || 0);
-				joinedWheels = ids.map(id => ({
+				joinedWheels = ids.map((id) => ({
 					id,
 					digest: null,
 					timestampMs: idToTs.get(id) || 0,
@@ -231,20 +257,20 @@
 				}));
 			} catch {
 				// Fallback without enrichment
-				joinedWheels = Array.from(joinedIds).map(id => ({
-					id,
-					digest: null,
+				joinedWheels = Array.from(joinedIds).map((id: unknown) => ({
+					id: String(id),
+					digest: undefined,
 					timestampMs: 0,
 					joined: true
 				}));
 			}
 
 			// Update joined flags on visible lists
-			wheels = wheels.map(w => ({ ...w, joined: joinedIds.has(w.id) }));
-			publicWheels = publicWheels.map(w => ({ ...w, joined: joinedIds.has(w.id) }));
+			wheels = wheels.map((w) => ({ ...w, joined: joinedIds.has(w.id) }));
+			publicWheels = publicWheels.map((w) => ({ ...w, joined: joinedIds.has(w.id) }));
 		} catch (e) {
 			joinedWheels = [];
-			joinedWheelsErrorMsg = e?.message || String(e);
+			joinedWheelsErrorMsg = (e as { message?: string })?.message || String(e);
 		} finally {
 			if (!isRefresh) joinedWheelsPageState = 'loaded';
 		}
@@ -253,9 +279,9 @@
 	function clearJoinedWheelStatus() {
 		joinedWheels = [];
 		if (wheels.length > 0) {
-			wheels = wheels.map(w => ({ ...w, joined: false }));
+			wheels = wheels.map((w) => ({ ...w, joined: false }));
 		}
-		publicWheels = publicWheels.map(w => ({ ...w, joined: false }));
+		publicWheels = publicWheels.map((w) => ({ ...w, joined: false }));
 	}
 
 	const idle = new IsIdle({ timeout: 15000 });
@@ -263,36 +289,40 @@
 	// Watch for account changes
 	watch(
 		() => account?.address,
-		async (curr, prev) => {
-			// Clear user's wheels and joined wheels status when no account is connected
-			if (curr === undefined && pageState === 'loaded') {
-				wheels = [];
-				pageState = 'loading';
-				return clearJoinedWheelStatus();
-			}
-
-			// Prevent loop
-			if (curr === prev) {
-				if (curr === undefined && prev === undefined && pageState === 'initializing') {
+		(curr, prev) => {
+			void (async () => {
+				// Clear user's wheels and joined wheels status when no account is connected
+				if (curr === undefined && pageState === 'loaded') {
+					wheels = [];
 					pageState = 'loading';
-					joinedWheelsPageState = 'loaded';
-					return;
-				}
-			} else if (curr !== prev) {
-				// Clear joined wheel status when account changes
-				if (wheels.length > 0 || publicWheels.length > 0) {
-					clearJoinedWheelStatus();
+					return clearJoinedWheelStatus();
 				}
 
-				// Only load user's wheels on testnet
-				if (isOnTestnet) {
-					pageState = 'loading';
-					startPolling();
-					await loadWheelsFor(curr);
-				}
+				// Prevent loop
+				if (curr === prev) {
+					if (curr === undefined && prev === undefined && pageState === 'initializing') {
+						pageState = 'loading';
+						joinedWheelsPageState = 'loaded';
+						return;
+					}
+				} else if (curr !== prev) {
+					// Clear joined wheel status when account changes
+					if (wheels.length > 0 || publicWheels.length > 0) {
+						clearJoinedWheelStatus();
+					}
 
-				loadJoinedWheels(curr);
-			}
+					// Only load user's wheels on testnet
+					if (isOnTestnet && curr) {
+						pageState = 'loading';
+						startPolling();
+						await loadWheelsFor(curr);
+					}
+
+					if (curr) {
+						loadJoinedWheels(curr);
+					}
+				}
+			})();
 		}
 	);
 
@@ -314,7 +344,7 @@
 
 	function startPolling(ms = 10000) {
 		if (_pollInterval) return;
-		_pollInterval = setInterval(() => refreshNow(), ms);
+		_pollInterval = setInterval(() => refreshNow(), ms) as ReturnType<typeof setInterval> | null;
 	}
 
 	function refreshNow() {
@@ -343,10 +373,20 @@
 	<meta property="og:description" content={t('wheelList.ogDescription')} />
 </svelte:head>
 
-{#snippet wheelsTable(rows)}
+{#snippet wheelsTable(
+	rows: Array<{
+		id: string;
+		digest?: string;
+		timestampMs: number;
+		status?: string;
+		remainingSpins?: number;
+		totalEntries?: number;
+		joined?: boolean;
+	}>
+)}
 	<div class="relative">
 		<div class="overflow-x-auto">
-			<table class="table-zebra table">
+			<table class="table table-zebra">
 				<thead>
 					<tr>
 						<th class="w-12">{t('wheelList.table.number')}</th>
@@ -366,7 +406,7 @@
 									href={`${getExplorerLink('testnet', 'object', w.id)}`}
 									target="_blank"
 									rel="noopener noreferrer"
-									class="link link-primary hover:link-accent flex items-center gap-2"
+									class="flex link items-center gap-2 link-primary hover:link-accent"
 									title={`View ${w.id} on Sui Vision`}
 									aria-label={`View wheel ${shortenAddress(w.id)} on Sui Vision`}
 								>
@@ -377,12 +417,12 @@
 							<td>
 								<div class="join">
 									<a
-										class="btn btn-sm btn-success btn-soft join-item"
+										class="btn join-item btn-soft btn-sm btn-success"
 										href={`/?wheelId=${w.id}`}
 										aria-label={t('wheelList.actions.open')}>{t('wheelList.actions.open')}</a
 									>
 									<a
-										class="btn btn-sm btn-secondary btn-soft join-item"
+										class="btn join-item btn-soft btn-sm btn-secondary"
 										href={`/wheel-result/?wheelId=${w.id}`}
 										aria-label={t('wheelList.actions.results')}>{t('wheelList.actions.results')}</a
 									>
@@ -400,7 +440,7 @@
 								{/if}
 							</td>
 							<td class="text-center">
-								<span class="badge badge-neutral font-mono">{w.totalEntries || 0}</span>
+								<span class="badge font-mono badge-neutral">{w.totalEntries || 0}</span>
 							</td>
 							<td>
 								<div
@@ -442,8 +482,8 @@
 
 {#snippet skeleton()}
 	<div class="space-y-3">
-		<div class="skeleton h-8 w-40"></div>
-		<div class="skeleton h-32 w-full"></div>
+		<div class="h-8 w-40 skeleton"></div>
+		<div class="h-32 w-full skeleton"></div>
 	</div>
 {/snippet}
 
@@ -453,7 +493,7 @@
 		<div class="card-body">
 			<div class="mb-4 flex items-center justify-between">
 				<h2 class="text-lg font-semibold">{t('wheelList.pageTitle')}</h2>
-				<a href="/" class="btn btn-primary btn-sm" aria-label={t('wheelList.createNew')}
+				<a href="/" class="btn btn-sm btn-primary" aria-label={t('wheelList.createNew')}
 					>{t('wheelList.createNew')}</a
 				>
 			</div>
@@ -461,7 +501,7 @@
 				<AlertTestnetWarning />
 			{:else if pageState === 'initializing'}
 				<div class="flex items-center gap-2">
-					<span class="loading loading-spinner loading-sm"></span>
+					<span class="loading loading-sm loading-spinner"></span>
 					{t('wheelList.loading')}
 				</div>
 			{:else if pageState === 'loading'}
@@ -478,13 +518,13 @@
 						{@render wheelsTable(wheels)}
 						{#if refreshing}
 							<div
-								class="bg-base-300/40 pointer-events-none absolute inset-0 grid place-items-center"
+								class="pointer-events-none absolute inset-0 grid place-items-center bg-base-300/40"
 								in:fade
 								out:fade
 								aria-hidden="true"
 							>
 								<span
-									class="loading loading-spinner loading-md text-primary"
+									class="loading loading-md loading-spinner text-primary"
 									aria-label={t('wheelList.refreshing')}
 								></span>
 							</div>
@@ -496,7 +536,7 @@
 	</div>
 
 	<!-- Joined Wheels Section -->
-	<div class="card bg-base-200 mt-8 shadow">
+	<div class="card mt-8 bg-base-200 shadow">
 		<div class="card-body">
 			<div class="mb-4">
 				<h2 class="text-lg font-semibold">{t('wheelList.joinedWheels.title')}</h2>
@@ -504,7 +544,7 @@
 			</div>
 			{#if joinedWheelsPageState === 'initializing'}
 				<div class="flex items-center gap-2">
-					<span class="loading loading-spinner loading-sm"></span>
+					<span class="loading loading-sm loading-spinner"></span>
 					{t('wheelList.publicWheels.loading')}
 				</div>
 			{:else if joinedWheelsPageState === 'loading'}
@@ -522,7 +562,7 @@
 	</div>
 
 	<!-- Public Wheels Section -->
-	<div class="card bg-base-200 mt-8 shadow">
+	<div class="card mt-8 bg-base-200 shadow">
 		<div class="card-body">
 			<div class="mb-4">
 				<h2 class="text-lg font-semibold">{t('wheelList.publicWheels.title')}</h2>
@@ -530,7 +570,7 @@
 			</div>
 			{#if publicWheelsPageState === 'initializing'}
 				<div class="flex items-center gap-2">
-					<span class="loading loading-spinner loading-sm"></span>
+					<span class="loading loading-sm loading-spinner"></span>
 					{t('wheelList.publicWheels.loading')}
 				</div>
 			{:else if publicWheelsPageState === 'loading'}

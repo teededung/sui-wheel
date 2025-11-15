@@ -1,18 +1,18 @@
-<script>
+<script lang="ts">
 	import { onMount } from 'svelte';
 	import {
 		connectWithModal,
 		useCurrentAccount,
 		useAccounts,
 		disconnect,
-		connect,
 		switchAccount,
 		switchWallet,
 		useCurrentWallet,
 		suiBalance,
 		suiBalanceLoading,
 		suiNamesByAddress,
-		refreshSuiBalance
+		refreshSuiBalance,
+		type SuiAccount
 	} from 'sui-svelte-wallet-kit';
 	import { toast } from 'svelte-daisy-toaster';
 	import { shortenAddress } from '$lib/utils/string';
@@ -23,15 +23,20 @@
 	// Translation hook
 	const t = useTranslation();
 
+	interface Props {
+		showSwitcher?: boolean;
+		showBalance?: boolean;
+	}
+
 	// rune-style props
-	let { showSwitcher = true, showBalance = true } = $props();
+	let { showSwitcher = true, showBalance = true }: Props = $props();
 
 	// mount guard to avoid SSR/hydration mismatch
 	let isInitialized = $state(false);
 	onMount(() => (isInitialized = true));
 
 	// ensure UI reacts to account changes reliably
-	let accAddr = $state(null);
+	let accAddr = $state<string | null>(null);
 	$effect(() => {
 		accAddr = account?.address || null;
 	});
@@ -41,10 +46,14 @@
 	const wallet = $derived(useCurrentWallet());
 
 	let walletIcon = $derived(wallet?.iconUrl || null);
-	let walletLabel = $derived(wallet?.displayName || '');
-	let bal = $derived(suiBalance?.value / 1_000_000_000);
+	let walletLabel = $derived(
+		(wallet as { name?: string; displayName?: string })?.displayName ||
+			(wallet as { name?: string })?.name ||
+			''
+	);
+	let bal = $derived(Number(suiBalance?.value ?? 0) / 1_000_000_000);
 	let balLoading = $derived(Boolean(suiBalanceLoading?.value));
-	let currrentNetwork = $derived(account?.chains[0] || 'sui:mainnet');
+	let currrentNetwork = $derived(account?.chains?.[0] || 'sui:mainnet');
 	let networkDisplayName = $derived(getNetworkDisplayName(currrentNetwork));
 	let isNetworkMismatch = $derived(currrentNetwork !== NETWORK);
 
@@ -64,7 +73,7 @@
 		}
 	});
 
-	function display(acc) {
+	function display(acc: SuiAccount | null | undefined): string {
 		if (!acc) return '';
 		const names = suiNamesByAddress.value?.[acc.address];
 		if (Array.isArray(names)) {
@@ -73,16 +82,27 @@
 		return names || shortenAddress(acc.address);
 	}
 
-	function copy(addr) {
+	function copy(addr: string) {
 		navigator.clipboard
 			.writeText(addr)
 			.then(() =>
-				toast.success(t('wallet.addressCopied'), { position: 'bottom-right', durationMs: 1500 })
+				toast({
+					type: 'success',
+					message: t('wallet.addressCopied'),
+					position: 'bottom-right',
+					durationMs: 1500
+				})
 			)
-			.catch(() => toast.error(t('wallet.copyFailed'), { position: 'bottom-right' }));
+			.catch(() =>
+				toast({
+					type: 'error',
+					message: t('wallet.copyFailed'),
+					position: 'bottom-right'
+				})
+			);
 	}
 
-	function openAddressInSuiVision(addr) {
+	function openAddressInSuiVision(addr: string) {
 		let base;
 
 		if (currrentNetwork === 'sui:mainnet') {
@@ -111,10 +131,18 @@
 	async function handleDisconnect() {
 		try {
 			await disconnect();
-			toast.success(t('wallet.disconnected'), { position: 'bottom-right' });
+			toast({
+				type: 'success',
+				message: t('wallet.disconnected'),
+				position: 'bottom-right'
+			});
 		} catch (e) {
 			console.error('Disconnect failed', e);
-			toast.error(t('wallet.disconnectFailed'), { position: 'bottom-right' });
+			toast({
+				type: 'error',
+				message: t('wallet.disconnectFailed'),
+				position: 'bottom-right'
+			});
 		}
 	}
 </script>
@@ -122,12 +150,12 @@
 <div class="flex items-center gap-2">
 	{#if isInitialized && accAddr && showBalance}
 		<div
-			class="badge badge-soft badge-primary px-2 font-mono text-xs leading-none whitespace-nowrap"
+			class="badge badge-soft px-2 font-mono text-xs leading-none whitespace-nowrap badge-primary"
 			title={`${Number(bal ?? 0).toFixed(6)} SUI`}
 			aria-label={`Balance ${Number(bal ?? 0).toFixed(6)} SUI`}
 		>
 			{#if balLoading}
-				<span class="loading loading-dots loading-xs"></span>
+				<span class="loading loading-xs loading-dots"></span>
 			{:else}
 				<span class="sm:hidden">{Number(bal ?? 0).toFixed(2)}</span>
 				<span class="hidden sm:inline md:hidden">{Number(bal ?? 0).toFixed(3)}</span>
@@ -143,7 +171,7 @@
 			<!-- full dropdown / switcher as before -->
 			<div
 				class="dropdown dropdown-end {isNetworkMismatch
-					? 'tooltip tooltip-bottom tooltip-error tooltip-open border-error border'
+					? 'tooltip-open tooltip tooltip-bottom border border-error tooltip-error'
 					: ''}"
 				onfocusin={() => (dropdownOpen = true)}
 				onfocusout={() => (dropdownOpen = false)}
@@ -162,17 +190,17 @@
 
 				<div
 					tabindex="-1"
-					class="dropdown-content menu bg-base-100 rounded-box border-base-300 z-50 w-80 border p-0 shadow-xl"
+					class="dropdown-content menu z-50 w-80 rounded-box border border-base-300 bg-base-100 p-0 shadow-xl"
 				>
 					{#if isInitialized && accAddr}
 						<div class="absolute top-2 right-2">
 							<div
-								class="tooltip badge badge-sm badge-soft badge-primary px-2 font-mono leading-none whitespace-nowrap"
+								class="tooltip badge badge-soft badge-sm px-2 font-mono leading-none whitespace-nowrap badge-primary"
 								aria-label={`Balance ${Number(bal ?? 0).toFixed(6)} SUI`}
 								data-tip={`${Number(bal ?? 0).toFixed(6)} SUI`}
 							>
 								{#if balLoading}
-									<span class="loading loading-dots loading-xs"></span>
+									<span class="loading loading-xs loading-dots"></span>
 								{:else}
 									<span>{Number(bal ?? 0).toFixed(3)}</span>
 									<span class="opacity-80">SUI</span>
@@ -182,13 +210,13 @@
 					{/if}
 
 					<!-- header -->
-					<div class="border-base-300 flex items-center gap-3 border-b px-4 py-3">
+					<div class="flex items-center gap-3 border-b border-base-300 px-4 py-3">
 						{#if walletIcon}
 							<img src={walletIcon} class="h-6 w-6" alt={`${walletLabel || 'Wallet'} icon`} />
 						{/if}
 						<div>
 							<h3 class="text-sm font-semibold">{walletLabel || 'Wallet'}</h3>
-							<p class="text-secondary text-xs opacity-70">
+							<p class="text-xs text-secondary opacity-70">
 								{networkDisplayName}
 							</p>
 						</div>
@@ -198,7 +226,7 @@
 					<div class="max-h-64 overflow-y-auto">
 						{#each accounts as acc (acc.address)}
 							<div
-								class="hover:bg-base-200 px-4 py-3 {acc.address === account.address
+								class="px-4 py-3 hover:bg-base-200 {acc.address === account?.address
 									? 'bg-primary/10'
 									: ''}"
 							>
@@ -206,8 +234,8 @@
 									<div class="min-w-0">
 										<div class="flex items-center gap-2">
 											<span class="text-sm font-medium">{display(acc)}</span>
-											{#if acc.address === account.address}
-												<div class="badge badge-primary badge-xs">{t('wallet.active')}</div>
+											{#if acc.address === account?.address}
+												<div class="badge badge-xs badge-primary">{t('wallet.active')}</div>
 											{/if}
 										</div>
 										{#if display(acc).includes('.sui')}
@@ -218,7 +246,7 @@
 										<button
 											class="btn btn-ghost btn-xs"
 											aria-label="Copy address"
-											onclick={e => {
+											onclick={(e) => {
 												e.stopPropagation();
 												copy(acc.address);
 											}}
@@ -228,17 +256,17 @@
 										<button
 											class="btn btn-ghost btn-xs"
 											aria-label="Open in SuiVision"
-											onclick={e => {
+											onclick={(e) => {
 												e.stopPropagation();
 												openAddressInSuiVision(acc.address);
 											}}
 										>
 											<span class="icon-[lucide--external-link] h-3 w-3"></span>
 										</button>
-										{#if acc.address !== account.address}
+										{#if acc.address !== account?.address}
 											<button
-												class="btn btn-primary btn-xs"
-												onclick={e => {
+												class="btn btn-xs btn-primary"
+												onclick={(e) => {
 													e.stopPropagation();
 													switchAccount(acc.address);
 												}}
@@ -253,13 +281,13 @@
 					</div>
 
 					<!-- footer -->
-					<div class="border-base-300 space-y-2 border-t px-4 py-3">
-						<button class="btn btn-ghost btn-sm w-full justify-start" onclick={handleSwitchWallet}>
+					<div class="space-y-2 border-t border-base-300 px-4 py-3">
+						<button class="btn w-full justify-start btn-ghost btn-sm" onclick={handleSwitchWallet}>
 							<span class="icon-[lucide--refresh-cw] h-4 w-4"></span>
 							{t('wallet.switchWallet')}
 						</button>
 						<button
-							class="btn btn-ghost btn-sm text-error hover:bg-error/10 w-full justify-start"
+							class="btn w-full justify-start text-error btn-ghost btn-sm hover:bg-error/10"
 							onclick={handleDisconnect}
 						>
 							<span class="icon-[lucide--unlink] h-4 w-4"></span>
@@ -275,7 +303,7 @@
 					{#if walletIcon}
 						<img src={walletIcon} class="h-4 w-4" alt="wallet" />
 					{/if}
-					<div class="btn btn-sm flex cursor-default items-center gap-1 select-text">
+					<div class="btn flex cursor-default items-center gap-1 btn-sm select-text">
 						{shortenAddress(accAddr)}
 					</div>
 				</div>
@@ -288,22 +316,22 @@
 				>
 					<button
 						tabindex="0"
-						class="btn btn-ghost btn-xs ml-1"
+						class="btn ml-1 btn-ghost btn-xs"
 						aria-label={t('wallet.moreOptions')}
 						data-toggle="dropdown"
 					>
 						<span class="icon-[lucide--ellipsis] h-4 w-4"></span>
 					</button>
-					<ul tabindex="-1" class="dropdown-content menu bg-base-100 rounded-box w-44 p-2 shadow">
+					<ul tabindex="-1" class="dropdown-content menu w-44 rounded-box bg-base-100 p-2 shadow">
 						<li>
 							<button onclick={handleSwitchWallet}>
-								<span class="icon-[lucide--refresh-cw] mr-1"></span>
+								<span class="mr-1 icon-[lucide--refresh-cw]"></span>
 								{t('wallet.switchWallet')}
 							</button>
 						</li>
 						<li>
 							<button onclick={handleDisconnect}>
-								<span class="icon-[lucide--unlink] mr-1"></span>
+								<span class="mr-1 icon-[lucide--unlink]"></span>
 								{t('wallet.disconnect')}
 							</button>
 						</li>
@@ -313,7 +341,7 @@
 		{/if}
 	{:else}
 		<!-- not connected -->
-		<button class="btn btn-soft btn-sm hover:bg-primary" onclick={connectWithModal}>
+		<button class="btn btn-soft btn-sm hover:bg-primary" onclick={() => connectWithModal()}>
 			<span class="icon-[lucide--wallet] h-4 w-4"></span>
 			{t('wallet.connectSuiWallet')}
 		</button>

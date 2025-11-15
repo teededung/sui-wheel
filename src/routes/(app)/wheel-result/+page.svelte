@@ -1,5 +1,4 @@
-<script>
-	import { onMount } from 'svelte';
+<script lang="ts">
 	import { Transaction } from '@mysten/sui/transactions';
 	import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 	import {
@@ -36,7 +35,10 @@
 
 	const t = useTranslation();
 	const account = $derived(useCurrentAccount());
-	let isOnTestnet = $derived.by(() => isTestnet(account));
+	let isOnTestnet = $derived.by(() => {
+		if (!account || !account.chains) return false;
+		return isTestnet({ chains: account.chains });
+	});
 	const suiClient = $derived(
 		account && isOnTestnet ? useSuiClient() : new SuiClient({ url: getFullnodeUrl('testnet') })
 	);
@@ -51,10 +53,10 @@
 
 	let wheelId = $derived(params.wheelId);
 
-	let winners = $state([]);
-	let prizeAmounts = $state([]);
-	let spinTimes = $state([]);
-	let spunAtTexts = $state([]);
+	let winners = $state<Array<{ addr: string; prize_index: number; claimed: boolean }>>([]);
+	let prizeAmounts = $state<bigint[]>([]);
+	let spinTimes = $state<number[]>([]);
+	let spunAtTexts = $state<string[]>([]);
 	let delayMs = $state(0);
 	let claimWindowMs = $state(0);
 	let organizer = $state('');
@@ -70,12 +72,12 @@
 	let lastClaim = $state({ amount: 0n, timestampMs: 0, digest: '' });
 
 	// Non-winning entries (remaining entries on chain)
-	let nonWinningEntries = $state([]);
+	let nonWinningEntries = $state<string[]>([]);
 	let winnerInfo = $derived.by(() => {
 		try {
 			const addr = account?.address.toLowerCase();
 			if (!addr) return null;
-			return winners.find(w => String(w?.addr || '').toLowerCase() === addr) ?? null;
+			return winners.find((w) => String(w?.addr || '').toLowerCase() === addr) ?? null;
 		} catch {
 			return null;
 		}
@@ -85,7 +87,7 @@
 	// Remaining spins based on number of prizes and spun timestamps
 	let remainingSpins = $derived.by(() => {
 		try {
-			const spun = (spinTimes || []).filter(v => Number(v) > 0).length;
+			const spun = (spinTimes || []).filter((v) => Number(v) > 0).length;
 			return Math.max(0, (prizeAmounts || []).length - spun);
 		} catch {
 			return 0;
@@ -95,34 +97,40 @@
 	// Watch wheelId change
 	watch(
 		() => wheelId,
-		async () => {
-			await fetchData(wheelId);
+		() => {
+			void (async () => {
+				await fetchData(wheelId);
 
-			// Precompute static "Spun at" texts based on current time once
-			const base = Date.now();
-			spunAtTexts = (spinTimes || []).map(ts => formatRelativePreciseAt(ts, base));
+				// Precompute static "Spun at" texts based on current time once
+				const base = Date.now();
+				spunAtTexts = (spinTimes || []).map((ts) => formatRelativePreciseAt(ts, base));
+			})();
 		}
 	);
 
 	// Watch isOrganizer change
 	watch(
 		() => isOrganizer,
-		async () => {
-			if (!account && !wheelId && !isOrganizer) return;
-			await fetchReclaimEvents(wheelId);
+		() => {
+			void (async () => {
+				if (!account && !wheelId && !isOrganizer) return;
+				await fetchReclaimEvents(wheelId);
+			})();
 		}
 	);
 
 	// Watch winnerInfo change
 	watch(
 		() => winnerInfo,
-		async () => {
-			if (!account && !wheelId && !winnerInfo) return;
-			await fetchClaimEventsForWinner(wheelId);
+		() => {
+			void (async () => {
+				if (!account && !wheelId && !winnerInfo) return;
+				await fetchClaimEventsForWinner(wheelId);
+			})();
 		}
 	);
 
-	async function fetchWheelCreationTimestamp(wheelId) {
+	async function fetchWheelCreationTimestamp(wheelId: string) {
 		if (!wheelId) return;
 		try {
 			const response = await suiClient.queryTransactionBlocks({
@@ -145,14 +153,19 @@
 
 			const transactions = response?.data || [];
 			for (const tx of transactions) {
-				const created = (tx?.objectChanges || []).find(
-					ch =>
-						ch?.type === 'created' &&
-						String(ch?.objectType || '').endsWith(`::${WHEEL_MODULE}::${WHEEL_STRUCT}`) &&
-						String(ch?.objectId || '').toLowerCase() === String(wheelId).toLowerCase()
-				);
+				const txObj = tx as { objectChanges?: unknown[]; timestampMs?: unknown } | undefined;
+				const created = (txObj?.objectChanges || []).find((ch: unknown) => {
+					const change = ch as
+						| { type?: string; objectType?: string; objectId?: string }
+						| undefined;
+					return (
+						change?.type === 'created' &&
+						String(change?.objectType || '').endsWith(`::${WHEEL_MODULE}::${WHEEL_STRUCT}`) &&
+						String(change?.objectId || '').toLowerCase() === String(wheelId).toLowerCase()
+					);
+				}) as { objectId?: string } | undefined;
 				if (created?.objectId) {
-					wheelCreatedAtMs = Number(tx?.timestampMs || 0);
+					wheelCreatedAtMs = Number(txObj?.timestampMs || 0);
 					return;
 				}
 			}
@@ -161,7 +174,7 @@
 		}
 	}
 
-	async function fetchData(wheelId) {
+	async function fetchData(wheelId: string) {
 		if (!wheelId) return;
 		loading = true;
 		error = '';
@@ -171,22 +184,43 @@
 				options: { showContent: true }
 			});
 
-			const f = wheelContent?.data?.content?.fields ?? {};
+			const content = wheelContent?.data?.content as
+				| { dataType?: string; fields?: Record<string, unknown> }
+				| undefined;
+			const f = (content?.dataType === 'moveObject' ? content?.fields : {}) ?? {};
 
 			isCancelled = Boolean(f.is_cancelled);
-			winners = (f.winners || []).map(w => ({
-				addr: String(w?.fields?.addr ?? w?.addr ?? ''),
-				prize_index: Number(w?.fields?.prize_index ?? w?.prize_index ?? 0),
-				claimed: Boolean(w?.fields?.claimed ?? w?.claimed ?? false)
-			}));
-			prizeAmounts = (f.prize_amounts || []).map(v => BigInt(v));
-			spinTimes = (f.spin_times || []).map(v => Number(v));
+			winners = ((f.winners as unknown[]) || []).map((w: unknown) => {
+				const winner = w as {
+					fields?: { addr?: unknown; prize_index?: unknown; claimed?: unknown };
+					addr?: unknown;
+					prize_index?: unknown;
+					claimed?: unknown;
+				};
+				return {
+					addr: String(winner?.fields?.addr ?? winner?.addr ?? ''),
+					prize_index: Number(winner?.fields?.prize_index ?? winner?.prize_index ?? 0),
+					claimed: Boolean(winner?.fields?.claimed ?? winner?.claimed ?? false)
+				};
+			});
+			prizeAmounts = ((f.prize_amounts as unknown[]) || []).map((v: unknown) => {
+				if (
+					typeof v === 'string' ||
+					typeof v === 'number' ||
+					typeof v === 'bigint' ||
+					typeof v === 'boolean'
+				) {
+					return BigInt(v);
+				}
+				return 0n;
+			});
+			spinTimes = ((f.spin_times as unknown[]) || []).map((v: unknown) => Number(v));
 			delayMs = Number(f.delay_ms || 0);
 			claimWindowMs = Number(f.claim_window_ms || 0);
 			organizer = String(f.organizer || '');
 
 			// Remaining entries represent non-winners
-			nonWinningEntries = (f.remaining_entries || []).map(v => String(v));
+			nonWinningEntries = ((f.remaining_entries as unknown[]) || []).map((v: unknown) => String(v));
 
 			// Parse pool balance from nested balance field variants
 			try {
@@ -195,10 +229,29 @@
 				if (v != null) {
 					if (typeof v === 'string' || typeof v === 'number' || typeof v === 'bigint') {
 						pool = BigInt(v);
-					} else if (typeof v === 'object') {
+					} else if (typeof v === 'object' && v !== null) {
+						const vObj = v as {
+							fields?: {
+								balance?: { fields?: { value?: unknown } };
+								value?: unknown;
+							};
+							value?: unknown;
+							balance?: unknown;
+						};
 						const val =
-							v?.fields?.balance?.fields?.value ?? v?.fields?.value ?? v?.value ?? v?.balance;
-						if (val != null) pool = BigInt(val);
+							vObj?.fields?.balance?.fields?.value ??
+							vObj?.fields?.value ??
+							vObj?.value ??
+							vObj?.balance;
+						if (
+							val != null &&
+							(typeof val === 'string' ||
+								typeof val === 'number' ||
+								typeof val === 'bigint' ||
+								typeof val === 'boolean')
+						) {
+							pool = BigInt(val);
+						}
 					}
 				}
 
@@ -208,19 +261,19 @@
 			// Fetch wheel creation timestamp
 			await fetchWheelCreationTimestamp(wheelId);
 		} catch (e) {
-			error = e?.message || String(e);
+			error = (e as { message?: string })?.message || String(e);
 		} finally {
 			loading = false;
 		}
 	}
 
-	async function fetchReclaimEvents(wheelId) {
+	async function fetchReclaimEvents(wheelId: string) {
 		try {
 			if (!wheelId || !account) return;
 			const eventType = `${LATEST_PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_EVENTS.RECLAIM}`;
 			let cursor = null;
 			let hasNextPage = true;
-			let allEvents = [];
+			let allEvents: unknown[] = [];
 			while (hasNextPage) {
 				const res = await suiClient.queryEvents({
 					query: { MoveEventType: eventType },
@@ -232,30 +285,42 @@
 				cursor = res.nextCursor;
 				hasNextPage = res.hasNextPage;
 			}
-			const filtered = allEvents.filter(e => {
-				const wid = String(e?.parsedJson?.wheel_id ?? e?.parsedJson?.wheelId ?? '').toLowerCase();
+			const filtered = allEvents.filter((e: unknown) => {
+				const event = e as { parsedJson?: { wheel_id?: unknown; wheelId?: unknown } } | undefined;
+				const wid = String(
+					event?.parsedJson?.wheel_id ?? event?.parsedJson?.wheelId ?? ''
+				).toLowerCase();
 				return wid === String(wheelId).toLowerCase();
 			});
 			if (filtered.length === 0) {
 				lastReclaim = { amount: 0n, timestampMs: 0, digest: '' };
 				return;
 			}
-			filtered.sort((a, b) => {
-				const ta = Number(a?.timestampMs ?? 0);
-				const tb = Number(b?.timestampMs ?? 0);
+			filtered.sort((a: unknown, b: unknown) => {
+				const eventA = a as { timestampMs?: unknown; id?: { eventSeq?: unknown } } | undefined;
+				const eventB = b as { timestampMs?: unknown; id?: { eventSeq?: unknown } } | undefined;
+				const ta = Number(eventA?.timestampMs ?? 0);
+				const tb = Number(eventB?.timestampMs ?? 0);
 				if (tb !== ta) return tb - ta;
 				try {
-					const ea = BigInt(a?.id?.eventSeq ?? '0');
-					const eb = BigInt(b?.id?.eventSeq ?? '0');
+					const ea = BigInt(String(eventA?.id?.eventSeq ?? '0'));
+					const eb = BigInt(String(eventB?.id?.eventSeq ?? '0'));
 					return eb > ea ? 1 : eb < ea ? -1 : 0;
 				} catch {
 					return 0;
 				}
 			});
-			const latest = filtered[0];
+			const latest = filtered[0] as
+				| {
+						parsedJson?: { amount?: unknown };
+						timestampMs?: unknown;
+						id?: { txDigest?: unknown };
+						transactionDigest?: unknown;
+				  }
+				| undefined;
 			const amount = (() => {
 				try {
-					return BigInt(latest?.parsedJson?.amount ?? 0);
+					return BigInt(String(latest?.parsedJson?.amount ?? 0));
 				} catch {
 					return 0n;
 				}
@@ -268,13 +333,13 @@
 		}
 	}
 
-	async function fetchClaimEventsForWinner(wheelId) {
+	async function fetchClaimEventsForWinner(wheelId: string) {
 		try {
 			if (!wheelId || !account) return;
 			const eventType = `${LATEST_PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_EVENTS.CLAIM}`;
 			let cursor = null;
 			let hasNextPage = true;
-			let allEvents = [];
+			let allEvents: unknown[] = [];
 			while (hasNextPage) {
 				const res = await suiClient.queryEvents({
 					query: { MoveEventType: eventType },
@@ -287,31 +352,45 @@
 				hasNextPage = res.hasNextPage;
 			}
 			const who = String(account?.address).toLowerCase();
-			const filtered = allEvents.filter(e => {
-				const wid = String(e?.parsedJson?.wheel_id ?? e?.parsedJson?.wheelId ?? '').toLowerCase();
-				const winner = String(e?.parsedJson?.winner ?? '').toLowerCase();
+			const filtered = allEvents.filter((e: unknown) => {
+				const event = e as
+					| { parsedJson?: { wheel_id?: unknown; wheelId?: unknown; winner?: unknown } }
+					| undefined;
+				const wid = String(
+					event?.parsedJson?.wheel_id ?? event?.parsedJson?.wheelId ?? ''
+				).toLowerCase();
+				const winner = String(event?.parsedJson?.winner ?? '').toLowerCase();
 				return wid === String(wheelId).toLowerCase() && winner === who;
 			});
 			if (filtered.length === 0) {
 				lastClaim = { amount: 0n, timestampMs: 0, digest: '' };
 				return;
 			}
-			filtered.sort((a, b) => {
-				const ta = Number(a?.timestampMs ?? 0);
-				const tb = Number(b?.timestampMs ?? 0);
+			filtered.sort((a: unknown, b: unknown) => {
+				const eventA = a as { timestampMs?: unknown; id?: { eventSeq?: unknown } } | undefined;
+				const eventB = b as { timestampMs?: unknown; id?: { eventSeq?: unknown } } | undefined;
+				const ta = Number(eventA?.timestampMs ?? 0);
+				const tb = Number(eventB?.timestampMs ?? 0);
 				if (tb !== ta) return tb - ta;
 				try {
-					const ea = BigInt(a?.id?.eventSeq ?? '0');
-					const eb = BigInt(b?.id?.eventSeq ?? '0');
+					const ea = BigInt(String(eventA?.id?.eventSeq ?? '0'));
+					const eb = BigInt(String(eventB?.id?.eventSeq ?? '0'));
 					return eb > ea ? 1 : eb < ea ? -1 : 0;
 				} catch {
 					return 0;
 				}
 			});
-			const latest = filtered[0];
+			const latest = filtered[0] as
+				| {
+						parsedJson?: { amount?: unknown };
+						timestampMs?: unknown;
+						id?: { txDigest?: unknown };
+						transactionDigest?: unknown;
+				  }
+				| undefined;
 			const amount = (() => {
 				try {
-					return BigInt(latest?.parsedJson?.amount ?? 0);
+					return BigInt(String(latest?.parsedJson?.amount ?? 0));
 				} catch {
 					return 0n;
 				}
@@ -324,7 +403,7 @@
 		}
 	}
 
-	function getClaimState(prizeIndex) {
+	function getClaimState(prizeIndex: number) {
 		const spinTime = spinTimes[prizeIndex] ?? 0;
 		const now = nowMs;
 		const start = spinTime + delayMs;
@@ -336,7 +415,7 @@
 	}
 
 	// Precise relative formatter similar to Suivision (mins/secs granularity)
-	function formatRelativePreciseAt(tsMs, baseMs) {
+	function formatRelativePreciseAt(tsMs: number, baseMs: number) {
 		const ts = Number(tsMs || 0);
 		if (!Number.isFinite(ts) || ts <= 0) return '';
 		const diffSec = Math.max(0, Math.floor((baseMs - ts) / 1000));
@@ -356,15 +435,15 @@
 		return `${seconds} secs ago`;
 	}
 
-	function findWinner(idx) {
+	function findWinner(idx: number) {
 		try {
-			return winners.find(w => w.prize_index === idx);
+			return winners.find((w) => w.prize_index === idx);
 		} catch {
 			return null;
 		}
 	}
 
-	async function claim(prizeIndex) {
+	async function claim(prizeIndex: number) {
 		if (!account) {
 			error = t('wheelResult.errors.connectWalletToClaim');
 			return;
@@ -383,7 +462,10 @@
 			tx.transferObjects([claimedCoin], tx.pure.address(account?.address));
 
 			const res = await signAndExecuteTransaction(tx);
-			const digest = res?.digest ?? res?.effects?.transactionDigest;
+			const resObj = res as
+				| { digest?: string; effects?: { transactionDigest?: string } }
+				| undefined;
+			const digest = resObj?.digest ?? resObj?.effects?.transactionDigest;
 			if (!digest) throw new Error('Missing tx digest for claim');
 
 			// Wait for transaction to be confirmed on-chain
@@ -396,15 +478,17 @@
 			await fetchData(wheelId);
 			await fetchClaimEventsForWinner(wheelId);
 		} catch (e) {
-			error = e?.message || String(e);
+			error = (e as { message?: string })?.message || String(e);
 		} finally {
 			claimLoading = false;
-			toastInstance.dismiss();
+			if (toastInstance) {
+				toastInstance.dismiss();
+			}
 		}
 	}
 
 	// Format milliseconds to HH:MM:SS or Dd HH:MM:SS
-	function formatDuration(ms) {
+	function formatDuration(ms: number) {
 		try {
 			const total = Math.max(0, Math.floor(ms / 1000));
 			const days = Math.floor(total / 86400);
@@ -433,7 +517,7 @@
 		const allSpun =
 			Array.isArray(spinTimes) &&
 			spinTimes.length === prizeAmounts.length &&
-			spinTimes.every(v => Number(v) > 0);
+			spinTimes.every((v) => Number(v) > 0);
 		if (!allSpun) return false;
 		for (let i = 0; i < prizeAmounts.length; i++) {
 			const w = findWinner(i);
@@ -471,7 +555,10 @@
 			tx.transferObjects([coin], tx.pure.address(account.address));
 
 			const res = await signAndExecuteTransaction(tx);
-			const digest = res?.digest ?? res?.effects?.transactionDigest;
+			const resObj = res as
+				| { digest?: string; effects?: { transactionDigest?: string } }
+				| undefined;
+			const digest = resObj?.digest ?? resObj?.effects?.transactionDigest;
 			if (!digest) throw new Error('Missing tx digest for reclaim');
 
 			// Wait for transaction to be confirmed on-chain
@@ -485,7 +572,9 @@
 			await fetchReclaimEvents(wheelId);
 
 			if (lastReclaim.digest) {
-				toast.success(t('wheelResult.success.reclaimedPoolSuccessfully'), {
+				toast({
+					type: 'success',
+					message: t('wheelResult.success.reclaimedPoolSuccessfully'),
 					position: 'bottom-right',
 					durationMs: 1500,
 					button: {
@@ -502,7 +591,7 @@
 				});
 			}
 		} catch (e) {
-			error = e?.message || String(e);
+			error = (e as { message?: string })?.message || String(e);
 			// Parse error for user-friendly msg, e.g., if includes 'EReclaimTooEarly'
 			if (error.includes('EReclaimTooEarly')) {
 				error = t('wheelResult.errors.reclaimWindowNotYetOpen');
@@ -514,7 +603,7 @@
 		}
 	}
 
-	function isYou(addr) {
+	function isYou(addr: string) {
 		return String(account?.address || '').toLowerCase() === String(addr).toLowerCase();
 	}
 </script>
@@ -536,23 +625,23 @@
 	</div>
 
 	{#if error}
-		<div class="alert alert-error mb-4">{error}</div>
+		<div class="mb-4 alert alert-error">{error}</div>
 	{/if}
 
 	{#if loading}
 		<div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
 			<div class="lg:col-span-2">
 				<div class="space-y-3">
-					<div class="skeleton h-6 w-40"></div>
-					<div class="skeleton h-8 w-full"></div>
-					<div class="skeleton h-8 w-full"></div>
-					<div class="skeleton h-8 w-3/4"></div>
+					<div class="h-6 w-40 skeleton"></div>
+					<div class="h-8 w-full skeleton"></div>
+					<div class="h-8 w-full skeleton"></div>
+					<div class="h-8 w-3/4 skeleton"></div>
 				</div>
 			</div>
 			<div>
 				<div class="space-y-3">
-					<div class="skeleton h-6 w-32"></div>
-					<div class="skeleton h-24 w-full"></div>
+					<div class="h-6 w-32 skeleton"></div>
+					<div class="h-24 w-full skeleton"></div>
 				</div>
 			</div>
 		</div>
@@ -560,7 +649,7 @@
 		<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
 			<div class="order-2 overflow-x-auto lg:order-1 lg:col-span-2">
 				{#if lastReclaim.timestampMs > 0 && isOrganizer}
-					<div class="text-base-content/70 mb-4 text-xs">
+					<div class="mb-4 text-xs text-base-content/70">
 						{t('wheelResult.lastReclaim')}
 						<strong>{formatMistToSuiCompact(lastReclaim.amount)} SUI</strong>
 						{t('wheelResult.on')}
@@ -572,7 +661,7 @@
 						</span>
 						{#if lastReclaim.digest}
 							<a
-								class="link link-primary ml-2"
+								class="ml-2 link link-primary"
 								href={`${getExplorerLink('testnet', 'txblock', lastReclaim.digest)}`}
 								target="_blank"
 								rel="noopener noreferrer">{t('wheelResult.viewTx')}</a
@@ -584,7 +673,7 @@
 				<h2 class="mt-6 mb-3 text-lg font-semibold">
 					{t('wheelResult.winners')} ({winners.length})
 				</h2>
-				<div class="card bg-base-200 border-base-300 mb-6 border shadow-sm">
+				<div class="card mb-6 border border-base-300 bg-base-200 shadow-sm">
 					<div class="card-body p-0">
 						<div class="overflow-x-auto">
 							<table class="table">
@@ -601,14 +690,20 @@
 										<tr>
 											<td class="w-12">{i + 1}</td>
 											<td class="flex items-center gap-1">
-												<span class="text-primary font-mono">{formatMistToSuiCompact(m)}</span>
-												<span class="text-base-content/80 text-xs">SUI</span>
+												<span class="font-mono text-primary">{formatMistToSuiCompact(m)}</span>
+												<span class="text-xs text-base-content/80">SUI</span>
 											</td>
 											<td class="font-mono">
 												<div class="flex items-center">
-													{findWinner(i) ? shortenAddress(findWinner(i).addr) : '—'}
-													{#if findWinner(i) && isYou(findWinner(i).addr)}
-														<span class="badge badge-neutral badge-sm ml-2 text-xs opacity-70"
+													{(() => {
+														const winner = findWinner(i);
+														return winner ? shortenAddress(winner.addr) : '—';
+													})()}
+													{#if (() => {
+														const winner = findWinner(i);
+														return winner && isYou(winner.addr);
+													})()}
+														<span class="ml-2 badge badge-sm text-xs opacity-70 badge-neutral"
 															>{t('wheelResult.you')}</span
 														>
 													{/if}
@@ -637,7 +732,7 @@
 						({nonWinningEntries.length})
 					</h2>
 
-					<div class="card bg-base-200 border-base-300 mb-6 border shadow-sm">
+					<div class="card mb-6 border border-base-300 bg-base-200 shadow-sm">
 						<div class="card-body p-0">
 							<div class="overflow-x-auto">
 								<table class="table">
@@ -654,7 +749,7 @@
 												<td class="flex items-center font-mono"
 													>{@html highlightAddress(addr)}
 													{#if isYou(addr)}
-														<span class="badge badge-neutral badge-sm ml-2 text-xs opacity-70"
+														<span class="ml-2 badge badge-sm text-xs opacity-70 badge-neutral"
 															>{t('wheelResult.you')}</span
 														>
 													{/if}
@@ -669,22 +764,22 @@
 				{/if}
 			</div>
 			<div class="order-1 mb-4 lg:order-2 lg:mb-0">
-				<div class="card bg-base-200 border-base-300 border-1 shadow">
+				<div class="card border-1 border-base-300 bg-base-200 shadow">
 					<div class="card-body">
 						{#if isCancelled}
-							<div class="alert alert-soft dark:!border-warning alert-warning text-sm">
+							<div class="alert alert-soft text-sm alert-warning dark:!border-warning">
 								<span class="icon-[lucide--info] h-4 w-4"></span>
 								<span>{t('wheelResult.wheelCancelled')}</span>
 							</div>
 						{:else if !account}
-							<div class="alert alert-soft dark:!border-info alert-info text-sm">
+							<div class="alert alert-soft text-sm alert-info dark:!border-info">
 								<span class="icon-[lucide--info] h-4 w-4"></span>
 								<span>{t('wheelResult.connectWallet')}</span>
 							</div>
 						{:else if winnerInfo}
 							<h3 class="mb-2 text-lg font-semibold">{t('wheelResult.yourPrize')}</h3>
 							{#if winnerInfo.claimed}
-								<div class="alert alert-success mb-3 text-sm">
+								<div class="mb-3 alert text-sm alert-success">
 									<span class="icon-[lucide--party-popper] h-6 w-6"></span>
 									<p>
 										<strong class="mb-1 block">{t('wheelResult.congratulations')}</strong>
@@ -704,7 +799,7 @@
 												>
 												{#if lastClaim.digest}
 													<a
-														class="link link-primary hover:link-primary mt-1 flex items-center"
+														class="mt-1 flex link items-center link-primary hover:link-primary"
 														href={`${getExplorerLink('testnet', 'txblock', lastClaim.digest)}`}
 														target="_blank"
 														rel="noopener noreferrer"
@@ -718,18 +813,18 @@
 									</p>
 								</div>
 							{:else if getClaimState(winnerPrizeIndex).state === 'claimable'}
-								<div class="alert alert-success mb-3 text-sm">
+								<div class="mb-3 alert text-sm alert-success">
 									<span class="icon-[lucide--gift] h-4 w-4"></span>
 									<span>{t('wheelResult.congratulationsClaim')}</span>
 								</div>
 							{:else if getClaimState(winnerPrizeIndex).state === 'expired'}
-								<div class="alert alert-error mb-3 text-sm">
+								<div class="mb-3 alert text-sm alert-error">
 									<span class="icon-[lucide--circle-alert] h-4 w-4"></span>
 									<span>{t('wheelResult.claimExpired')}</span>
 								</div>
 							{/if}
 						{:else if remainingSpins > 0}
-							<div class="alert alert-info text-sm">
+							<div class="alert text-sm alert-info">
 								<span class="icon-[lucide--clock] h-4 w-4"></span>
 								<span>{t('wheelResult.wheelRunning')}</span>
 							</div>
@@ -761,7 +856,7 @@
 											{formatDuration(getClaimState(winnerPrizeIndex).startsInMs)}
 										</div>
 									{:else}
-										<div class="text-error text-xs">
+										<div class="text-xs text-error">
 											{t('wheelResult.claimExpiredOn')}
 											<strong
 												class="ml-1"
@@ -791,7 +886,7 @@
 				</div>
 
 				{#if wheelId}
-					<div class="card bg-base-200 border-base-300 mt-4 border-1 shadow">
+					<div class="card mt-4 border-1 border-base-300 bg-base-200 shadow">
 						<div class="card-body">
 							<div class="flex max-w-full items-center gap-2 text-sm">
 								<span class="mr-1 inline-block">{t('wheelResult.wheelId')}</span>
@@ -801,7 +896,7 @@
 								>
 								<ButtonCopy originText={wheelId} size="xs" className="ml-1 btn-soft" />
 								<a
-									class="btn btn-soft btn-xs flex items-center gap-1"
+									class="btn flex items-center gap-1 btn-soft btn-xs"
 									href={`${getExplorerLink('testnet', 'object', wheelId)}`}
 									target="_blank"
 									rel="noopener noreferrer"
@@ -813,17 +908,17 @@
 							<div class="mt-1 flex flex-wrap items-center gap-2 text-sm">
 								{t('wheelResult.status')}
 								{#if isCancelled}
-									<span class="badge badge-warning badge-sm"
+									<span class="badge badge-sm badge-warning"
 										><span class="icon-[lucide--circle-x]"></span>
 										{t('wheelList.status.cancelled')}</span
 									>
 								{:else if remainingSpins > 0}
-									<span class="badge badge-primary badge-sm"
+									<span class="badge badge-sm badge-primary"
 										><span class="icon-[lucide--clock]"></span>
 										{t('wheelList.status.running')}</span
 									>
 								{:else}
-									<span class="badge badge-success badge-sm"
+									<span class="badge badge-sm badge-success"
 										><span class="icon-[lucide--check]"></span>
 										{t('wheelList.status.finished')}</span
 									>
@@ -835,7 +930,7 @@
 									{t('wheelResult.remainingPoolBalance')}
 									<div class="flex items-center gap-1 font-mono font-semibold">
 										<span class="text-primary">{formatMistToSuiCompact(poolBalanceMist)}</span>
-										<span class="text-base-content/80 text-xs">SUI</span>
+										<span class="text-xs text-base-content/80">SUI</span>
 									</div>
 								</div>
 								{#if account && isOrganizer && canOrganizerReclaim() && poolBalanceMist > 0n}
@@ -853,7 +948,7 @@
 							{#if wheelCreatedAtMs > 0 && !isNaN(new Date(wheelCreatedAtMs).getTime())}
 								<div class="mt-1 flex items-center gap-1 text-sm">
 									<span>{t('wheelResult.created')} </span>
-									<span class="text-base-content/80 text-xs"
+									<span class="text-xs text-base-content/80"
 										>{format(wheelCreatedAtMs, "MMMM d, yyyy 'at' h:mm a")}</span
 									>
 								</div>

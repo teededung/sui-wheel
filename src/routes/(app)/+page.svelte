@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { onMount } from 'svelte';
 	import { watch, StateHistory } from 'runed';
 	import { page } from '$app/state';
@@ -46,7 +46,10 @@
 	const t = useTranslation();
 	const suiClient = $derived(useSuiClient());
 	const account = $derived(useCurrentAccount());
-	let isOnTestnet = $derived.by(() => isTestnet(account));
+	let isOnTestnet = $derived.by(() => {
+		if (!account || !account.chains) return false;
+		return isTestnet({ chains: account.chains });
+	});
 
 	// Get current language for date-fns locale
 	const languageContext = getLanguageContext();
@@ -80,38 +83,42 @@
 	// View/Edit and on-chain fetched state
 	let isEditing = $state(false);
 	let wheelFetched = $state(false);
-	let entriesOnChain = $state([]);
-	let prizesOnChainMist = $state([]);
+	let entriesOnChain = $state<string[]>([]);
+	let prizesOnChainMist = $state<bigint[]>([]);
 	let spunCountOnChain = $state(0);
 	let delayMsOnChain = $state(0);
 	let claimWindowMsOnChain = $state(0);
 	let poolBalanceMistOnChain = $state(0n);
-	let winnersOnChain = $state([]);
-	let spinTimesOnChain = $state([]);
+	let winnersOnChain = $state<Array<{ addr: string; prize_index: number }>>([]);
+	let spinTimesOnChain = $state<number[]>([]);
 	let organizerAddress = $state('');
 
 	// Cancellation state
 	let isCancelled = $state(false);
 
 	// Off-chain winners history (only for off-chain wheels) -----------------------------
-	let offchainWinners = $state([]);
+	let offchainWinners = $state<string[]>([]);
 
 	// StateHistory to track off-chain winners
 	const offchainWinnersHistory = new StateHistory(
 		() => offchainWinners,
-		value => {
+		(value) => {
 			offchainWinners = value;
 		}
 	);
 
 	// Get current winners from history log
 	const currentWinnersFromHistory = $derived.by(() => {
-		return offchainWinnersHistory.log.at(-1)?.snapshot || [];
+		const snapshot = offchainWinnersHistory.log.at(-1)?.snapshot || [];
+		// Transform string array to objects with address and timestamp
+		return snapshot.map((address: string, index: number) => ({
+			address,
+			timestamp: Date.now() - (snapshot.length - index - 1) * 1000 // Approximate timestamp
+		}));
 	});
 
 	// Real-time clock for history timestamps
 	let currentTime = $state(Date.now());
-	let historyTimer = $state(null);
 	// -------------------------------------------------------------------------------------
 
 	// QR code URL for results link when wheel is finished
@@ -152,7 +159,7 @@
 	let cancelLoading = $state(false);
 
 	// Real-time entry updates
-	let entryPollingInterval = $state(null);
+	let entryPollingInterval = $state<ReturnType<typeof setInterval> | null>(null);
 	let lastEntryCount = $state(0);
 	let onlineEntriesCount = $state(0);
 
@@ -191,36 +198,32 @@
 	let wheelTempId = $state(''); // Temporary ID for online entries before wheel creation
 
 	let spinning = $state(false);
-	let entriesTextareaEl = $state(null);
+	let entriesTextareaEl = $state<HTMLTextAreaElement | null>(null);
 	let entriesText = $state('');
 
 	// Duplicate entries tracking
-	let duplicateEntries = $state([]);
+	let duplicateEntries = $state<Array<{ entry: string; count: number }>>([]);
 
 	// Index order state: maps current `entries` positions -> original indices in `entriesOnChain`
-	let shuffledIndexOrder = $state([]);
+	let shuffledIndexOrder = $state<number[]>([]);
 
 	// Expose helpers to Wheel component via context
-	function setWheelSpinning(v) {
+	function setWheelSpinning(v: boolean) {
 		spinning = Boolean(v);
 	}
 
 	// Handle off-chain winner (called from Wheel component)
-	function handleOffchainWinner(winnerAddress) {
+	function handleOffchainWinner(winnerAddress: string) {
 		if (!createdWheelId && winnerAddress) {
-			const newWinner = {
-				address: String(winnerAddress),
-				timestamp: Date.now()
-			};
-			offchainWinners = [...offchainWinners, newWinner];
+			offchainWinners = [...offchainWinners, winnerAddress];
 			// Timer will auto-start via watch on currentWinnersFromHistory.length
 		}
 	}
 
 	// Remove entry value from entries array
-	function removeEntryValue(value) {
+	function removeEntryValue(value: string) {
 		const v = String(value ?? '').trim();
-		entries = entries.filter(entry => String(entry ?? '').trim() !== v);
+		entries = entries.filter((entry) => String(entry ?? '').trim() !== v);
 		entriesText = entries.join('\n');
 	}
 
@@ -230,22 +233,22 @@
 	);
 
 	let invalidEntriesCount = $derived.by(() => {
-		const lines = entries.map(s => String(s ?? '').trim()).filter(s => s.length > 0);
-		return lines.filter(s => !isValidSuiAddress(s)).length;
+		const lines = entries.map((s) => String(s ?? '').trim()).filter((s) => s.length > 0);
+		return lines.filter((s) => !isValidSuiAddress(s)).length;
 	});
 
 	let uniqueValidEntriesCount = $derived.by(() => {
 		const valid = entries
-			.map(s => String(s ?? '').trim())
-			.filter(s => s.length > 0 && isValidSuiAddress(s))
-			.map(s => s.toLowerCase());
+			.map((s) => String(s ?? '').trim())
+			.filter((s) => s.length > 0 && isValidSuiAddress(s))
+			.map((s) => s.toLowerCase());
 		return new Set(valid).size;
 	});
 
-	let prizesCount = $derived.by(() => prizeAmounts.filter(v => parseSuiToMist(v) > 0n).length);
+	let prizesCount = $derived.by(() => prizeAmounts.filter((v) => parseSuiToMist(v) > 0n).length);
 
 	let invalidPrizeAmountsCount = $derived.by(() => {
-		return prizeAmounts.filter(v => {
+		return prizeAmounts.filter((v) => {
 			const mist = parseSuiToMist(v);
 			return mist > 0n && mist < MINIMUM_PRIZE_AMOUNT.MIST;
 		}).length;
@@ -256,7 +259,9 @@
 		if (!account) return false;
 		if (suiBalanceLoading?.value) return false;
 		try {
-			return suiBalance.value - 1_000_000_000 < totalDonationMist;
+			const balance = suiBalance.value;
+			if (balance == null) return false;
+			return Number(balance) - 1_000_000_000 < Number(totalDonationMist);
 		} catch {
 			return false;
 		}
@@ -298,21 +303,21 @@
 		prizeAmounts = [...prizeAmounts, ''];
 	}
 
-	function removePrize(idx) {
+	function removePrize(idx: number) {
 		if (prizeAmounts.length <= 1) return;
 		prizeAmounts = prizeAmounts.filter((_, i) => i !== idx);
 	}
 
-	function updatePrizeAmount(index, value) {
+	function updatePrizeAmount(index: number, value: string) {
 		prizeAmounts = prizeAmounts.map((v, i) => (i === index ? value : v));
 	}
 
-	function handlePrizeKeydown(index, e) {
+	function handlePrizeKeydown(index: number, e: KeyboardEvent) {
 		if (e.key === 'Enter') {
 			e.preventDefault();
 			addPrize();
 			setTimeout(() => {
-				const els = document.querySelectorAll('.prize-input');
+				const els = document.querySelectorAll<HTMLInputElement>('.prize-input');
 				const el = els[els.length - 1];
 				if (el && typeof el.focus === 'function') el.focus();
 			}, 0);
@@ -321,8 +326,8 @@
 
 	function getAddressEntries() {
 		return entries
-			.map(s => String(s ?? '').trim())
-			.filter(s => s.length > 0 && isValidSuiAddress(s));
+			.map((s) => String(s ?? '').trim())
+			.filter((s) => s.length > 0 && isValidSuiAddress(s));
 	}
 
 	function validateSetup() {
@@ -335,15 +340,15 @@
 		if (addrList.length < 2) errors.push(t('main.errors.atLeast2Addresses'));
 		if (addrList.length > MAX_ENTRIES)
 			errors.push(t('main.errors.entriesCountLimit', { maxEntries: MAX_ENTRIES }));
-		const prizesCount = prizeAmounts.filter(v => parseSuiToMist(v) > 0n).length;
+		const prizesCount = prizeAmounts.filter((v) => parseSuiToMist(v) > 0n).length;
 		if (prizesCount === 0) errors.push(t('main.errors.addAtLeast1Prize'));
 		if (addrList.length < prizesCount) errors.push(t('main.errors.entriesMustBeGreaterThanPrizes'));
 		// unique addresses check
-		const uniqueCount = new Set(addrList.map(a => a.toLowerCase())).size;
+		const uniqueCount = new Set(addrList.map((a) => a.toLowerCase())).size;
 		if (uniqueCount < prizesCount)
 			errors.push(t('main.errors.uniqueAddressCountMustBeGreaterThanPrizes'));
 		// Check minimum prize amount
-		const invalidPrizes = prizeAmounts.filter(v => {
+		const invalidPrizes = prizeAmounts.filter((v) => {
 			const mist = parseSuiToMist(v);
 			return mist > 0n && mist < MINIMUM_PRIZE_AMOUNT.MIST;
 		});
@@ -364,7 +369,7 @@
 		setupLoading = true;
 		try {
 			const addrList = getAddressEntries();
-			const prizeMistList = prizeAmounts.map(v => parseSuiToMist(v)).filter(v => v > 0n);
+			const prizeMistList = prizeAmounts.map((v) => parseSuiToMist(v)).filter((v) => v > 0n);
 			const total = totalDonationMist;
 			if (total <= 0n) throw new Error(t('main.errors.totalDonationMustBeGreaterThan0'));
 
@@ -409,17 +414,19 @@
 				options: { showObjectChanges: true, showInput: true }
 			});
 			const created = (txBlock?.objectChanges || []).find(
-				ch =>
+				(ch) =>
 					ch.type === 'created' && String(ch.objectType || '').endsWith(`::${WHEEL_MODULE}::Wheel`)
 			);
 
-			const finalWheelId = created?.objectId;
+			const finalWheelId = (created as { objectId?: string })?.objectId;
 			if (!finalWheelId) throw new Error(t('main.errors.wheelObjectIdNotFound'));
 
 			setupSuccessMsg = t('main.success.wheelCreatedAndFunded');
 
 			// Notify and update current URL with wheelId param so reload keeps context
-			toast.success(t('main.success.wheelCreatedAndFundedSuccessfully'), {
+			toast({
+				type: 'success',
+				message: t('main.success.wheelCreatedAndFundedSuccessfully'),
 				position: 'bottom-right',
 				durationMs: 5000,
 				button: {
@@ -435,22 +442,30 @@
 			params.update({ wheelId: finalWheelId });
 
 			// Parse inputs directly from txBlock to extract used data for create_wheel
-			const inputs = txBlock?.transaction?.data?.transaction?.inputs ?? [];
+			const txData = txBlock?.transaction?.data as
+				| { transaction?: { inputs?: unknown[] } }
+				| undefined;
+			const inputs = (txData?.transaction?.inputs ?? []) as Array<{
+				value?: unknown;
+				valueType?: unknown;
+			}>;
 
 			// 0: u64 donation, the coin split from gas
-			const totalDonationStr = inputs?.[0]?.value ?? '0';
+			const totalDonationStr = (inputs?.[0] as { value?: unknown })?.value ?? '0';
 
 			// 1: vector<address> - this is the entries list in the correct order
+			const input1 = inputs?.[1] as { value?: unknown[]; valueType?: unknown } | undefined;
 			const orderedEntries =
-				Array.isArray(inputs?.[1]?.valueType) && inputs?.[1]?.valueType === 'vector<address>'
-					? inputs?.[1]?.value?.map(String)
-					: Array.isArray(inputs?.[1]?.value)
-						? inputs?.[1]?.value?.map(String)
+				typeof input1?.valueType === 'string' && input1?.valueType === 'vector<address>'
+					? (input1?.value ?? []).map(String)
+					: Array.isArray(input1?.value)
+						? input1.value.map(String)
 						: [];
 
 			// 2: vector<u64> - the list of prize amounts (mist)
-			const prizesMistFromInputs = Array.isArray(inputs?.[2]?.value)
-				? inputs[2].value.map(v => Number(v))
+			const input2 = inputs?.[2] as { value?: unknown[] } | undefined;
+			const prizesMistFromInputs = Array.isArray(input2?.value)
+				? input2.value.map((v: unknown) => Number(v))
 				: [];
 
 			// Send directly to API to persist in DB
@@ -479,8 +494,11 @@
 				console.error('Failed to persist wheel to Supabase:', persistErr);
 			}
 		} catch (e) {
-			setupError = e?.message || String(e);
-			toast.error(setupError || t('main.errors.failedToGetTransactionDigest'), {
+			const error = e as { message?: string } | Error;
+			setupError = error?.message || String(e);
+			toast({
+				type: 'error',
+				message: setupError || t('main.errors.failedToGetTransactionDigest'),
 				position: 'bottom-right'
 			});
 		} finally {
@@ -491,17 +509,21 @@
 	/**
 	 * Fetch wheel data from testnet by createdWheelId and populate read-only state
 	 */
-	async function getEntriesForFinishedWheel(wheelId, winnersList, entriesOnChainList) {
+	async function getEntriesForFinishedWheel(
+		wheelId: string,
+		winnersList: Array<{ addr: string }>,
+		entriesOnChainList: string[]
+	): Promise<string[]> {
 		try {
 			const resp = await fetch(`/api/wheels?wheelId=${encodeURIComponent(wheelId)}`);
 			if (resp?.ok) {
-				const data = await resp.json();
+				const data = (await resp.json()) as { entries?: string[] };
 				console.log(data);
 				const dbEntries = Array.isArray(data?.entries) ? data.entries.map(String) : [];
 				if (dbEntries.length > 0) return dbEntries;
 			}
 		} catch {}
-		const winnerAddresses = winnersList.map(w => w.addr);
+		const winnerAddresses = winnersList.map((w: { addr: string }) => w.addr);
 		return [...winnerAddresses, ...entriesOnChainList];
 	}
 
@@ -520,7 +542,7 @@
 				errorMsg = t('main.errors.wheelNotFound');
 				return;
 			}
-			const f = content.fields || {};
+			const f = (content as { fields?: Record<string, unknown> }).fields || {};
 
 			// Cancellation flag
 			isCancelled = Boolean(f['is_cancelled']);
@@ -529,27 +551,43 @@
 			organizerAddress = String(f['organizer'] || '');
 
 			// Entries (addresses)
-			entriesOnChain = (f['remaining_entries'] || []).map(v => String(v));
+			entriesOnChain = ((f['remaining_entries'] as unknown[]) || []).map((v: unknown) => String(v));
 
 			// Prizes (mist amounts)
-			prizesOnChainMist = (f['prize_amounts'] || []).map(v => {
+			prizesOnChainMist = ((f['prize_amounts'] as unknown[]) || []).map((v: unknown) => {
 				try {
-					return BigInt(v);
+					if (
+						typeof v === 'string' ||
+						typeof v === 'number' ||
+						typeof v === 'bigint' ||
+						typeof v === 'boolean'
+					) {
+						return BigInt(v);
+					}
+					return 0n;
 				} catch {
 					return 0n;
 				}
 			});
 
 			// Winners list
-			winnersOnChain = (f['winners'] || []).map(w => ({
-				addr: String(w?.fields?.addr ?? w?.addr ?? ''),
-				prize_index: Number(w?.fields?.prize_index ?? w?.prize_index ?? 0),
-				claimed: Boolean(w?.fields?.claimed ?? w?.claimed ?? false)
-			}));
+			winnersOnChain = ((f['winners'] as unknown[]) || []).map((w: unknown) => {
+				const winner = w as {
+					fields?: { addr?: unknown; prize_index?: unknown; claimed?: unknown };
+					addr?: unknown;
+					prize_index?: unknown;
+					claimed?: unknown;
+				};
+				return {
+					addr: String(winner?.fields?.addr ?? winner?.addr ?? ''),
+					prize_index: Number(winner?.fields?.prize_index ?? winner?.prize_index ?? 0),
+					claimed: Boolean(winner?.fields?.claimed ?? winner?.claimed ?? false)
+				};
+			});
 
 			// Spin times (ms since epoch) aligned with prize indices
 			try {
-				spinTimesOnChain = (f['spin_times'] || []).map(v => Number(v));
+				spinTimesOnChain = ((f['spin_times'] as unknown[]) || []).map((v: unknown) => Number(v));
 			} catch {
 				spinTimesOnChain = [];
 			}
@@ -577,10 +615,27 @@
 						poolMist = BigInt(v);
 						break;
 					}
-					if (typeof v === 'object') {
+					if (typeof v === 'object' && v !== null) {
+						const vObj = v as {
+							fields?: {
+								balance?: { fields?: { value?: unknown } };
+								value?: unknown;
+							};
+							value?: unknown;
+							balance?: unknown;
+						};
 						const val =
-							v?.fields?.balance?.fields?.value ?? v?.fields?.value ?? v?.value ?? v?.balance;
-						if (val != null) {
+							vObj?.fields?.balance?.fields?.value ??
+							vObj?.fields?.value ??
+							vObj?.value ??
+							vObj?.balance;
+						if (
+							val != null &&
+							(typeof val === 'string' ||
+								typeof val === 'number' ||
+								typeof val === 'bigint' ||
+								typeof val === 'boolean')
+						) {
 							poolMist = BigInt(val);
 							break;
 						}
@@ -592,7 +647,7 @@
 			poolBalanceMistOnChain = poolMist;
 
 			// Sync form states for edit mode convenience
-			const lowerWinners = winnersOnChain.map(w => w.addr.toLowerCase());
+			const lowerWinners = winnersOnChain.map((w) => w.addr.toLowerCase());
 			let newEntries = [];
 
 			// Show entries after the wheel is finished
@@ -610,7 +665,7 @@
 			entries = newEntries;
 			entriesText = entries.join('\n');
 
-			prizeAmounts = prizesOnChainMist.map(m => formatMistToSuiCompact(m));
+			prizeAmounts = prizesOnChainMist.map((m) => formatMistToSuiCompact(m));
 			delayMs = delayMsOnChain;
 			claimWindowMs = claimWindowMsOnChain;
 
@@ -643,14 +698,15 @@
 			isEditing = false;
 			await fetchWheelFromChain();
 		} catch (e) {
-			setupError = e?.message || String(e);
+			const error = e as { message?: string } | Error;
+			setupError = error?.message || String(e);
 		} finally {
 			updateLoading = false;
 		}
 	}
 
 	async function cancelWheel() {
-		if (!createdWheelId) return;
+		if (!createdWheelId || !account) return;
 		cancelLoading = true;
 		setupError = '';
 
@@ -677,13 +733,17 @@
 			const digest = res?.digest ?? res?.effects?.transactionDigest;
 			if (!digest) {
 				setupError = t('main.errors.failedToCancelWheel');
-				toast.error(setupError || t('main.errors.failedToCancelWheel'), {
+				toast({
+					type: 'error',
+					message: setupError || t('main.errors.failedToCancelWheel'),
 					position: 'bottom-right'
 				});
 				return;
 			}
 			setupSuccessMsg = t('main.success.wheelCancelledAndPoolReclaimed');
-			toast.success(t('main.success.wheelCancelledSuccessfully'), {
+			toast({
+				type: 'success',
+				message: t('main.success.wheelCancelledSuccessfully'),
 				position: 'bottom-right',
 				durationMs: 3000,
 				button: {
@@ -698,33 +758,34 @@
 			// Fetch wheel from chain again
 			isCancelled = true;
 		} catch (e) {
-			setupError = e?.message || String(e);
+			const error = e as { message?: string } | Error;
+			setupError = error?.message || String(e);
 		} finally {
 			cancelLoading = false;
 		}
 	}
 
 	// Import entries from X (Twitter) post
-	let xImportDialogEl = $state(null);
-	let xImportInputEl = $state(null);
+	let xImportDialogEl = $state<HTMLDialogElement | null>(null);
+	let xImportInputEl = $state<HTMLInputElement | null>(null);
 	let xImportInput = $state('');
 	let xImportLoading = $state(false);
 
 	// Online entry form modal
-	let entryFormModalEl = $state(null);
-	let entryFormModalType = $state('address'); // 'address', 'name', 'email'
+	let entryFormModalEl = $state<HTMLDialogElement | null>(null);
+	let entryFormModalType = $state<'address' | 'name' | 'email'>('address');
 	let entryFormModalEnabled = $state(false);
-	let entryFormModalName = $state(''); // Wheel name for entry form
-	let entryFormModalDuration = $state(3); // Duration in minutes, default 3
-	let entryFormEndTime = $state(null); // End time timestamp
-	let entryFormTimer = $state(null); // Timer reference
-	let remainingTime = $state(0); // Remaining time in seconds
+	let entryFormModalName = $state('');
+	let entryFormModalDuration = $state(3);
+	let entryFormEndTime = $state<number | null>(null);
+	let entryFormTimer = $state<ReturnType<typeof setInterval> | null>(null);
+	let remainingTime = $state(0);
 
 	// QR Lightbox modal
-	let qrLightboxEl = $state(null);
+	let qrLightboxEl = $state<HTMLDialogElement | null>(null);
 	let qrLightboxUrl = $state('');
 	let qrLightboxTitle = $state('');
-	function openQRLightbox(url, title) {
+	function openQRLightbox(url: string, title: string) {
 		try {
 			qrLightboxUrl = url || '';
 			qrLightboxTitle = title || 'QR';
@@ -747,7 +808,7 @@
 				xImportDialogEl.showModal();
 
 				// insert delay
-				await new Promise(resolve => setTimeout(resolve, 100));
+				await new Promise((resolve) => setTimeout(resolve, 100));
 
 				// focus on input
 				if (xImportInputEl && typeof xImportInputEl.focus === 'function') {
@@ -782,7 +843,7 @@
 			const wheelId = wheelTempId;
 			if (wheelId) {
 				fetch(`/api/submit-entry?wheelId=${wheelId}&duration=${entryFormModalDuration}`).catch(
-					error => console.error('Error registering wheel metadata:', error)
+					(error) => console.error('Error registering wheel metadata:', error)
 				);
 			}
 		}
@@ -820,7 +881,7 @@
 		const wheelId = wheelTempId;
 		if (wheelId) {
 			// Clear data from API
-			fetch(`/api/submit-entry?wheelId=${wheelId}&clear=true`).catch(error =>
+			fetch(`/api/submit-entry?wheelId=${wheelId}&clear=true`).catch((error) =>
 				console.error('Error clearing entry data:', error)
 			);
 		}
@@ -848,7 +909,11 @@
 		entryFormEndTime = null;
 		remainingTime = 0;
 
-		toast.success(t('main.success.onlineEntriesDisabled'), { position: 'top-right' });
+		toast({
+			type: 'success',
+			message: t('main.success.onlineEntriesDisabled'),
+			position: 'top-right'
+		});
 	}
 
 	function generateWheelTempId() {
@@ -874,15 +939,18 @@
 			}
 
 			if (data?.addresses.length === 0) {
-				toast.error(t('main.notifications.noEntriesFoundInXPost'), { position: 'top-right' });
+				toast({
+					type: 'error',
+					message: t('main.notifications.noEntriesFoundInXPost'),
+					position: 'top-right'
+				});
 			} else {
-				toast.success(
-					t('main.success.importedEntriesFromXPost', { count: data?.addresses.length }),
-					{
-						title: t('main.success.imported'),
-						position: 'top-right'
-					}
-				);
+				toast({
+					type: 'success',
+					message: t('main.success.importedEntriesFromXPost', { count: data?.addresses.length }),
+					title: t('main.success.imported'),
+					position: 'top-right'
+				});
 				// console.log('X post import result:', data);
 
 				entriesText = data?.addresses.join('\n') || '';
@@ -896,7 +964,10 @@
 				// Ignore close errors
 			}
 		} catch (e) {
-			toast.error(e?.message || t('main.notifications.failedToImportXPost'), {
+			const error = e as { message?: string } | Error;
+			toast({
+				type: 'error',
+				message: error?.message || t('main.notifications.failedToImportXPost'),
 				position: 'top-right'
 			});
 		} finally {
@@ -915,7 +986,9 @@
 	// Watch for wheelId changes and fetch wheel data reactively
 	watch(
 		() => params.wheelId,
-		() => fetchWheelFromChain()
+		() => {
+			void fetchWheelFromChain();
+		}
 	);
 
 	// Watch for entry form enable/disable
@@ -967,7 +1040,7 @@
 				return;
 			}
 
-			const data = await response.json().catch(error => {
+			const data = await response.json().catch((error) => {
 				console.error('Failed to parse JSON response:', error);
 				return { success: false, message: 'Invalid response format' };
 			});
@@ -982,7 +1055,7 @@
 					let addedCount = 0;
 
 					// Add new entries to local list (avoid duplicates and respect MAX_ENTRIES limit)
-					newEntries.forEach(newEntry => {
+					newEntries.forEach((newEntry: string) => {
 						if (!entries.includes(newEntry) && entries.length < MAX_ENTRIES) {
 							entries = [...entries, newEntry];
 							addedCount++;
@@ -995,7 +1068,7 @@
 					// Show notification only if entries were actually added
 					if (addedCount > 0) {
 						// Format new entries for display
-						const formattedEntries = newEntries.slice(0, addedCount).map(entry => {
+						const formattedEntries = newEntries.slice(0, addedCount).map((entry: string) => {
 							return isValidSuiAddress(entry) ? shortenAddress(entry) : entry;
 						});
 
@@ -1004,7 +1077,9 @@
 								? formattedEntries.join(', ')
 								: `${formattedEntries.slice(0, 3).join(', ')} and ${formattedEntries.length - 3} more`;
 
-						toast.success(entriesList, {
+						toast({
+							type: 'success',
+							message: entriesList,
 							title: t('main.notifications.newEntriesAdded', {
 								count: addedCount,
 								plural: addedCount === 1 ? 'y' : 'ies'
@@ -1041,7 +1116,9 @@
 
 		// Initialize lastEntryCount to 0 to catch all existing entries
 		lastEntryCount = 0;
-		entryPollingInterval = setInterval(checkForNewEntries, 5000); // Check every 5 seconds
+		entryPollingInterval = setInterval(checkForNewEntries, 5000) as ReturnType<
+			typeof setInterval
+		> | null; // Check every 5 seconds
 	}
 
 	function stopEntryPolling() {
@@ -1057,12 +1134,13 @@
 	});
 
 	// Start/stop history timer
+	let historyTimer = $state<ReturnType<typeof setInterval> | null>(null);
 	function startHistoryTimer() {
 		if (historyTimer) return;
 		if (currentWinnersFromHistory.length === 0) return;
 		historyTimer = setInterval(() => {
 			currentTime = Date.now();
-		}, 1000); // Update every second
+		}, 1000) as ReturnType<typeof setInterval>; // Update every second
 	}
 
 	function stopHistoryTimer() {
@@ -1116,8 +1194,11 @@
 
 	function handleShuffle() {
 		if (spinning) return;
-		entries = shuffleArray(entries);
-		entriesText = entries.join('\n');
+		const shuffled = shuffleArray(entries);
+		if (shuffled) {
+			entries = shuffled;
+			entriesText = entries.join('\n');
+		}
 		// Update index order vs on-chain list and log
 		if (createdWheelId && wheelFetched) {
 			shuffledIndexOrder = computeShuffledIndexOrder(entriesOnChain, entries);
@@ -1131,12 +1212,12 @@
 		shuffledIndexOrder = [];
 	}
 
-	function onEntriesTextChange(text) {
+	function onEntriesTextChange(text: string) {
 		if (spinning) return;
 		const list = text
 			.split('\n')
-			.map(s => s.trim())
-			.filter(s => s.length > 0);
+			.map((s: string) => s.trim())
+			.filter((s: string) => s.length > 0);
 		if (arraysShallowEqual(entries, list)) {
 			return;
 		}
@@ -1144,8 +1225,8 @@
 	}
 
 	function updateDuplicateEntries() {
-		const entryCount = {};
-		entries.forEach(entry => {
+		const entryCount: Record<string, number> = {};
+		entries.forEach((entry: string) => {
 			const trimmed = entry.trim();
 			if (trimmed) {
 				entryCount[trimmed] = (entryCount[trimmed] || 0) + 1;
@@ -1154,7 +1235,7 @@
 
 		// Filter entries that appear more than once
 		const duplicates = Object.entries(entryCount)
-			.filter(([entry, count]) => count > 1)
+			.filter(([, count]) => count > 1)
 			.map(([entry, count]) => ({ entry, count }))
 			.sort((a, b) => b.count - a.count); // Sort by count descending
 
@@ -1162,10 +1243,10 @@
 	}
 
 	// Compute mapping from current entries to on-chain baseline indices
-	function computeShuffledIndexOrder(baselineList, currentList) {
+	function computeShuffledIndexOrder(baselineList: string[], currentList: string[]): number[] {
 		try {
-			const baseline = (baselineList || []).map(v => String(v ?? ''));
-			const current = (currentList || []).map(v => String(v ?? ''));
+			const baseline = (baselineList || []).map((v: unknown) => String(v ?? ''));
+			const current = (currentList || []).map((v: unknown) => String(v ?? ''));
 			// Build queues of original indices for each value (handles duplicates)
 			const queues = new Map();
 			for (let i = 0; i < baseline.length; i++) {
@@ -1212,8 +1293,8 @@
 {#snippet showDuplicateEntries()}
 	{#if duplicateEntries.length > 0}
 		<div class="mt-4">
-			<h4 class="text-base-content/70 mb-2 text-sm font-semibold">{t('main.duplicateEntries')}</h4>
-			<div class="bg-base-300 flex max-h-32 flex-col gap-1 overflow-y-auto rounded-lg p-2">
+			<h4 class="mb-2 text-sm font-semibold text-base-content/70">{t('main.duplicateEntries')}</h4>
+			<div class="flex max-h-32 flex-col gap-1 overflow-y-auto rounded-lg bg-base-300 p-2">
 				{#each duplicateEntries as duplicate}
 					<div class="flex items-center justify-between gap-2 text-sm">
 						<span class="flex-1 truncate font-medium">
@@ -1221,7 +1302,7 @@
 								? shortenAddress(duplicate.entry)
 								: duplicate.entry}
 						</span>
-						<span class="badge badge-secondary badge-sm">{duplicate.count}x</span>
+						<span class="badge badge-sm badge-secondary">{duplicate.count}x</span>
 					</div>
 				{/each}
 			</div>
@@ -1229,7 +1310,7 @@
 	{/if}
 {/snippet}
 
-{#snippet entriesTable(entriesList, showActions = false, shortAddress = true)}
+{#snippet entriesTable(entriesList: string[], showActions = false, shortAddress = true)}
 	{#if entriesList.length > 0}
 		<div class="overflow-x-auto">
 			<div class="relative">
@@ -1238,7 +1319,7 @@
 					class:max-h-64={!tableExpanded}
 					class:max-h-none={tableExpanded}
 				>
-					<table class="table-zebra table-sm table">
+					<table class="table table-zebra table-sm">
 						<thead>
 							<tr>
 								<th>#</th>
@@ -1262,7 +1343,7 @@
 									{#if showActions}
 										<td>
 											<button
-												class="btn btn-xs btn-error btn-soft"
+												class="btn btn-soft btn-xs btn-error"
 												onclick={() => removeEntryValue(addr)}
 												disabled={spinning}
 												aria-label="Remove entry"
@@ -1280,7 +1361,7 @@
 				{#if entriesList.length > 8}
 					<div class="absolute right-0 bottom-0 left-0 flex justify-center pb-2">
 						<button
-							class="btn btn-xs btn-primary btn-soft shadow-lg"
+							class="btn shadow-lg btn-soft btn-xs btn-primary"
 							onclick={() => (tableExpanded = !tableExpanded)}
 							aria-label={tableExpanded ? 'Collapse table' : 'Expand table'}
 						>
@@ -1313,7 +1394,7 @@
 				{remainingSpins}
 				{isCancelled}
 				{entryFormEnabled}
-				accountFromWallet={account}
+				accountFromWallet={Boolean(account)}
 				{isNotOrganizer}
 				{shuffledIndexOrder}
 			/>
@@ -1351,18 +1432,18 @@
 											)}
 											target="_blank"
 											rel="noopener noreferrer"
-											class="link link-primary font-mono"
+											class="link font-mono link-primary"
 										>
 											{shortenAddress(createdWheelId)}
 										</a></span
 									>
 									{#if remainingSpins === 0}
-										<span class="badge badge-success badge-sm whitespace-nowrap"
+										<span class="badge badge-sm whitespace-nowrap badge-success"
 											><span class="icon-[lucide--check]"></span> {t('main.finished')}</span
 										>
 									{/if}
 									{#if isCancelled}
-										<span class="badge badge-warning badge-sm whitespace-nowrap"
+										<span class="badge badge-sm whitespace-nowrap badge-warning"
 											><span class="icon-[lucide--circle-x]"></span> {t('main.cancelled')}</span
 										>
 									{/if}
@@ -1372,7 +1453,7 @@
 									<!-- New wheel button -->
 									{#if (!isEditing && remainingSpins === 0) || isCancelled}
 										<button
-											class="btn btn-primary btn-sm"
+											class="btn btn-sm btn-primary"
 											onclick={() => {
 												params.update({ wheelId: undefined });
 												wheelFetched = false;
@@ -1432,13 +1513,13 @@
 						{#if createdWheelId && !wheelFetched && !isEditing}
 							<!-- Loading state to avoid flicker before on-chain data replaces off-chain forms -->
 							<div class="space-y-3">
-								<div class="skeleton h-8 w-40"></div>
-								<div class="skeleton h-32 w-full"></div>
-								<div class="skeleton h-8 w-56"></div>
+								<div class="h-8 w-40 skeleton"></div>
+								<div class="h-32 w-full skeleton"></div>
+								<div class="h-8 w-56 skeleton"></div>
 							</div>
 						{:else}
 							<!-- Tabs -->
-							<div class="tabs tabs-lift">
+							<div class="tabs-lift tabs">
 								<input
 									type="radio"
 									name="wheel_tabs"
@@ -1447,13 +1528,13 @@
 									checked={activeTab === 'entries'}
 									onclick={() => (activeTab = 'entries')}
 								/>
-								<div class="tab-content bg-base-100 border-base-300 p-4">
+								<div class="tab-content border-base-300 bg-base-100 p-4">
 									<div class="mb-1 flex items-center justify-end gap-2">
 										<div class="text-xs opacity-70">{t('main.entriesViewModeLabel')}</div>
 										<div class="flex items-center gap-2">
 											<div class="join">
 												<button
-													class="btn btn-xs join-item"
+													class="btn join-item btn-xs"
 													class:btn-primary={entriesViewMode === 'textarea'}
 													class:btn-soft={entriesViewMode !== 'textarea'}
 													onclick={() => (entriesViewMode = 'textarea')}
@@ -1463,7 +1544,7 @@
 													{t('main.text')}
 												</button>
 												<button
-													class="btn btn-xs join-item"
+													class="btn join-item btn-xs"
 													class:btn-primary={entriesViewMode === 'table'}
 													class:btn-soft={entriesViewMode !== 'table'}
 													onclick={() => (entriesViewMode = 'table')}
@@ -1478,14 +1559,14 @@
 										<!-- Import buttons -->
 										<div class="dropdown dropdown-end">
 											<button
-												class="btn btn-xs btn-primary btn-soft"
+												class="btn btn-soft btn-xs btn-primary"
 												aria-label={t('main.importEntries')}
 											>
 												<span class="icon-[lucide--list-plus] h-4 w-4"></span>
 												<span>{t('main.import')}</span>
 											</button>
 											<ul
-												class="menu dropdown-content rounded-box bg-base-200 z-[1] w-56 p-2 shadow"
+												class="dropdown-content menu z-[1] w-56 rounded-box bg-base-200 p-2 shadow"
 											>
 												<li>
 													<button
@@ -1550,12 +1631,12 @@
 										checked={activeTab === 'history'}
 										onclick={() => (activeTab = 'history')}
 									/>
-									<div class="tab-content bg-base-100 border-base-300 p-6">
+									<div class="tab-content border-base-300 bg-base-100 p-6">
 										<div class="mb-4 flex items-center justify-between">
 											<h3 class="text-lg font-semibold">{t('main.history')}</h3>
 											{#if currentWinnersFromHistory.length > 0}
 												<button
-													class="btn btn-sm btn-outline btn-error"
+													class="btn btn-outline btn-sm btn-error"
 													onclick={() => {
 														offchainWinnersHistory.clear();
 														stopHistoryTimer();
@@ -1571,12 +1652,12 @@
 										<p class="mb-4 text-sm opacity-70">{t('main.historyNote')}</p>
 
 										{#if currentWinnersFromHistory.length === 0}
-											<div class="text-base-content/50 py-8 text-center text-sm">
+											<div class="py-8 text-center text-sm text-base-content/50">
 												{t('main.noHistory')}
 											</div>
 										{:else}
 											<div class="overflow-x-auto">
-												<table class="table-zebra table">
+												<table class="table table-zebra">
 													<thead>
 														<tr>
 															<th>#</th>
@@ -1623,12 +1704,12 @@
 										checked={activeTab === 'prizes'}
 										onclick={() => (activeTab = 'prizes')}
 									/>
-									<div class="tab-content bg-base-100 border-base-300 p-6">
+									<div class="tab-content border-base-300 bg-base-100 p-6">
 										<h3 class="mb-4 text-lg font-semibold">{t('main.prizesSui')}</h3>
 
 										{#if createdWheelId && wheelFetched && !isEditing}
 											<div class="overflow-x-auto">
-												<table class="table-zebra table">
+												<table class="table table-zebra">
 													<thead>
 														<tr>
 															<th>#</th>
@@ -1642,13 +1723,13 @@
 																<td class="w-12">{i + 1}</td>
 																<td class="font-mono">{formatMistToSuiCompact(m)}</td>
 																<td class="flex items-center font-mono">
-																	{#if winnersOnChain.find(w => w.prize_index === i)}
+																	{#if winnersOnChain.find((w) => w.prize_index === i)}
 																		{shortenAddress(
-																			winnersOnChain.find(w => w.prize_index === i).addr
+																			winnersOnChain.find((w) => w.prize_index === i)?.addr ?? ''
 																		)}
 																		{#if Number(spinTimesOnChain[i] || 0) > 0}
 																			<span
-																				class="badge badge-soft badge-success badge-sm ml-2 text-xs whitespace-nowrap opacity-70"
+																				class="ml-2 badge badge-soft badge-sm text-xs whitespace-nowrap opacity-70 badge-success"
 																				>{formatDistanceToNow(spinTimesOnChain[i], {
 																					addSuffix: true,
 																					locale: dateLocale
@@ -1667,22 +1748,22 @@
 										{:else}
 											<!-- Prize repeater -->
 											{#each prizeAmounts as prize, i}
-												<div class="join mb-2 w-full">
+												<div class="mb-2 join w-full">
 													<button class="btn btn-disabled join-item"
 														>{t('main.prize')} #{i + 1}</button
 													>
 													<input
 														type="text"
-														class="input join-item prize-input w-full"
+														class="prize-input input join-item w-full"
 														placeholder={t('main.amountExample')}
 														value={prizeAmounts[i] ?? ''}
-														oninput={e => updatePrizeAmount(i, e.currentTarget.value)}
-														onchange={e => updatePrizeAmount(i, e.currentTarget.value)}
-														onkeydown={e => handlePrizeKeydown(i, e)}
+														oninput={(e) => updatePrizeAmount(i, e.currentTarget.value)}
+														onchange={(e) => updatePrizeAmount(i, e.currentTarget.value)}
+														onkeydown={(e) => handlePrizeKeydown(i, e)}
 														aria-label={t('main.prizeAmountInSui', { number: i + 1 })}
 													/>
 													<button
-														class="btn btn-error btn-soft join-item"
+														class="btn join-item btn-soft btn-error"
 														onclick={() => removePrize(i)}
 														disabled={prizeAmounts.length <= 1}
 														aria-label={t('main.removePrize')}
@@ -1697,7 +1778,7 @@
 												<div class="text-sm">
 													<strong>{t('main.need')}:</strong>
 													<p>
-														<span class="text-primary font-mono"
+														<span class="font-mono text-primary"
 															>{formatMistToSuiCompact(totalDonationMist)}</span
 														> SUI
 													</p>
@@ -1729,16 +1810,16 @@
 										checked={activeTab === 'settings'}
 										onclick={() => (activeTab = 'settings')}
 									/>
-									<div class="tab-content bg-base-100 border-base-300 p-6">
+									<div class="tab-content border-base-300 bg-base-100 p-6">
 										<h3 class="mb-4 text-lg font-semibold">{t('main.settings')}</h3>
 										<div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-											<fieldset class="fieldset border-base-300 rounded-box border p-4">
+											<fieldset class="fieldset rounded-box border border-base-300 p-4">
 												<legend class="fieldset-legend">{t('main.claimDelay')}</legend>
 												<select
 													class="select"
 													bind:value={delayMs}
 													aria-label={t('main.delay')}
-													disabled={createdWheelId && wheelFetched && !isEditing}
+													disabled={Boolean(createdWheelId && wheelFetched && !isEditing)}
 												>
 													<option value={0}>{t('main.zeroMinuteDefault')}</option>
 													<option value={15}>{t('main.fifteenMinutes')}</option>
@@ -1749,13 +1830,13 @@
 												<span class="label">{t('main.waitTimeBeforeClaimingPrize')}</span>
 											</fieldset>
 
-											<fieldset class="fieldset border-base-300 rounded-box border p-4">
+											<fieldset class="fieldset rounded-box border border-base-300 p-4">
 												<legend class="fieldset-legend">{t('main.claimPeriod')}</legend>
 												<select
 													class="select"
 													bind:value={claimWindowMs}
 													aria-label={t('main.claimWindow')}
-													disabled={createdWheelId && wheelFetched && !isEditing}
+													disabled={Boolean(createdWheelId && wheelFetched && !isEditing)}
 												>
 													<option value={60}>{t('main.oneHour')}</option>
 													<option value={1440}>{t('main.twentyFourHoursDefault')}</option>
@@ -1772,7 +1853,7 @@
 
 							{#if createdWheelId && remainingSpins === 0}
 								<div class="mt-2">
-									<div class="alert alert-soft alert-info light:!border-info w-60">
+									<div class="alert w-60 alert-soft alert-info light:!border-info">
 										<span class="icon-[lucide--info] h-4 w-4"></span>
 										<a class="link" href={`/wheel-result?wheelId=${createdWheelId}`}>
 											{t('main.claimLink')}
@@ -1788,7 +1869,7 @@
 										<div class="mt-3 flex items-center gap-3">
 											<button
 												type="button"
-												class="rounded-box bg-base-100 border-base-300 mb-3 w-128 cursor-zoom-in border p-2 shadow"
+												class="mb-3 w-128 cursor-zoom-in rounded-box border border-base-300 bg-base-100 p-2 shadow"
 												aria-label={t('main.resultQr')}
 												onclick={() => openQRLightbox(resultQRUrl, t('main.resultQr'))}
 											>
@@ -1809,7 +1890,7 @@
 
 							{#if entryFormEnabled}
 								<div class="mt-2">
-									<div class="alert alert-soft light:!border-success alert-success">
+									<div class="alert alert-soft alert-success light:!border-success">
 										<span class="icon-[lucide--qr-code] h-4 w-4"></span>
 										<span>{t('main.onlineEntryFormScanToJoin')}</span>
 										<ButtonCopy originText={entryFormQRUrl} size="xs" className="btn-soft" />
@@ -1819,7 +1900,7 @@
 										<div class="mt-3 flex items-center gap-3">
 											<button
 												type="button"
-												class="rounded-box bg-base-100 border-base-300 mb-3 w-128 cursor-zoom-in border p-2 shadow"
+												class="mb-3 w-128 cursor-zoom-in rounded-box border border-base-300 bg-base-100 p-2 shadow"
 												aria-label={t('main.entryFormQr')}
 												onclick={() => openQRLightbox(entryFormQRUrl, t('main.entryFormQr'))}
 											>
@@ -1831,33 +1912,34 @@
 											<div class="flex w-full flex-col items-center gap-2">
 												{#if remainingTime > 0}
 													<div
-														class="text-base-content/70 flex flex-col items-center gap-2 text-center"
+														class="flex flex-col items-center gap-2 text-center text-base-content/70"
 													>
 														<span class="icon-[lucide--clock] h-6 w-6"></span>
 														<span>{t('main.timeRemaining')}</span>
 
 														<div class="flex gap-2">
 															<div
-																class="bg-neutral rounded-box text-neutral-content flex flex-col p-2"
+																class="flex flex-col rounded-box bg-neutral p-2 text-neutral-content"
 															>
 																<span class="countdown font-mono text-3xl">
 																	<span
 																		style="--value:{Math.floor(remainingTime / 60)};"
 																		aria-live="polite"
-																		aria-label={Math.floor(remainingTime / 60)}
+																		aria-label={String(Math.floor(remainingTime / 60))}
 																		>{Math.floor(remainingTime / 60)}</span
 																	>
 																</span>
 																{t('main.min')}
 															</div>
 															<div
-																class="bg-neutral rounded-box text-neutral-content flex flex-col p-2"
+																class="flex flex-col rounded-box bg-neutral p-2 text-neutral-content"
 															>
 																<span class="countdown font-mono text-3xl">
 																	<span
 																		style="--value:{remainingTime % 60};"
 																		aria-live="polite"
-																		aria-label={remainingTime % 60}>{remainingTime % 60}</span
+																		aria-label={String(remainingTime % 60)}
+																		>{remainingTime % 60}</span
 																	>
 																</span>
 																{t('main.sec')}
@@ -1871,7 +1953,7 @@
 
 									<div class="mt-2 sm:text-center">
 										<button
-											class="btn btn-sm btn-outline btn-error"
+											class="btn btn-outline btn-sm btn-error"
 											onclick={disableOnlineEntries}
 											aria-label={t('main.disableOnlineEntries')}
 										>
@@ -1885,19 +1967,19 @@
 							<!-- Common alerts and button (always visible) -->
 							{#if account}
 								{#if setupError}
-									<div class="alert alert-error light:!border-error mt-3 whitespace-pre-wrap">
+									<div class="mt-3 alert whitespace-pre-wrap alert-error light:!border-error">
 										{setupError}
 									</div>
 								{/if}
 								{#if setupSuccessMsg}
-									<div class="alert alert-success light:!border-success mt-3 break-words">
+									<div class="mt-3 alert break-words alert-success light:!border-success">
 										<span class="icon-[lucide--check-circle] h-4 w-4"></span>
 										{setupSuccessMsg}
 									</div>
 								{/if}
 
 								{#if shouldShowSetupWarnings}
-									<div class="alert alert-soft light:!border-warning alert-warning mt-3">
+									<div class="mt-3 alert alert-soft alert-warning light:!border-warning">
 										<ul class="list-inside list-disc">
 											{#if !isOnTestnet}
 												<li>{t('main.pleaseSwitchWalletToTestnet')}</li>
@@ -1914,7 +1996,7 @@
 												<li>
 													{t('main.youNeedToAddAtLeastOnePrize')}
 													<button
-														class="btn btn-link btn-sm ml-1 align-baseline"
+														class="btn ml-1 align-baseline btn-link btn-sm"
 														onclick={() => (activeTab = 'prizes')}
 														aria-label={t('main.goToPrizesTab')}
 													>
@@ -1950,9 +2032,9 @@
 												<li>{t('wheel.notOrganizer')}</li>
 											{/if}
 											{#if hasInsufficientBalance}
-												{#if suiBalance.value < 1_000_000_000}
+												{#if suiBalance.value && typeof suiBalance.value === 'string' && BigInt(suiBalance.value) < 1_000_000_000n}
 													<li>{t('main.walletBalanceNeedsToBeMoreThanOneSui')}</li>
-												{:else}
+												{:else if suiBalance.value}
 													<li>
 														{t('main.walletBalanceIsLessThanTotalRequired', {
 															balance: formatMistToSuiCompact(suiBalance.value),
@@ -1985,7 +2067,7 @@
 										>
 											{#if totalDonationMist > 0n}
 												{t('main.createWheelAndFund')}
-												<span class="text-success font-mono font-bold"
+												<span class="font-mono font-bold text-success"
 													>{formatMistToSuiCompact(totalDonationMist)}</span
 												> SUI
 											{:else}
@@ -1995,7 +2077,7 @@
 									</div>
 								{/if}
 							{:else if isInitialized}
-								<div class="alert alert-info alert-soft light:!border-info mt-3">
+								<div class="mt-3 alert alert-soft alert-info light:!border-info">
 									<span class="icon-[lucide--info] h-5 w-5"></span>
 									{t('main.connectWalletToCreateAndSpin')}
 								</div>
@@ -2016,7 +2098,7 @@
 			{#if qrLightboxUrl}
 				<svg
 					use:qr={{ data: qrLightboxUrl, logo: '/sui-wheel-logo-small.png' }}
-					class="rounded-box bg-base-100 border-base-300 w-128 p-2 shadow"
+					class="w-128 rounded-box border-base-300 bg-base-100 p-2 shadow"
 					role="img"
 					aria-label={qrLightboxTitle}
 				/>
@@ -2089,7 +2171,7 @@
 					/>
 					<span class="label-text">{t('main.enableOnlineEntryForm')}</span>
 				</label>
-				<p class="text-base-content/70 ml-8 text-xs">
+				<p class="ml-8 text-xs text-base-content/70">
 					{t('main.allowParticipantsToJoinByScanningQrCode')}
 				</p>
 			</div>
@@ -2104,7 +2186,7 @@
 						bind:value={entryFormModalName}
 						autocomplete="off"
 					/>
-					<p class="label text-base-content/70 mt-1 text-xs">
+					<p class="label mt-1 text-xs text-base-content/70">
 						{t('main.thisNameWillBeDisplayedToParticipants')}
 					</p>
 				</fieldset>
@@ -2120,7 +2202,7 @@
 						bind:value={entryFormModalDuration}
 						autocomplete="off"
 					/>
-					<p class="label text-base-content/70 mt-1 text-xs">
+					<p class="label mt-1 text-xs text-base-content/70">
 						{t('main.entryFormWillAutomaticallyCloseAfterThisTime')}
 					</p>
 				</fieldset>

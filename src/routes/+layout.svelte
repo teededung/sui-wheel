@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	/* ------------ Imports & constants ------------ */
 	import '../app.css';
 	import favicon from '$lib/assets/sui-wheel-logo-small.png';
@@ -38,7 +38,7 @@
 	const zkLoginGoogle = {
 		apiKey: PUBLIC_ENOKI_API_KEY,
 		googleClientId: PUBLIC_GOOGLE_CLIENT_ID,
-		network: 'testnet',
+		network: 'testnet' as 'mainnet' | 'testnet' | 'devnet',
 		redirectUrls: [
 			'http://localhost:5177',
 			'https://sui-wheel.netlify.app',

@@ -1,5 +1,18 @@
-<script>
-	/** @type {{type: string, formLoading: boolean, disabled: boolean, size: string, loadingText: string, className: string, buttonStyle: string, icon: string, children: any}} */
+<script lang="ts">
+	interface Props {
+		type?: 'button' | 'submit' | 'reset';
+		formLoading?: boolean;
+		disabled?: boolean;
+		size?: string;
+		loadingText?: string;
+		className?: string;
+		color?: 'primary' | 'secondary' | 'accent' | 'error' | 'success' | 'warning' | 'info' | '';
+		icon?: string;
+		children: import('svelte').Snippet;
+		onclick?: (event: MouseEvent) => void;
+		[key: string]: unknown;
+	}
+
 	let {
 		type = 'button',
 		formLoading = false,
@@ -12,7 +25,7 @@
 		children,
 		onclick,
 		...args
-	} = $props();
+	}: Props = $props();
 </script>
 
 <button

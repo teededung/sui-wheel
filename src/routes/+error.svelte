@@ -1,5 +1,10 @@
-<script>
-	let { status, message } = $props();
+<script lang="ts">
+	interface Props {
+		status?: number;
+		message?: string;
+	}
+
+	let { status, message }: Props = $props();
 
 	// Default error messages based on status codes
 	let errorTitle = $derived.by(() => {

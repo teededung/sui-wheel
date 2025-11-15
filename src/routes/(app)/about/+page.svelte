@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { onMount } from 'svelte';
 	import { useTranslation } from '$lib/hooks/useTranslation.js';
 	import WheelImage from '$lib/components/WheelImage.svelte';

@@ -1,17 +1,20 @@
-<script>
+<script lang="ts">
 	import { onMount } from 'svelte';
 	import { getLanguageContext } from '$lib/context/language.js';
-	import flagVN from "$lib/assets/flag-vn.svg";
-	import flagUS from "$lib/assets/flag-us.svg";
+	import flagVN from '$lib/assets/flag-vn.svg';
+	import flagUS from '$lib/assets/flag-us.svg';
 
-	/** @type {{className?: string}} */
-	let { className = '' } = $props();
+	interface Props {
+		className?: string;
+	}
+
+	let { className = '' }: Props = $props();
 
 	const { language, setLanguage } = getLanguageContext();
 	let isVi = $derived(language.code === 'vi');
 
-	function selectLanguage(lang) {
-		setLanguage(lang);
+	function selectLanguage(lang: 'en' | 'vi') {
+		setLanguage?.(lang);
 	}
 
 	let isInitialized = $state(false);
@@ -21,7 +24,7 @@
 </script>
 
 {#if isInitialized}
-	<div class={`dropdown dropdown-end dropdown-hover ${className}`}>
+	<div class={`dropdown-hover dropdown dropdown-end ${className}`}>
 		<div tabindex="0" role="button" class="btn btn-ghost">
 			{#if isVi}
 				<img src={flagVN} alt="Vietnam flag" class="h-6 w-7 rounded-sm" />
@@ -31,7 +34,7 @@
 				<span>English</span>
 			{/if}
 		</div>
-		<ul class="dropdown-content menu bg-base-200 rounded-box z-50 w-52 p-2 shadow-lg">
+		<ul class="dropdown-content menu z-50 w-52 rounded-box bg-base-200 p-2 shadow-lg">
 			<li>
 				<button
 					onclick={() => selectLanguage('en')}

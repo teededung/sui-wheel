@@ -1,14 +1,16 @@
-<script>
+<script lang="ts">
 	import Navbar from '$lib/components/Navbar.svelte';
 	import Footer from '$lib/components/Footer.svelte';
 	import { onMount } from 'svelte';
 	import { setLanguageContext } from '$lib/context/language.js';
+	import type { LanguageCode } from '$lib/services/translation.js';
+
 	let { children } = $props();
 
 	// Reactive language state shared via context (default: 'en')
-	const language = $state({ code: 'en' });
+	const language = $state<{ code: LanguageCode }>({ code: 'en' });
 
-	function setLanguage(code) {
+	function setLanguage(code: LanguageCode) {
 		language.code = code;
 	}
 

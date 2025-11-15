@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -9,10 +9,12 @@
 
 	const t = useTranslation();
 
+	type EntryType = 'address' | 'name' | 'email';
+
 	// Get wheelId from URL params (can be wheelTempId or createdWheelId)
 	let wheelId = $state('');
-	let entryType = $state('address'); // 'address', 'name', 'email'
-	let wheelName = $state(''); // Wheel name from URL params
+	let entryType = $state<EntryType>('address');
+	let wheelName = $state('');
 	let entry = $state('');
 	let submitting = $state(false);
 	let loading = $state(true);
@@ -21,11 +23,18 @@
 	onMount(() => {
 		const urlParams = new URLSearchParams(page.url.search);
 		wheelId = urlParams.get('wheelId') || '';
-		entryType = urlParams.get('type') || 'address';
+		const typeParam = urlParams.get('type');
+		entryType = (
+			typeParam === 'name' || typeParam === 'email' ? typeParam : 'address'
+		) as EntryType;
 		wheelName = urlParams.get('name') || '';
 
 		if (!wheelId) {
-			toast.error(t('entryForm.errors.invalidWheelLink'), { position: 'top-center' });
+			toast({
+				type: 'error',
+				message: t('entryForm.errors.invalidWheelLink'),
+				position: 'top-center'
+			});
 			goto('/');
 			return;
 		}
@@ -41,19 +50,31 @@
 
 		// Validate entry based on type
 		if (entryType === 'address' && !isValidSuiAddress(entry)) {
-			toast.error(t('entryForm.errors.pleaseEnterValidSuiAddress'), { position: 'top-center' });
+			toast({
+				type: 'error',
+				message: t('entryForm.errors.pleaseEnterValidSuiAddress'),
+				position: 'top-center'
+			});
 			return;
 		}
 
 		if (entryType === 'name' && (entry.length < 1 || entry.length > 50)) {
-			toast.error(t('entryForm.errors.nameMustBe1To50Characters'), { position: 'top-center' });
+			toast({
+				type: 'error',
+				message: t('entryForm.errors.nameMustBe1To50Characters'),
+				position: 'top-center'
+			});
 			return;
 		}
 
 		if (entryType === 'email') {
 			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 			if (!emailRegex.test(entry)) {
-				toast.error(t('entryForm.errors.pleaseEnterValidEmailAddress'), { position: 'top-center' });
+				toast({
+					type: 'error',
+					message: t('entryForm.errors.pleaseEnterValidEmailAddress'),
+					position: 'top-center'
+				});
 				return;
 			}
 		}
@@ -77,13 +98,15 @@
 				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 			}
 
-			const data = await response.json().catch(error => {
+			const data = (await response.json().catch((error: unknown) => {
 				console.error('Failed to parse JSON response:', error);
 				throw new Error('Invalid response format');
-			});
+			})) as { success?: boolean; message?: string };
 
 			if (data.success) {
-				toast.success(t('entryForm.success.entrySubmittedSuccessfully'), {
+				toast({
+					type: 'success',
+					message: t('entryForm.success.entrySubmittedSuccessfully'),
 					position: 'top-center',
 					durationMs: 3000
 				});
@@ -92,19 +115,25 @@
 
 				// Don't redirect, let user close the window manually
 			} else {
-				toast.error(data.message || t('entryForm.errors.failedToSubmitEntry'), {
+				toast({
+					type: 'error',
+					message: data.message || t('entryForm.errors.failedToSubmitEntry'),
 					position: 'top-center'
 				});
 			}
 		} catch (error) {
 			console.error('Submit error:', error);
-			toast.error(t('entryForm.errors.networkErrorPleaseTryAgain'), { position: 'top-center' });
+			toast({
+				type: 'error',
+				message: t('entryForm.errors.networkErrorPleaseTryAgain'),
+				position: 'top-center'
+			});
 		} finally {
 			submitting = false;
 		}
 	}
 
-	function handleKeydown(e) {
+	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter' && !submitting) {
 			e.preventDefault();
 			handleSubmit();
@@ -118,18 +147,18 @@
 </svelte:head>
 
 <div class="mt-10 flex items-center justify-center p-4">
-	<div class="card bg-base-200 w-full max-w-md shadow-xl">
+	<div class="card w-full max-w-md bg-base-200 shadow-xl">
 		<div class="card-body">
 			{#if loading}
 				<div class="flex flex-col items-center space-y-4">
-					<div class="loading loading-spinner loading-lg text-primary"></div>
+					<div class="loading loading-lg loading-spinner text-primary"></div>
 					<p class="text-base-content/70">{t('entryForm.loadingWheelInformation')}</p>
 				</div>
 			{:else if submitted}
 				<div class="text-center">
 					<div class="mb-6">
-						<h1 class="text-primary mb-2 text-2xl font-bold">{t('entryForm.entrySubmitted')}</h1>
-						<p class="text-base-content/70 text-sm">
+						<h1 class="mb-2 text-2xl font-bold text-primary">{t('entryForm.entrySubmitted')}</h1>
+						<p class="text-sm text-base-content/70">
 							{t('entryForm.pleaseWaitForTableToUpdate')}
 						</p>
 					</div>
@@ -140,8 +169,8 @@
 				</div>
 			{:else}
 				<div class="mb-6 text-center">
-					<h1 class="text-primary mb-2 text-2xl font-bold">{t('entryForm.joinTheWheel')}</h1>
-					<p class="text-base-content/70 text-sm">
+					<h1 class="mb-2 text-2xl font-bold text-primary">{t('entryForm.joinTheWheel')}</h1>
+					<p class="text-sm text-base-content/70">
 						{#if entryType === 'address'}
 							{t('entryForm.enterYourSuiWalletAddressToJoin')}
 						{:else if entryType === 'email'}
@@ -153,7 +182,7 @@
 				</div>
 
 				<form
-					onsubmit={e => {
+					onsubmit={(e) => {
 						e.preventDefault();
 						handleSubmit();
 					}}
@@ -198,7 +227,7 @@
 					</ButtonLoading>
 				</form>
 
-				<div class="divider text-base-content/50 text-xs">
+				<div class="divider text-xs text-base-content/50">
 					{t('entryForm.wheel')}: {wheelName ||
 						(wheelId.startsWith('temp_') ? t('entryForm.temporary') : wheelId.slice(0, 8))}
 				</div>

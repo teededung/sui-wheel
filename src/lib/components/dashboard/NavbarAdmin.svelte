@@ -1,19 +1,27 @@
-<script>
+<script lang="ts">
 	import { page } from '$app/stores';
 	import { getContext } from 'svelte';
 	import ProfileDropdown from '$lib/components/ProfileDropdown.svelte';
 
+	interface NavItem {
+		slug: string;
+		title: string;
+		icon?: string;
+		hide?: boolean;
+		subNav?: NavItem[];
+	}
+
 	// Get data from context
-	let navItems = getContext('navItems');
+	let navItems = getContext<NavItem[]>('navItems');
 
 	let path = $derived($page.url.pathname);
 	let currentSection = $derived.by(() => {
 		// Find exact match first
-		let exactMatch = navItems.find(section => path === section.slug);
+		let exactMatch = navItems.find((section: NavItem) => path === section.slug);
 		if (exactMatch) return exactMatch;
 
 		// If no exact match, find by startsWith
-		return navItems.find(section => path.startsWith(`${section.slug}/`));
+		return navItems.find((section: NavItem) => path.startsWith(`${section.slug}/`));
 	});
 
 	let pageTitle = $derived(currentSection?.title);

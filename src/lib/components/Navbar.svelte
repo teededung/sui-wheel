@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { page } from '$app/state';
 	import ButtonThemeSwitch from './ButtonThemeSwitch.svelte';
 	import ButtonConnectWallet from './ButtonConnectWallet.svelte';
@@ -12,8 +12,8 @@
 	const { language, setLanguage } = getLanguageContext();
 	let isVi = $derived(language.code === 'vi');
 
-	function selectLanguage(lang) {
-		setLanguage(lang);
+	function selectLanguage(lang: 'en' | 'vi') {
+		setLanguage?.(lang);
 	}
 </script>
 

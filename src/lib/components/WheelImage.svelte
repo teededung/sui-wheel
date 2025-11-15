@@ -1,7 +1,21 @@
-<script>
+<script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { gsap } from 'gsap';
-	import logo from "$lib/assets/sui-wheel-logo.png";
+	import logo from '$lib/assets/sui-wheel-logo.png';
+
+	interface LabelLayout {
+		displayText: string;
+		font: string;
+	}
+
+	interface Props {
+		entries?: string[];
+		colors?: string[];
+		rotationSpeed?: number;
+		logoSize?: number;
+		fontSize?: number | null;
+		className?: string;
+	}
 
 	// Props - allow customization of entries and colors
 	let {
@@ -29,25 +43,25 @@
 		logoSize = 20,
 		fontSize = null, // Custom font size for entries (null = auto)
 		className = ''
-	} = $props();
+	}: Props = $props();
 
 	// Canvas/layout
-	let labelLayouts = $state([]);
-	let canvasEl = $state(null);
-	let canvasContainerEl = $state(null);
-	let ctx2d;
+	let labelLayouts = $state<LabelLayout[]>([]);
+	let canvasEl = $state<HTMLCanvasElement | null>(null);
+	let canvasContainerEl = $state<HTMLDivElement | null>(null);
+	let ctx2d: CanvasRenderingContext2D | null = null;
 	let wheelSize = $state(0);
-	let offscreenCanvas;
-	let offscreenCtx;
+	let offscreenCanvas: HTMLCanvasElement | null = null;
+	let offscreenCtx: CanvasRenderingContext2D | null = null;
 
 	// Animation
-	let currentTween;
+	let currentTween: ReturnType<typeof gsap.to> | null = null;
 	let animState = { angle: 0 };
 
 	const segmentColors = colors;
 
 	// Track previous entries to avoid unnecessary re-renders
-	let previousEntries = $state([]);
+	let previousEntries = $state<string[]>([]);
 
 	// Reactive effect to re-render when entries change
 	$effect(() => {
@@ -76,7 +90,7 @@
 	});
 
 	// Resize/canvas setup
-	let resizeObserver;
+	let resizeObserver: ResizeObserver | null = null;
 	function setupCanvas() {
 		if (!canvasEl || !canvasContainerEl) return;
 		const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -93,7 +107,9 @@
 		canvasEl.style.height = `${size}px`;
 		canvasEl.width = newWidth;
 		canvasEl.height = newHeight;
-		ctx2d = canvasEl.getContext('2d');
+		const ctx = canvasEl.getContext('2d');
+		if (!ctx) return;
+		ctx2d = ctx;
 		ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
 		ctx2d.imageSmoothingEnabled = true;
 		ctx2d.imageSmoothingQuality = 'high';
@@ -101,7 +117,9 @@
 		offscreenCanvas = document.createElement('canvas');
 		offscreenCanvas.width = newWidth;
 		offscreenCanvas.height = newHeight;
-		offscreenCtx = offscreenCanvas.getContext('2d');
+		const offCtx = offscreenCanvas.getContext('2d');
+		if (!offCtx) return;
+		offscreenCtx = offCtx;
 		offscreenCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 		offscreenCtx.imageSmoothingEnabled = true;
 		offscreenCtx.imageSmoothingQuality = 'high';
@@ -327,13 +345,13 @@
 	});
 </script>
 
-<div class="rounded-box relative mx-auto max-w-[560px] {className}">
+<div class="relative mx-auto max-w-[560px] rounded-box {className}">
 	<div
 		bind:this={canvasContainerEl}
 		class="relative mx-auto aspect-square w-full overflow-hidden rounded-full border-1 border-amber-300/60 shadow-lg"
 	>
 		<!-- Wheel -->
-		<canvas bind:this={canvasEl} class="rounded-box pointer-events-none mx-auto block"></canvas>
+		<canvas bind:this={canvasEl} class="pointer-events-none mx-auto block rounded-box"></canvas>
 
 		<!-- Logo in center -->
 		<div class="pointer-events-none absolute inset-0 flex items-center justify-center">

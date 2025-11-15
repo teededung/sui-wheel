@@ -1,6 +1,16 @@
-<script>
+<script lang="ts">
 	import { onMount } from 'svelte';
 	import { useTranslation } from '$lib/hooks/useTranslation.js';
+
+	interface FAQQuestion {
+		question: string;
+		answer: string;
+	}
+
+	interface FAQCategory {
+		category: string;
+		questions: FAQQuestion[] | string;
+	}
 
 	// Translation hook
 	const t = useTranslation();
@@ -13,22 +23,22 @@
 	});
 
 	// FAQ Data - reactive based on current language
-	let faqData = $derived([
+	let faqData = $derived<FAQCategory[]>([
 		{
-			category: t('faq.categories.overview'),
-			questions: t('faq.questions.overview')
+			category: String(t('faq.categories.overview')),
+			questions: (t('faq.questions.overview') as unknown) as FAQQuestion[]
 		},
 		{
-			category: t('faq.categories.blockchain'),
-			questions: t('faq.questions.blockchain')
+			category: String(t('faq.categories.blockchain')),
+			questions: (t('faq.questions.blockchain') as unknown) as FAQQuestion[]
 		},
 		{
-			category: t('faq.categories.features'),
-			questions: t('faq.questions.features')
+			category: String(t('faq.categories.features')),
+			questions: (t('faq.questions.features') as unknown) as FAQQuestion[]
 		},
 		{
-			category: t('faq.categories.frequentlyAsked'),
-			questions: t('faq.questions.frequentlyAsked')
+			category: String(t('faq.categories.frequentlyAsked')),
+			questions: (t('faq.questions.frequentlyAsked') as unknown) as FAQQuestion[]
 		}
 	]);
 </script>
@@ -71,24 +81,26 @@
 
 						<!-- FAQ Items -->
 						<div class="space-y-4">
-							{#each category.questions as question, questionIndex}
-								<div class="collapse-arrow bg-base-200 border-base-300 collapse border shadow">
-									<input
-										type="radio"
-										name="my-accordion-2"
-										class="peer"
-										value={categoryIndex * 100 + questionIndex}
-									/>
-									<div class="collapse-title font-semibold">
-										{question.question}
-									</div>
-									<div class="collapse-content text-sm">
-										<div class="prose prose-base text-base-content/80 max-w-none">
-											{@html question.answer}
+							{#if Array.isArray(category.questions)}
+								{#each category.questions as question, questionIndex}
+									<div class="collapse-arrow bg-base-200 border-base-300 collapse border shadow">
+										<input
+											type="radio"
+											name="my-accordion-2"
+											class="peer"
+											value={categoryIndex * 100 + questionIndex}
+										/>
+										<div class="collapse-title font-semibold">
+											{question.question}
+										</div>
+										<div class="collapse-content text-sm">
+											<div class="prose prose-base text-base-content/80 max-w-none">
+												{@html question.answer}
+											</div>
 										</div>
 									</div>
-								</div>
-							{/each}
+								{/each}
+							{/if}
 						</div>
 					</div>
 				{/each}
