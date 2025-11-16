@@ -25,6 +25,7 @@
 	} from '$lib/constants.js';
 	import { formatCoinAmount } from '$lib/utils/coinHelpers.js';
 	import CoinDisplay from '$lib/components/coin/CoinDisplay.svelte';
+	import CoinIcon from '$lib/components/coin/CoinIcon.svelte';
 	import { toast } from 'svelte-daisy-toaster';
 	import { format, formatDistanceToNow } from 'date-fns';
 	import { watch, IsDocumentVisible } from 'runed';
@@ -1020,6 +1021,7 @@
 								<div class="flex gap-2 text-sm">
 									{t('wheelResult.remainingPoolBalance')}
 									<div class="flex items-center gap-1 font-mono font-semibold">
+										<CoinIcon iconUrl={selectedCoinMetadata.iconUrl} symbol={selectedCoinSymbol} size="sm" />
 										<span class="text-primary">{formatCoinAmount(poolBalance, selectedCoinDecimals, { compact: true })}</span>
 										<span class="text-xs text-base-content/80">{selectedCoinSymbol}</span>
 									</div>

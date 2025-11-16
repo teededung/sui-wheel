@@ -639,36 +639,11 @@
 			// Update URL params reactively
 			params.update({ wheelId: finalWheelId });
 
-			// Parse inputs directly from txBlock to extract used data for create_wheel
-			const txData = txBlock?.transaction?.data as
-				| { transaction?: { inputs?: unknown[] } }
-				| undefined;
-			const inputs = (txData?.transaction?.inputs ?? []) as Array<{
-				value?: unknown;
-				valueType?: unknown;
-			}>;
-
-			// Inputs for create_wheel function:
-			// 0: vector<address> - entries list in the correct order
-			const input0 = inputs?.[0] as { value?: unknown[]; valueType?: unknown } | undefined;
-			const orderedEntries =
-				typeof input0?.valueType === 'string' && input0?.valueType === 'vector<address>'
-					? (input0?.value ?? []).map(String)
-					: Array.isArray(input0?.value)
-						? input0.value.map(String)
-						: [];
-
-			// 1: vector<u64> - the list of prize amounts (in smallest unit)
-			const input1 = inputs?.[1] as { value?: unknown[] } | undefined;
-			const prizeAmountsFromInputs = Array.isArray(input1?.value)
-				? input1.value.map((v: unknown) => String(v))
-				: [];
-
-			// Calculate total donation from prize amounts
-			const totalDonationStr = prizeAmountsFromInputs.reduce(
-				(sum, amount) => sum + BigInt(amount),
-				0n
-			).toString();
+			// Use the data we already have from local variables instead of parsing transaction inputs
+			// This is more reliable than trying to parse the transaction structure
+			const orderedEntries = addrList; // Already validated and used in transaction
+			const prizeAmountsInSmallestUnit = prizeAmountsList.map((amount) => amount.toString());
+			const totalDonationStr = total.toString();
 
 			// Send directly to API to persist in DB
 			const payload = {
@@ -676,8 +651,8 @@
 				txDigest: digest,
 				packageId,
 				organizerAddress: account?.address,
-				prizeAmounts: prizeAmountsFromInputs, // Prize amounts in smallest unit
-				totalDonationAmount: String(totalDonationStr), // Total donation in smallest unit
+				prizeAmounts: prizeAmountsInSmallestUnit, // Prize amounts in smallest unit
+				totalDonationAmount: totalDonationStr, // Total donation in smallest unit
 				network: 'testnet',
 				orderedEntries,
 				coinType: selectedCoinType
