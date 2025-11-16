@@ -147,16 +147,12 @@
 		async function fetchSelectedCoinBalance() {
 			if (!account || !selectedCoinType) {
 				selectedCoinBalance = null;
-				console.log('No account or coin type, resetting balance');
 				return;
 			}
-
-			console.log('Fetching balance for:', selectedCoinType);
 
 			// For SUI, use the existing suiBalance
 			if (selectedCoinType === DEFAULT_COIN_TYPE) {
 				selectedCoinBalance = suiBalance.value ? BigInt(suiBalance.value) : null;
-				console.log('SUI balance:', selectedCoinBalance?.toString());
 				return;
 			}
 
@@ -166,11 +162,6 @@
 				const coinService = createTestnetCoinService();
 				const balance = await coinService.getCoinBalance(account.address, selectedCoinType);
 				selectedCoinBalance = BigInt(balance.totalBalance);
-				console.log('Fetched coin balance:', {
-					coinType: selectedCoinType,
-					balance: selectedCoinBalance.toString(),
-					formatted: balance.formattedBalance
-				});
 			} catch (err) {
 				console.error('Failed to fetch selected coin balance:', err);
 				selectedCoinBalance = null;
@@ -425,19 +416,7 @@
 				return totalDonationMist > 0n;
 			}
 			
-			const result = selectedCoinBalance < totalDonationMist;
-			
-			// Debug log
-			if (totalDonationMist > 0n) {
-				console.log('Balance check:', {
-					selectedCoinType,
-					selectedCoinBalance: selectedCoinBalance?.toString(),
-					totalDonationMist: totalDonationMist.toString(),
-					insufficient: result
-				});
-			}
-			
-			return result;
+			return selectedCoinBalance < totalDonationMist;
 		} catch (err) {
 			console.error('Error checking coin balance:', err);
 			return false;
