@@ -648,23 +648,27 @@
 				valueType?: unknown;
 			}>;
 
-			// 0: u64 donation, the coin split from gas
-			const totalDonationStr = (inputs?.[0] as { value?: unknown })?.value ?? '0';
-
-			// 1: vector<address> - this is the entries list in the correct order
-			const input1 = inputs?.[1] as { value?: unknown[]; valueType?: unknown } | undefined;
+			// Inputs for create_wheel function:
+			// 0: vector<address> - entries list in the correct order
+			const input0 = inputs?.[0] as { value?: unknown[]; valueType?: unknown } | undefined;
 			const orderedEntries =
-				typeof input1?.valueType === 'string' && input1?.valueType === 'vector<address>'
-					? (input1?.value ?? []).map(String)
-					: Array.isArray(input1?.value)
-						? input1.value.map(String)
+				typeof input0?.valueType === 'string' && input0?.valueType === 'vector<address>'
+					? (input0?.value ?? []).map(String)
+					: Array.isArray(input0?.value)
+						? input0.value.map(String)
 						: [];
 
-			// 2: vector<u64> - the list of prize amounts (in smallest unit)
-			const input2 = inputs?.[2] as { value?: unknown[] } | undefined;
-			const prizeAmountsFromInputs = Array.isArray(input2?.value)
-				? input2.value.map((v: unknown) => Number(v))
+			// 1: vector<u64> - the list of prize amounts (in smallest unit)
+			const input1 = inputs?.[1] as { value?: unknown[] } | undefined;
+			const prizeAmountsFromInputs = Array.isArray(input1?.value)
+				? input1.value.map((v: unknown) => String(v))
 				: [];
+
+			// Calculate total donation from prize amounts
+			const totalDonationStr = prizeAmountsFromInputs.reduce(
+				(sum, amount) => sum + BigInt(amount),
+				0n
+			).toString();
 
 			// Send directly to API to persist in DB
 			const payload = {

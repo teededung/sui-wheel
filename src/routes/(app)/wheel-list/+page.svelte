@@ -15,6 +15,9 @@
 	import { watch, IsIdle } from 'runed';
 	import { useTranslation } from '$lib/hooks/useTranslation.js';
 	import AlertTestnetWarning from '$lib/components/AlertTestnetWarning.svelte';
+	import DebugFallbackStatus from '$lib/components/DebugFallbackStatus.svelte';
+	import { dev } from '$app/environment';
+
 
 	const t = useTranslation();
 
@@ -29,7 +32,6 @@
 	);
 
 	let pageState = $state('initializing'); // initializing, loading, loaded
-	let errorMsg = $state('');
 	let wheels = $state<
 		Array<{
 			id: string;
@@ -55,12 +57,13 @@
 		}>
 	>([]);
 	let joinedWheelsPageState = $state('initializing'); // initializing, loading, loaded
-	let joinedWheelsErrorMsg = $state('');
+	let joinedWheelsDbStatus = $state<'success' | 'failed' | 'unknown'>('unknown');
+	let joinedWheelsFallbackUsed = $state(false);
+	let joinedWheelsWarning = $state('');
 
 	// Public wheels state (server-provided)
 	const { data } = $props();
 	let publicWheelsPageState = $state('loaded'); // already loaded from server
-	let publicWheelsErrorMsg = $state('');
 	let publicWheels = $state<Array<{
 		id: string;
 		digest?: string;
@@ -83,7 +86,6 @@
 		if (!address) return;
 		const isRefresh = Boolean(opts.isRefresh);
 		if (!isRefresh) pageState = 'loading';
-		errorMsg = '';
 		try {
 			const response = await suiClient.queryTransactionBlocks({
 				filter: {
@@ -178,8 +180,8 @@
 			} else {
 				wheels = items;
 			}
-		} catch (e) {
-			errorMsg = (e as { message?: string })?.message || String(e);
+		} catch {
+			// Error loading wheels
 		} finally {
 			if (!isRefresh) pageState = 'loaded';
 			refreshing = false;
@@ -189,122 +191,160 @@
 	async function loadJoinedWheels(address: string, opts: { isRefresh?: boolean } = {}) {		
 		const isRefresh = Boolean(opts.isRefresh);
 		if (!isRefresh) joinedWheelsPageState = 'loading';
-		joinedWheelsErrorMsg = '';
 		try {
-			// Run last: check the union of IDs from both lists currently loaded
-			const allIds = [...(wheels || []), ...(publicWheels || [])].map((w) => w.id);
-			const uniqueIds = Array.from(new Set(allIds)).filter(Boolean);
-			if (uniqueIds.length === 0) {
-				joinedWheels = [];
-				if (!isRefresh) joinedWheelsPageState = 'loaded';
-				return;
-			}
-
 			const addr = String(address || '').toLowerCase();
+			
 			if (!addr) {
 				joinedWheels = [];
 				if (!isRefresh) joinedWheelsPageState = 'loaded';
 				return;
 			}
 
-			// Check joined status for these IDs only (database)
-			let joinedIds = new Set<string>();
-			let dbCheckSucceeded = false;
-			try {
-				const resp = await fetch('/api/wheels/joined/check', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ address: addr, wheelIds: uniqueIds })
-				});			
+			// Reset debug status
+			joinedWheelsDbStatus = 'unknown';
+			joinedWheelsFallbackUsed = false;
+			joinedWheelsWarning = '';
 
+			// First, fetch joined wheels from database
+			let joinedIds = new Set<string>();
+			let dbWheels: Array<{ id: string; digest?: string; timestampMs: number }> = [];
+			let dbCheckSucceeded = false;
+			
+			try {
+				const resp = await fetch(`/api/wheels/joined?address=${encodeURIComponent(addr)}`);
+				
 				if (resp?.ok) {
 					const data = await resp.json();
-					joinedIds = new Set((data?.joinedIds || []).map(String));
-					dbCheckSucceeded = true;
+					
+					if (data?.success && Array.isArray(data?.wheels)) {
+						dbWheels = data.wheels;
+						joinedIds = new Set(dbWheels.map((w: any) => w.id));
+						dbCheckSucceeded = true;
+						joinedWheelsDbStatus = 'success';
+					}
 				}
-			} catch (dbError) {
-				console.warn('Database check failed, will fallback to on-chain:', dbError);
+			} catch {
+				joinedWheelsDbStatus = 'failed';
 			}
 
-			// Fallback: if database failed, check on-chain
-			// Note: Empty result from DB is valid (user hasn't joined any wheels)
+			// If database fetch failed, try checking visible wheels via API
 			if (!dbCheckSucceeded) {
-				try {
-					const objs = await suiClient.multiGetObjects({
-						ids: uniqueIds,
-						options: { showContent: true }
-					});
-					
-					// Check each wheel for user participation
-					for (const o of objs || []) {
-						try {
-							const wheelId = String(o?.data?.objectId || '');
-							const content = o?.data?.content as
-								| { dataType?: string; fields?: Record<string, unknown> }
-								| undefined;
-							const f = (content?.dataType === 'moveObject' ? content?.fields : {}) || {};
-							
-							// Skip cancelled wheels
-							const isCancelled = Boolean(f['is_cancelled']);
-							if (isCancelled) continue;
-							
-							// Check winners array first (already spun entries)
-							const winners = Array.isArray(f['winners']) ? f['winners'] : [];
-							const hasWon = winners.some((winner: any) => {
-								try {
-									const winnerAddr = String(winner?.fields?.addr || '').toLowerCase();
-									return winnerAddr === addr;
-								} catch {
-									return false;
+				const allIds = [...(wheels || []), ...(publicWheels || [])].map((w) => w.id);
+				const uniqueIds = Array.from(new Set(allIds)).filter(Boolean);
+				
+				if (uniqueIds.length > 0) {
+					try {
+						const resp = await fetch('/api/wheels/joined/check', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ address: addr, wheelIds: uniqueIds })
+						});			
+						
+						if (resp?.ok) {
+							const data = await resp.json();
+							joinedIds = new Set((data?.joinedIds || []).map(String));
+							dbCheckSucceeded = true;
+							joinedWheelsDbStatus = 'success';
+						}
+					} catch {}
+				}
+			}
+
+			// Final fallback: check on-chain for visible wheels
+			if (!dbCheckSucceeded) {
+				const allIds = [...(wheels || []), ...(publicWheels || [])].map((w) => w.id);
+				const uniqueIds = Array.from(new Set(allIds)).filter(Boolean);
+				
+				if (uniqueIds.length > 0) {
+					joinedWheelsFallbackUsed = true;
+					try {
+						const objs = await suiClient.multiGetObjects({
+							ids: uniqueIds,
+							options: { showContent: true }
+						});
+						
+						const validObjs = objs?.filter((o) => o?.data && o?.data?.content) || [];
+						
+						if (validObjs.length === 0) {
+							joinedWheelsWarning = 'Database unavailable and wheels not found on-chain.';
+						}
+						
+						// Check each wheel for user participation
+						for (const o of validObjs) {
+							try {
+								const wheelId = String(o?.data?.objectId || '');
+								
+								const content = o?.data?.content as
+									| { dataType?: string; fields?: Record<string, unknown> }
+									| undefined;
+								const f = (content?.dataType === 'moveObject' ? content?.fields : {}) || {};
+								
+								// Skip cancelled wheels
+								const isCancelled = Boolean(f['is_cancelled']);
+								if (isCancelled) continue;
+								
+								// Check winners array first
+								const winners = Array.isArray(f['winners']) ? f['winners'] : [];
+								const hasWon = winners.some((winner: any) => {
+									try {
+										const winnerAddr = String(winner?.fields?.addr || winner?.fields?.address || '').toLowerCase();
+										return winnerAddr === addr;
+									} catch {
+										return false;
+									}
+								});
+								
+								if (hasWon) {
+									joinedIds.add(wheelId);
+									continue;
 								}
-							});
-							
-							if (hasWon) {
-								joinedIds.add(wheelId);
-								continue;
-							}
-							
-							// Check remaining_entries (not yet spun)
-							const entries = Array.isArray(f['remaining_entries']) ? f['remaining_entries'] : [];
-							if (entries.length === 0) continue;
-							
-							// Fetch entry objects to check user addresses
-							const entryObjs = await suiClient.multiGetObjects({
-								ids: entries.map((e: any) => String(e)),
-								options: { showContent: true }
-							});
-							
-							const hasEntry = entryObjs.some((entryObj: any) => {
-								try {
-									const entryContent = entryObj?.data?.content as
-										| { dataType?: string; fields?: Record<string, unknown> }
-										| undefined;
-									const fields = (entryContent?.dataType === 'moveObject' ? entryContent?.fields : {}) || {};
-									const userAddr = String(fields['user'] || '').toLowerCase();
-									return userAddr === addr;
-								} catch {
-									return false;
+								
+								// Check remaining_entries (these are user addresses, not entry object IDs!)
+								const entries = Array.isArray(f['remaining_entries']) ? f['remaining_entries'] : [];
+								const hasEntry = entries.some((entry: any) => {
+									const entryAddr = String(entry || '').toLowerCase();
+									return entryAddr === addr;
+								});
+								
+								if (hasEntry) {
+									joinedIds.add(wheelId);
 								}
-							});
-							
-							if (hasEntry) {
-								joinedIds.add(wheelId);
-							}
-						} catch {}
+							} catch {}
+						}
+						
+						if (joinedIds.size === 0) {
+							joinedWheelsWarning = 'Database unavailable. Cannot verify joined wheels that are not in the visible list.';
+						}
+					} catch {
+						joinedWheelsWarning = 'Database unavailable and on-chain check failed.';
 					}
-				} catch (onChainError) {
-					console.error('On-chain fallback also failed:', onChainError);
+				} else {
+					joinedWheelsWarning = 'Database unavailable. No wheels available to check.';
 				}
 			}
 
 			if (joinedIds.size === 0) {
 				joinedWheels = [];
+				if (!isRefresh) joinedWheelsPageState = 'loaded';
 				return;
 			}
 
+			// Use database wheels if available, otherwise use visible wheels
+			let baseWheels = dbWheels.length > 0 ? dbWheels : 
+				[...(wheels || []), ...(publicWheels || [])].filter((w) => joinedIds.has(w.id));
+			
+			// Deduplicate by wheel ID
+			const seenIds = new Set<string>();
+			baseWheels = baseWheels.filter((w) => {
+				if (seenIds.has(w.id)) return false;
+				seenIds.add(w.id);
+				return true;
+			});
+
 			// Enrich joined list status similar to others
 			try {
-				const ids = uniqueIds.filter((id) => joinedIds.has(id));
+				const ids = baseWheels.map((w) => w.id);
+				
 				const objs = await suiClient.multiGetObjects({
 					ids,
 					options: { showContent: true }
@@ -338,33 +378,29 @@
 						idToMeta.set(id, { status, remainingSpins: remaining, totalEntries });
 					} catch {}
 				}
-				// Build joined list keeping existing timestamps from wheels/publicWheels when possible
-				const idToTs = new Map();
-				for (const w of wheels) idToTs.set(w.id, w.timestampMs || 0);
-				for (const w of publicWheels) if (!idToTs.has(w.id)) idToTs.set(w.id, w.timestampMs || 0);
-				joinedWheels = ids.map((id) => ({
-					id,
-					digest: null,
-					timestampMs: idToTs.get(id) || 0,
-					joined: true,
-					...(idToMeta.get(id) || { status: '—', remainingSpins: 0, totalEntries: 0 })
-				}));
+				// Build joined list using base wheels data
+				joinedWheels = baseWheels
+					.map((w) => ({
+						...w,
+						joined: true,
+						...(idToMeta.get(w.id) || { status: '—', remainingSpins: 0, totalEntries: 0 })
+					}))
+					.sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0)); // Sort by newest first
 			} catch {
 				// Fallback without enrichment
-				joinedWheels = Array.from(joinedIds).map((id: unknown) => ({
-					id: String(id),
-					digest: undefined,
-					timestampMs: 0,
-					joined: true
-				}));
+				joinedWheels = baseWheels
+					.map((w) => ({
+						...w,
+						joined: true
+					}))
+					.sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0)); // Sort by newest first
 			}
 
 			// Update joined flags on visible lists
 			wheels = wheels.map((w) => ({ ...w, joined: joinedIds.has(w.id) }));
 			publicWheels = publicWheels.map((w) => ({ ...w, joined: joinedIds.has(w.id) }));
-		} catch (e) {
+		} catch {
 			joinedWheels = [];
-			joinedWheelsErrorMsg = (e as { message?: string })?.message || String(e);
 		} finally {
 			if (!isRefresh) joinedWheelsPageState = 'loaded';
 		}
@@ -655,6 +691,22 @@
 				<h2 class="text-lg font-semibold">{t('wheelList.joinedWheels.title')}</h2>
 				<p class="mt-1 text-sm opacity-70">{t('wheelList.joinedWheels.description')}</p>
 			</div>
+			
+			{#if dev}
+				<DebugFallbackStatus 
+					dbStatus={joinedWheelsDbStatus} 
+					fallbackUsed={joinedWheelsFallbackUsed}
+					itemsCount={joinedWheels.length}
+				/>
+			{/if}
+			
+			{#if joinedWheelsWarning && dev}
+				<div class="alert alert-warning">
+					<span class="icon-[lucide--alert-triangle]"></span>
+					<span>{joinedWheelsWarning}</span>
+				</div>
+			{/if}
+			
 			{#if joinedWheelsPageState === 'initializing'}
 				<div class="flex items-center gap-2">
 					<span class="loading loading-sm loading-spinner"></span>

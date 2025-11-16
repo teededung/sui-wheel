@@ -372,7 +372,7 @@
       "wheelNotFound": "Wheel not found."
     },
     "success": {
-      "wheelCreatedAndFunded": "Successfully created and funded. We can spin it now.",
+      "wheelCreatedAndFunded": "Successfully created and funded. You can spin it now.",
       "wheelCreatedAndFundedSuccessfully": "Wheel created and funded successfully",
       "viewTx": "View Tx",
       "wheelUpdatedSuccessfully": "Wheel updated successfully.",

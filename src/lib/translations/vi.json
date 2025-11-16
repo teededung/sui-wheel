@@ -388,7 +388,7 @@
       "wheelNotFound": "Không tìm thấy vòng quay."
     },
     "success": {
-      "wheelCreatedAndFunded": "Đã tạo và tài trợ thành công. Chúng ta có thể quay ngay bây giờ.",
+      "wheelCreatedAndFunded": "Đã tạo và tài trợ thành công. Bạn có thể quay ngay bây giờ.",
       "wheelCreatedAndFundedSuccessfully": "Đã tạo và tài trợ vòng quay thành công",
       "viewTx": "Xem giao dịch",
       "wheelUpdatedSuccessfully": "Đã cập nhật vòng quay thành công.",

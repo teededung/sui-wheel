@@ -18,10 +18,10 @@ export interface Wheel {
 	package_id: string;
 	/** Wallet address that created the wheel */
 	organizer_address: string;
-	/** Array of prize amounts in smallest unit (e.g., MIST for SUI) */
-	prizes_mist: string[];
+	/** Array of prize amounts in smallest unit (e.g., MIST for SUI, smallest unit for other coins) */
+	prizes: string[];
 	/** Total donation amount in smallest unit */
-	total_donation_mist: string | null;
+	total_donation: string | null;
 	/** Network identifier (mainnet, testnet, devnet) */
 	network: string;
 	/** Coin type for prizes (e.g., "0x2::sui::SUI") */

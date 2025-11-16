@@ -23,10 +23,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		const wheelIdsSet = new Set(wheelIds);
 
+		// Check which wheels the user has joined (no auto-sync)
 		const { data, error } = await locals.supabaseAdmin
 			.from('wheel_entries')
 			.select('wheel_id')
 			.eq('entry_address', address)
+			.in('wheel_id', wheelIds)
 			.limit(10000);
 
 		if (error) {

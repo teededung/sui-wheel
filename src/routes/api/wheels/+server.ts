@@ -8,8 +8,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			txDigest?: string;
 			packageId?: string;
 			organizerAddress?: string;
-			prizesMist?: bigint[];
-			totalDonationMist?: bigint | null;
+			prizeAmounts?: string[];
+			totalDonationAmount?: string | null;
 			network?: string;
 			orderedEntries?: string[];
 			coinType?: string;
@@ -19,8 +19,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			txDigest,
 			packageId,
 			organizerAddress,
-			prizesMist = [],
-			totalDonationMist = null,
+			prizeAmounts = [],
+			totalDonationAmount = null,
 			network = 'testnet',
 			orderedEntries = [],
 			coinType = '0x2::sui::SUI'
@@ -37,8 +37,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				tx_digest: txDigest,
 				package_id: packageId,
 				organizer_address: organizerAddress,
-				prizes_mist: prizesMist,
-				total_donation_mist: totalDonationMist,
+				prizes: prizeAmounts,
+				total_donation: totalDonationAmount,
 				network,
 				coin_type: coinType
 			},
