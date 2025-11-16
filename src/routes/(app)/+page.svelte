@@ -8,7 +8,6 @@
 	import { toast } from 'svelte-daisy-toaster';
 	import { formatDistanceToNow } from 'date-fns';
 	import { vi } from 'date-fns/locale';
-	import { buildCreateWheelTransaction, buildDonateToPoolTransaction } from '$lib/utils/transactionBuilders.js';
 	import {
 		useSuiClient,
 		useCurrentAccount,
@@ -19,8 +18,6 @@
 	import { shortenAddress, arraysShallowEqual, shuffleArray } from '$lib/utils/string.js';
 	import {
 		isValidSuiAddress,
-		parseSuiToMist,
-		formatMistToSuiCompact,
 		isTestnet,
 		highlightAddress,
 		getExplorerLink
@@ -30,7 +27,6 @@
 	import ButtonCopy from '$lib/components/ButtonCopy.svelte';
 	import Wheel from '$lib/components/Wheel.svelte';
 	import CoinSelector from '$lib/components/coin/CoinSelector.svelte';
-	import CoinBalance from '$lib/components/coin/CoinBalance.svelte';
 	import CoinDisplay from '$lib/components/coin/CoinDisplay.svelte';
 	import { createTestnetCoinService } from '$lib/services/coinService';
 	import { wheelContext } from '$lib/context/wheel.js';
@@ -50,8 +46,7 @@
 		VERSION_OBJECT_ID,
 		DEFAULT_COIN_TYPE,
 		COMMON_COINS,
-		RESERVED_GAS_FEE_MIST,
-		RESERVED_GAS_FEE_SUI
+		RESERVED_GAS_FEE_MIST
 	} from '$lib/constants.js';
 
 	const t = useTranslation();
@@ -123,8 +118,11 @@
 		try {
 			const amountStr = String(amount);
 			const paddedAmount = amountStr.padStart(decimals + 1, '0');
-			const intPart = paddedAmount.slice(0, -decimals) || '0';
+			let intPart = paddedAmount.slice(0, -decimals) || '0';
 			const decPart = paddedAmount.slice(-decimals);
+			
+			// Add thousand separators to integer part
+			intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 			
 			// Remove trailing zeros from decimal part
 			const trimmedDec = decPart.replace(/0+$/, '');
@@ -498,20 +496,25 @@
 		if (addrList.length < 2) errors.push(t('main.errors.atLeast2Addresses'));
 		if (addrList.length > MAX_ENTRIES)
 			errors.push(t('main.errors.entriesCountLimit', { maxEntries: MAX_ENTRIES }));
-		const prizesCount = prizeAmounts.filter((v) => parseSuiToMist(v) > 0n).length;
+		const prizesCount = prizeAmounts.filter(
+			(v) => parseAmountToSmallestUnit(v, selectedCoinDecimals) > 0n
+		).length;
 		if (prizesCount === 0) errors.push(t('main.errors.addAtLeast1Prize'));
 		if (addrList.length < prizesCount) errors.push(t('main.errors.entriesMustBeGreaterThanPrizes'));
 		// unique addresses check
 		const uniqueCount = new Set(addrList.map((a) => a.toLowerCase())).size;
 		if (uniqueCount < prizesCount)
 			errors.push(t('main.errors.uniqueAddressCountMustBeGreaterThanPrizes'));
-		// Check minimum prize amount
+		// Check minimum prize amount (0.01 for most coins)
+		const minAmount = BigInt(10 ** Math.max(0, selectedCoinDecimals - 2));
 		const invalidPrizes = prizeAmounts.filter((v) => {
-			const mist = parseSuiToMist(v);
-			return mist > 0n && mist < MINIMUM_PRIZE_AMOUNT.MIST;
+			const amount = parseAmountToSmallestUnit(v, selectedCoinDecimals);
+			return amount > 0n && amount < minAmount;
 		});
 		if (invalidPrizes.length > 0) {
-			errors.push(t('main.errors.eachPrizeMustBeAtLeast', { minAmount: MINIMUM_PRIZE_AMOUNT.SUI }));
+			errors.push(
+				t('main.errors.eachPrizeMustBeAtLeast', { minAmount: MINIMUM_PRIZE_AMOUNT.SUI })
+			);
 		}
 		return errors;
 	}
@@ -527,7 +530,9 @@
 		setupLoading = true;
 		try {
 			const addrList = getAddressEntries();
-			const prizeMistList = prizeAmounts.map((v) => parseSuiToMist(v)).filter((v) => v > 0n);
+			const prizeMistList = prizeAmounts
+				.map((v) => parseAmountToSmallestUnit(v, selectedCoinDecimals))
+				.filter((v) => v > 0n);
 			const total = totalDonationMist;
 			if (total <= 0n) throw new Error(t('main.errors.totalDonationMustBeGreaterThan0'));
 
@@ -859,7 +864,9 @@
 			entries = newEntries;
 			entriesText = entries.join('\n');
 
-			prizeAmounts = prizesOnChainMist.map((m) => formatMistToSuiCompact(m));
+			prizeAmounts = prizesOnChainMist.map((m) =>
+				formatSmallestUnitToAmount(m, selectedCoinDecimals)
+			);
 			delayMs = delayMsOnChain;
 			claimWindowMs = claimWindowMsOnChain;
 
@@ -2004,11 +2011,11 @@
 													>
 												</div>
 											{/each}
-											<div class="mt-2 flex items-center justify-between">
+											<div class="mt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
 												<button class="btn btn-outline" onclick={addPrize}
 													>{t('main.addPrize')}</button
 												>
-												<div class="text-sm">
+												<div class="text-sm flex gap-1">
 													<strong>{t('main.need')}:</strong>
 													<p>
 														<span class="font-mono text-primary"
