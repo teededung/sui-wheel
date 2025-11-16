@@ -531,7 +531,6 @@
 			const resp = await fetch(`/api/wheels?wheelId=${encodeURIComponent(wheelId)}`);
 			if (resp?.ok) {
 				const data = (await resp.json()) as { entries?: string[] };
-				console.log(data);
 				const dbEntries = Array.isArray(data?.entries) ? data.entries.map(String) : [];
 				if (dbEntries.length > 0) return dbEntries;
 			}
