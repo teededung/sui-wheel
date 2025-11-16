@@ -183,30 +183,49 @@ export function highlightAddress(address: string): string {
 	return `${prefix}<span class="font-bold text-primary">${first4}</span>${middle}<span class="font-bold text-primary">${last4}</span>`;
 }
 
+export type NetworkType = 'mainnet' | 'testnet';
+export type ExplorerType = 'txblock' | 'object' | 'address' | 'package';
+export type ExplorerProvider = 'suiscan' | 'suivision';
+
 /**
  * Generates explorer link for SUI blockchain
- * @param {string} network - Network name ('mainnet' or 'testnet')
- * @param {string} type - Explorer page type ('txblock', 'object', 'address', 'package')
- * @param {string} identifier - The transaction hash, object ID, address, or package ID
- * @returns {string} Full Suivision URL
+ * @param network - Network name ('mainnet' or 'testnet')
+ * @param type - Explorer page type ('txblock', 'object', 'address', 'package')
+ * @param identifier - The transaction hash, object ID, address, or package ID
+ * @param provider - Explorer provider ('suiscan' or 'suivision'), defaults to 'suiscan'
+ * @returns Full explorer URL
  * @example
- * getExplorerLink('mainnet', 'txblock', '0x123...') // returns 'https://suivision.xyz/txblock/0x123...'
- * getExplorerLink('testnet', 'object', '0x456...') // returns 'https://testnet.suivision.xyz/object/0x456...'
+ * getExplorerLink('mainnet', 'txblock', '0x123...') // returns 'https://suiscan.xyz/mainnet/tx/0x123...'
+ * getExplorerLink('testnet', 'object', '0x456...', 'suivision') // returns 'https://testnet.suivision.xyz/object/0x456...'
  */
-export function getExplorerLink(network: string, type: string, identifier: string): string {
-	const validNetworks = ['mainnet', 'testnet'];
-	const validTypes = ['txblock', 'object', 'address', 'package'];
+export function getExplorerLink(network: string, type: string, identifier: string, provider: ExplorerProvider = 'suiscan'): string {
+	const validNetworks: NetworkType[] = ['mainnet', 'testnet'];
+	const validTypes: ExplorerType[] = ['txblock', 'object', 'address', 'package'];
 
-	if (!validNetworks.includes(network)) {
-		network = 'testnet'; // default fallback
+	let finalNetwork: NetworkType = 'testnet';
+	if (validNetworks.includes(network as NetworkType)) {
+		finalNetwork = network as NetworkType;
 	}
 
-	if (!validTypes.includes(type)) {
-		type = 'txblock'; // default fallback
+	let finalType: ExplorerType = 'txblock';
+	if (validTypes.includes(type as ExplorerType)) {
+		finalType = type as ExplorerType;
 	}
 
-	// Testnet uses subdomain, mainnet does not
-	const baseUrl = network === 'testnet' ? 'https://testnet.suivision.xyz' : 'https://suivision.xyz';
-
-	return `${baseUrl}/${type}/${identifier}`;
+	if (provider === 'suiscan') {
+		// Suiscan URL format: https://suiscan.xyz/{network}/{type}/{identifier}
+		const typeMap: Record<ExplorerType, string> = {
+			txblock: 'tx',
+			object: 'object',
+			address: 'account',
+			package: 'object'
+		};
+		return `https://suiscan.xyz/${finalNetwork}/${typeMap[finalType]}/${identifier}`;
+	} else {
+		// Suivision URL format (original)
+		// Testnet uses subdomain, mainnet does not
+		const baseUrl =
+			finalNetwork === 'testnet' ? 'https://testnet.suivision.xyz' : 'https://suivision.xyz';
+		return `${baseUrl}/${finalType}/${identifier}`;
+	}
 }

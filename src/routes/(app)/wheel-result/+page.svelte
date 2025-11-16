@@ -8,7 +8,6 @@
 	} from 'sui-svelte-wallet-kit';
 	import { shortenAddress } from '$lib/utils/string.js';
 	import {
-		formatMistToSuiCompact,
 		isTestnet,
 		highlightAddress,
 		getExplorerLink
@@ -20,8 +19,12 @@
 		WHEEL_STRUCT,
 		CLOCK_OBJECT_ID,
 		WHEEL_EVENTS,
-		VERSION_OBJECT_ID
+		VERSION_OBJECT_ID,
+		DEFAULT_COIN_TYPE,
+		COMMON_COINS
 	} from '$lib/constants.js';
+	import { formatCoinAmount } from '$lib/utils/coinHelpers.js';
+	import CoinDisplay from '$lib/components/coin/CoinDisplay.svelte';
 	import { toast } from 'svelte-daisy-toaster';
 	import { format, formatDistanceToNow } from 'date-fns';
 	import { watch } from 'runed';
@@ -66,14 +69,29 @@
 	// Wheel meta
 	let wheelCreatedAtMs = $state(0);
 	let isCancelled = $state(false);
+	let selectedCoinType = $state(DEFAULT_COIN_TYPE);
 
 	let ticker;
-	let poolBalanceMist = $state(0n);
+	let poolBalance = $state(0n); // Pool balance in smallest unit
 	let lastReclaim = $state({ amount: 0n, timestampMs: 0, digest: '' });
 	let lastClaim = $state({ amount: 0n, timestampMs: 0, digest: '' });
 
 	// Non-winning entries (remaining entries on chain)
 	let nonWinningEntries = $state<string[]>([]);
+
+	// Get selected coin metadata
+	let selectedCoinMetadata = $derived.by(() => {
+		return COMMON_COINS.find((c) => c.coinType === selectedCoinType) || {
+			coinType: DEFAULT_COIN_TYPE,
+			symbol: 'SUI',
+			name: 'Sui',
+			decimals: 9,
+			iconUrl: ''
+		};
+	});
+
+	let selectedCoinSymbol = $derived(selectedCoinMetadata.symbol);
+	let selectedCoinDecimals = $derived(selectedCoinMetadata.decimals);
 	let winnerInfo = $derived.by(() => {
 		try {
 			const addr = account?.address.toLowerCase();
@@ -131,6 +149,20 @@
 		}
 	);
 
+	async function fetchWheelCoinType(wheelId: string): Promise<void> {
+		try {
+			const resp = await fetch(`/api/wheels?wheelId=${encodeURIComponent(wheelId)}`);
+			if (resp?.ok) {
+				const data = (await resp.json()) as { coinType?: string };
+				if (data?.coinType) {
+					selectedCoinType = data.coinType;
+				}
+			}
+		} catch (err) {
+			console.error('Failed to fetch wheel coin type:', err);
+		}
+	}
+
 	async function fetchWheelCreationTimestamp(wheelId: string) {
 		if (!wheelId) return;
 		try {
@@ -180,15 +212,31 @@
 		loading = true;
 		error = '';
 		try {
+			// Fetch coin type from API first
+			await fetchWheelCoinType(wheelId);
+
 			const wheelContent = await suiClient.getObject({
 				id: wheelId,
-				options: { showContent: true }
+				options: { showContent: true, showType: true }
 			});
 
 			const content = wheelContent?.data?.content as
-				| { dataType?: string; fields?: Record<string, unknown> }
+				| { dataType?: string; fields?: Record<string, unknown>; type?: string }
 				| undefined;
 			const f = (content?.dataType === 'moveObject' ? content?.fields : {}) ?? {};
+
+			// Extract coin type from object type as fallback
+			const objectType = content?.type;
+			if (objectType && objectType.includes('<') && objectType.includes('>')) {
+				const match = objectType.match(/<(.+)>/);
+				if (match && match[1]) {
+					const extractedCoinType = match[1].trim();
+					// Only update if API didn't provide coin type (still default)
+					if (selectedCoinType === DEFAULT_COIN_TYPE && extractedCoinType !== DEFAULT_COIN_TYPE) {
+						selectedCoinType = extractedCoinType;
+					}
+				}
+			}
 
 			isCancelled = Boolean(f.is_cancelled);
 			winners = ((f.winners as unknown[]) || []).map((w: unknown) => {
@@ -256,7 +304,7 @@
 					}
 				}
 
-				poolBalanceMist = pool;
+				poolBalance = pool;
 			} catch {}
 
 			// Fetch wheel creation timestamp
@@ -454,9 +502,10 @@
 		const toastInstance = toast.loading(t('wheelResult.claiming'), { position: 'bottom-right' });
 		try {
 			const tx = new Transaction();
-			// Call claim to get a Coin<SUI> back in the PTB
+			// Call claim to get a Coin back in the PTB
 			const claimedCoin = tx.moveCall({
 				target: `${LATEST_PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.CLAIM}`,
+				typeArguments: [selectedCoinType],
 				arguments: [
 					tx.object(wheelId), 
 					tx.object(CLOCK_OBJECT_ID),
@@ -561,9 +610,10 @@
 
 		try {
 			const tx = new Transaction();
-			// Call reclaim_pool to get Coin<SUI> and transfer to organizer (sender)
+			// Call reclaim_pool to get Coin and transfer to organizer (sender)
 			const coin = tx.moveCall({
 				target: `${LATEST_PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.RECLAIM}`,
+				typeArguments: [selectedCoinType],
 				arguments: [
 					tx.object(wheelId), 
 					tx.object(CLOCK_OBJECT_ID),
@@ -676,7 +726,7 @@
 				{#if lastReclaim.timestampMs > 0 && isOrganizer}
 					<div class="mb-4 text-xs text-base-content/70">
 						{t('wheelResult.lastReclaim')}
-						<strong>{formatMistToSuiCompact(lastReclaim.amount)} SUI</strong>
+						<strong>{formatCoinAmount(lastReclaim.amount, selectedCoinDecimals, { compact: true })} {selectedCoinSymbol}</strong>
 						{t('wheelResult.on')}
 						<span title={new Date(lastReclaim.timestampMs).toISOString()}>
 							{format(new Date(lastReclaim.timestampMs), 'PPpp')} ({formatDistanceToNow(
@@ -714,9 +764,15 @@
 									{#each prizeAmounts as m, i}
 										<tr>
 											<td class="w-12">{i + 1}</td>
-											<td class="flex items-center gap-1">
-												<span class="font-mono text-primary">{formatMistToSuiCompact(m)}</span>
-												<span class="text-xs text-base-content/80">SUI</span>
+											<td>
+												<CoinDisplay
+													coinType={selectedCoinType}
+													amount={m}
+													showIcon={true}
+													showSymbol={true}
+													size="sm"
+													compact={true}
+												/>
 											</td>
 											<td class="font-mono">
 												<div class="flex items-center">
@@ -872,7 +928,7 @@
 											disabled={!isOnTestnet}
 											className="mb-2"
 											>{t('wheelResult.claim')}
-											{formatMistToSuiCompact(prizeAmounts[winnerPrizeIndex] ?? 0n)} SUI</ButtonLoading
+											{formatCoinAmount(prizeAmounts[winnerPrizeIndex] ?? 0n, selectedCoinDecimals, { compact: true })} {selectedCoinSymbol}</ButtonLoading
 										>
 									{/if}
 									{#if getClaimState(winnerPrizeIndex).state === 'too_early'}
@@ -954,11 +1010,11 @@
 								<div class="flex gap-2 text-sm">
 									{t('wheelResult.remainingPoolBalance')}
 									<div class="flex items-center gap-1 font-mono font-semibold">
-										<span class="text-primary">{formatMistToSuiCompact(poolBalanceMist)}</span>
-										<span class="text-xs text-base-content/80">SUI</span>
+										<span class="text-primary">{formatCoinAmount(poolBalance, selectedCoinDecimals, { compact: true })}</span>
+										<span class="text-xs text-base-content/80">{selectedCoinSymbol}</span>
 									</div>
 								</div>
-								{#if account && isOrganizer && canOrganizerReclaim() && poolBalanceMist > 0n}
+								{#if account && isOrganizer && canOrganizerReclaim() && poolBalance > 0n}
 									<ButtonLoading
 										formLoading={reclaimLoading}
 										color="warning"

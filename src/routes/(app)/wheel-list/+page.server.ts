@@ -35,17 +35,24 @@ export const load: PageServerLoad = async () => {
 
 		const items: Array<{ id: string; digest?: string; timestampMs: number }> = [];
 		for (const tx of transactions) {
-			const created = (tx?.objectChanges || []).find(
-				(ch: { type?: string; objectType?: string; objectId?: string }) =>
-					ch?.type === 'created' &&
-					String(ch?.objectType || '').endsWith(`::${WHEEL_MODULE}::${WHEEL_STRUCT}`)
-			) as { objectId?: string } | undefined;
-			if (created?.objectId) {
-				items.push({
-					id: created.objectId,
-					digest: tx?.digest,
-					timestampMs: Number(tx?.timestampMs || 0)
-				});
+			const objectChanges = tx?.objectChanges || [];
+			
+			for (const ch of objectChanges) {
+				const change = ch as { type?: string; objectType?: string; objectId?: string };
+				
+				if (change?.type === 'created') {
+					const objectType = String(change?.objectType || '');
+					
+					// Check if it's a Wheel object (handle both with and without type parameters)
+					if (objectType.includes(`::${WHEEL_MODULE}::${WHEEL_STRUCT}`)) {
+						items.push({
+							id: change.objectId!,
+							digest: tx?.digest,
+							timestampMs: Number(tx?.timestampMs || 0)
+						});
+						break; // Only one wheel per transaction
+					}
+				}
 			}
 		}
 
@@ -92,14 +99,16 @@ export const load: PageServerLoad = async () => {
 						return { ...it, ...meta };
 					})
 					.filter(w => w.status !== 'Cancelled');
-			} catch {
+			} catch (err) {
+				console.error('[WheelList Server] Enrichment failed:', err);
 				// keep base items if enrichment fails
 				publicWheels = items;
 			}
 		}
 
 		return { publicWheels };
-	} catch {
+	} catch (err) {
+		console.error('[WheelList Server] Load failed:', err);
 		return { publicWheels: [] as Array<{ id: string; digest?: string; timestampMs: number }> };
 	}
 };

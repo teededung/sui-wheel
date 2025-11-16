@@ -12,6 +12,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			totalDonationMist?: bigint | null;
 			network?: string;
 			orderedEntries?: string[];
+			coinType?: string;
 		};
 		const {
 			wheelId,
@@ -21,7 +22,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			prizesMist = [],
 			totalDonationMist = null,
 			network = 'testnet',
-			orderedEntries = []
+			orderedEntries = [],
+			coinType = '0x2::sui::SUI'
 		} = body ?? {};
 
 		if (!wheelId || !txDigest || !packageId || !organizerAddress) {
@@ -37,7 +39,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				organizer_address: organizerAddress,
 				prizes_mist: prizesMist,
 				total_donation_mist: totalDonationMist,
-				network
+				network,
+				coin_type: coinType
 			},
 			{ onConflict: 'wheel_id' }
 		);
@@ -84,6 +87,17 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			return json({ success: false, message: 'Missing wheelId' }, { status: 400 });
 		}
 
+		// Get wheel info including coin_type
+		const { data: wheel, error: wheelErr } = await locals.supabaseAdmin
+			.from('wheels')
+			.select('coin_type')
+			.eq('wheel_id', wheelId)
+			.single();
+
+		if (wheelErr) {
+			console.error('[api/wheels] GET wheel error', wheelErr);
+		}
+
 		const { data: entries, error: err } = await locals.supabaseAdmin
 			.from('wheel_entries')
 			.select('entry_address, entry_index')
@@ -95,7 +109,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			return json({ success: false, message: 'Failed to fetch entries' }, { status: 500 });
 		}
 
-		return json({ success: true, entries: (entries ?? []).map((r: { entry_address: string }) => r.entry_address) });
+		return json({ 
+			success: true, 
+			entries: (entries ?? []).map((r: { entry_address: string }) => r.entry_address),
+			coinType: wheel?.coin_type || '0x2::sui::SUI'
+		});
 	} catch (e) {
 		console.error('[api/wheels] GET error', e);
 		return json({ success: false, message: 'Internal server error' }, { status: 500 });

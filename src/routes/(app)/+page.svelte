@@ -18,8 +18,6 @@
 	import { shortenAddress, arraysShallowEqual, shuffleArray } from '$lib/utils/string.js';
 	import {
 		isValidSuiAddress,
-		parseSuiToMist,
-		formatMistToSuiCompact,
 		isTestnet,
 		highlightAddress,
 		getExplorerLink
@@ -28,6 +26,9 @@
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
 	import ButtonCopy from '$lib/components/ButtonCopy.svelte';
 	import Wheel from '$lib/components/Wheel.svelte';
+	import CoinSelector from '$lib/components/coin/CoinSelector.svelte';
+	import CoinDisplay from '$lib/components/coin/CoinDisplay.svelte';
+	import { createTestnetCoinService } from '$lib/services/coinService';
 	import { wheelContext } from '$lib/context/wheel.js';
 	import { useTranslation } from '$lib/hooks/useTranslation.js';
 	import { getLanguageContext } from '$lib/context/language.js';
@@ -37,12 +38,16 @@
 	import {
 		LATEST_PACKAGE_ID,
 		WHEEL_MODULE,
+		WHEEL_STRUCT,
 		WHEEL_FUNCTIONS,
 		MINIMUM_PRIZE_AMOUNT,
 		MAX_ENTRIES,
 		RANDOM_OBJECT_ID,
 		CLOCK_OBJECT_ID,
-		VERSION_OBJECT_ID
+		VERSION_OBJECT_ID,
+		DEFAULT_COIN_TYPE,
+		COMMON_COINS,
+		RESERVED_GAS_FEE_MIST
 	} from '$lib/constants.js';
 
 	const t = useTranslation();
@@ -71,13 +76,101 @@
 
 	// Blockchain setup state
 	let packageId = $state(LATEST_PACKAGE_ID);
-	let prizeAmounts = $state(['']); // SUI amounts as strings (decimal supported)
+	let selectedCoinType = $state(DEFAULT_COIN_TYPE); // Selected coin type for prizes
+	let prizeAmounts = $state(['']); // Coin amounts as strings (decimal supported)
 	let delayMs = $state(0);
 	let claimWindowMs = $state(1440); // 24 hours
 	let setupLoading = $state(false);
 	let setupError = $state('');
 	let setupSuccessMsg = $state('');
 	let errorMsg = $state('');
+
+	// Get selected coin metadata from COMMON_COINS
+	let selectedCoinMetadata = $derived.by(() => {
+		return COMMON_COINS.find((c) => c.coinType === selectedCoinType) || {
+			coinType: DEFAULT_COIN_TYPE,
+			symbol: 'SUI',
+			name: 'Sui',
+			decimals: 9,
+			iconUrl: ''
+		};
+	});
+
+	let selectedCoinSymbol = $derived(selectedCoinMetadata.symbol);
+	let selectedCoinDecimals = $derived(selectedCoinMetadata.decimals);
+
+	// Helper function to parse amount string to smallest unit based on decimals
+	function parseAmountToSmallestUnit(amount: string, decimals: number): bigint {
+		try {
+			const trimmed = String(amount || '').trim();
+			if (!trimmed || trimmed === '') return 0n;
+
+			const [intPart, decPart = ''] = trimmed.split('.');
+			const paddedDec = decPart.padEnd(decimals, '0').slice(0, decimals);
+			const combined = intPart + paddedDec;
+			return BigInt(combined);
+		} catch {
+			return 0n;
+		}
+	}
+
+	// Helper function to format smallest unit to readable amount based on decimals
+	function formatSmallestUnitToAmount(amount: bigint | string | number, decimals: number): string {
+		try {
+			const amountStr = String(amount);
+			const paddedAmount = amountStr.padStart(decimals + 1, '0');
+			let intPart = paddedAmount.slice(0, -decimals) || '0';
+			const decPart = paddedAmount.slice(-decimals);
+			
+			// Add thousand separators to integer part
+			intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+			
+			// Remove trailing zeros from decimal part
+			const trimmedDec = decPart.replace(/0+$/, '');
+			
+			if (trimmedDec === '') {
+				return intPart;
+			}
+			return `${intPart}.${trimmedDec}`;
+		} catch {
+			return '0';
+		}
+	}
+
+	// Selected coin balance (for non-SUI coins)
+	let selectedCoinBalance = $state<bigint | null>(null);
+	let selectedCoinBalanceLoading = $state(false);
+
+	// Fetch selected coin balance when coin type or account changes
+	$effect(() => {
+		async function fetchSelectedCoinBalance() {
+			if (!account || !selectedCoinType) {
+				selectedCoinBalance = null;
+				return;
+			}
+
+			// For SUI, use the existing suiBalance
+			if (selectedCoinType === DEFAULT_COIN_TYPE) {
+				selectedCoinBalance = suiBalance.value ? BigInt(suiBalance.value) : null;
+				return;
+			}
+
+			// For other coins, fetch from blockchain
+			selectedCoinBalanceLoading = true;
+			try {
+				const coinService = createTestnetCoinService();
+				const balance = await coinService.getCoinBalance(account.address, selectedCoinType);
+				selectedCoinBalance = BigInt(balance.totalBalance);
+			} catch (err) {
+				console.error('Failed to fetch selected coin balance:', err);
+				selectedCoinBalance = null;
+			} finally {
+				selectedCoinBalanceLoading = false;
+			}
+		}
+
+		fetchSelectedCoinBalance();
+	});
 
 	// Reactive wheel ID from URL params
 	let createdWheelId = $derived(params.wheelId);
@@ -86,11 +179,11 @@
 	let isEditing = $state(false);
 	let wheelFetched = $state(false);
 	let entriesOnChain = $state<string[]>([]);
-	let prizesOnChainMist = $state<bigint[]>([]);
+	let prizesOnChain = $state<bigint[]>([]); // Prize amounts in smallest unit (not just MIST)
 	let spunCountOnChain = $state(0);
 	let delayMsOnChain = $state(0);
 	let claimWindowMsOnChain = $state(0);
-	let poolBalanceMistOnChain = $state(0n);
+	let poolBalanceOnChain = $state(0n); // Pool balance in smallest unit (not just MIST)
 	let winnersOnChain = $state<Array<{ addr: string; prize_index: number }>>([]);
 	let spinTimesOnChain = $state<number[]>([]);
 	let organizerAddress = $state('');
@@ -165,20 +258,26 @@
 	let lastEntryCount = $state(0);
 	let onlineEntriesCount = $state(0);
 
-	// Compute additional SUI (in MIST) needed to top up the pool when editing
-	let topUpMist = $derived.by(() => {
+	// Compute additional amount (in smallest unit) needed to top up the pool when editing
+	let topUpAmount = $derived.by(() => {
 		try {
-			const desired = prizeAmounts.reduce((acc, v) => acc + parseSuiToMist(v), 0n);
-			const currentPool = poolBalanceMistOnChain || 0n;
+			const desired = prizeAmounts.reduce(
+				(acc, v) => acc + parseAmountToSmallestUnit(v, selectedCoinDecimals),
+				0n
+			);
+			const currentPool = poolBalanceOnChain || 0n;
 			return desired > currentPool ? desired - currentPool : 0n;
 		} catch {
 			return 0n;
 		}
 	});
 
-	let totalDonationMist = $derived.by(() => {
+	let totalDonationAmount = $derived.by(() => {
 		try {
-			return prizeAmounts.reduce((acc, v) => acc + parseSuiToMist(v), 0n);
+			return prizeAmounts.reduce(
+				(acc, v) => acc + parseAmountToSmallestUnit(v, selectedCoinDecimals),
+				0n
+			);
 		} catch {
 			return 0n;
 		}
@@ -231,7 +330,7 @@
 
 	// Remaining spins based on on-chain prizes and spun count
 	let remainingSpins = $derived.by(() =>
-		Math.max(0, (prizesOnChainMist.length || 0) - (spunCountOnChain || 0))
+		Math.max(0, (prizesOnChain.length || 0) - (spunCountOnChain || 0))
 	);
 
 	let invalidEntriesCount = $derived.by(() => {
@@ -247,24 +346,78 @@
 		return new Set(valid).size;
 	});
 
-	let prizesCount = $derived.by(() => prizeAmounts.filter((v) => parseSuiToMist(v) > 0n).length);
+	let prizesCount = $derived.by(() =>
+		prizeAmounts.filter((v) => parseAmountToSmallestUnit(v, selectedCoinDecimals) > 0n).length
+	);
 
 	let invalidPrizeAmountsCount = $derived.by(() => {
 		return prizeAmounts.filter((v) => {
-			const mist = parseSuiToMist(v);
-			return mist > 0n && mist < MINIMUM_PRIZE_AMOUNT.MIST;
+			const amount = parseAmountToSmallestUnit(v, selectedCoinDecimals);
+			// Use minimum based on decimals (0.01 for most coins)
+			const minAmount = BigInt(10 ** Math.max(0, selectedCoinDecimals - 2));
+			return amount > 0n && amount < minAmount;
 		}).length;
 	});
 
+	// Check if user has insufficient balance for selected coin
 	let hasInsufficientBalance = $derived.by(() => {
 		// Do not warn about balance until wallet and balance are fully loaded
 		if (!account) return false;
 		if (suiBalanceLoading?.value) return false;
+		
 		try {
-			const balance = suiBalance.value;
-			if (balance == null) return false;
-			return Number(balance) - 1_000_000_000 < Number(totalDonationMist);
+			const suiBalanceValue = suiBalance.value;
+			if (suiBalanceValue == null) return false;
+			
+			const suiBalanceBigInt = BigInt(suiBalanceValue);
+			
+			// If selected coin is SUI
+			if (selectedCoinType === DEFAULT_COIN_TYPE) {
+				// Need: totalDonation + reserved gas fee
+				const required = totalDonationAmount + RESERVED_GAS_FEE_MIST;
+				return suiBalanceBigInt < required;
+			}
+			
+			// If selected coin is NOT SUI, just check if we have enough SUI for gas
+			// (coin balance will be checked separately)
+			return suiBalanceBigInt < RESERVED_GAS_FEE_MIST;
 		} catch {
+			return false;
+		}
+	});
+
+	// Check if user has insufficient gas (SUI) for transaction
+	let hasInsufficientGas = $derived.by(() => {
+		if (!account) return false;
+		if (suiBalanceLoading?.value) return false;
+		
+		try {
+			const suiBalanceValue = suiBalance.value;
+			if (suiBalanceValue == null) return false;
+			
+			return BigInt(suiBalanceValue) < RESERVED_GAS_FEE_MIST;
+		} catch {
+			return false;
+		}
+	});
+
+	// Check if user has insufficient selected coin balance (for non-SUI coins)
+	let hasInsufficientCoinBalance = $derived.by(() => {
+		if (!account) return false;
+		if (selectedCoinBalanceLoading) return false;
+		
+		// Only check for non-SUI coins
+		if (selectedCoinType === DEFAULT_COIN_TYPE) return false;
+		
+		try {
+			// If balance is null or 0, and we need some amount, it's insufficient
+			if (selectedCoinBalance == null || selectedCoinBalance === 0n) {
+				return totalDonationAmount > 0n;
+			}
+			
+			return selectedCoinBalance < totalDonationAmount;
+		} catch (err) {
+			console.error('Error checking coin balance:', err);
 			return false;
 		}
 	});
@@ -291,6 +444,8 @@
 			invalidPrizeAmountsCount > 0 ||
 			entries.length > MAX_ENTRIES ||
 			hasInsufficientBalance ||
+			hasInsufficientGas ||
+			hasInsufficientCoinBalance ||
 			!isOnTestnet
 	);
 
@@ -342,20 +497,25 @@
 		if (addrList.length < 2) errors.push(t('main.errors.atLeast2Addresses'));
 		if (addrList.length > MAX_ENTRIES)
 			errors.push(t('main.errors.entriesCountLimit', { maxEntries: MAX_ENTRIES }));
-		const prizesCount = prizeAmounts.filter((v) => parseSuiToMist(v) > 0n).length;
+		const prizesCount = prizeAmounts.filter(
+			(v) => parseAmountToSmallestUnit(v, selectedCoinDecimals) > 0n
+		).length;
 		if (prizesCount === 0) errors.push(t('main.errors.addAtLeast1Prize'));
 		if (addrList.length < prizesCount) errors.push(t('main.errors.entriesMustBeGreaterThanPrizes'));
 		// unique addresses check
 		const uniqueCount = new Set(addrList.map((a) => a.toLowerCase())).size;
 		if (uniqueCount < prizesCount)
 			errors.push(t('main.errors.uniqueAddressCountMustBeGreaterThanPrizes'));
-		// Check minimum prize amount
+		// Check minimum prize amount (0.01 for most coins)
+		const minAmount = BigInt(10 ** Math.max(0, selectedCoinDecimals - 2));
 		const invalidPrizes = prizeAmounts.filter((v) => {
-			const mist = parseSuiToMist(v);
-			return mist > 0n && mist < MINIMUM_PRIZE_AMOUNT.MIST;
+			const amount = parseAmountToSmallestUnit(v, selectedCoinDecimals);
+			return amount > 0n && amount < minAmount;
 		});
 		if (invalidPrizes.length > 0) {
-			errors.push(t('main.errors.eachPrizeMustBeAtLeast', { minAmount: MINIMUM_PRIZE_AMOUNT.SUI }));
+			errors.push(
+				t('main.errors.eachPrizeMustBeAtLeast', { minAmount: MINIMUM_PRIZE_AMOUNT.SUI })
+			);
 		}
 		return errors;
 	}
@@ -371,22 +531,52 @@
 		setupLoading = true;
 		try {
 			const addrList = getAddressEntries();
-			const prizeMistList = prizeAmounts.map((v) => parseSuiToMist(v)).filter((v) => v > 0n);
-			const total = totalDonationMist;
+			const prizeAmountsList = prizeAmounts
+				.map((v) => parseAmountToSmallestUnit(v, selectedCoinDecimals))
+				.filter((v) => v > 0n);
+			const total = totalDonationAmount;
 			if (total <= 0n) throw new Error(t('main.errors.totalDonationMustBeGreaterThan0'));
 
 			// Combine into a single PTB
 			const tx = new Transaction();
 
-			// Split the donation coin from gas first
-			const [donationCoin] = tx.splitCoins(tx.gas, [total]);
+			// Get donation coin based on coin type
+			let donationCoin;
+			if (selectedCoinType === DEFAULT_COIN_TYPE) {
+				// For SUI, split from gas
+				[donationCoin] = tx.splitCoins(tx.gas, [total]);
+			} else {
+				// For other coins, get from user's wallet
+				const coinService = createTestnetCoinService();
+				const coins = await coinService.selectCoins(
+					account!.address,
+					selectedCoinType,
+					total
+				);
+				
+				if (coins.length === 0) {
+					throw new Error(t('main.errors.insufficientCoinBalance', { symbol: selectedCoinSymbol }));
+				}
+
+				// Merge all coins into one if multiple
+				if (coins.length > 1) {
+					tx.mergeCoins(
+						tx.object(coins[0].coinObjectId),
+						coins.slice(1).map((c) => tx.object(c.coinObjectId))
+					);
+				}
+
+				// Split the exact amount needed
+				[donationCoin] = tx.splitCoins(tx.object(coins[0].coinObjectId), [total]);
+			}
 
 			// Call create_wheel and capture the returned Wheel
 			const wheel = tx.moveCall({
 				target: `${packageId}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.CREATE}`,
+				typeArguments: [selectedCoinType],
 				arguments: [
 					tx.pure.vector('address', addrList),
-					tx.pure.vector('u64', prizeMistList),
+					tx.pure.vector('u64', prizeAmountsList),
 					tx.pure.u64(BigInt(Number(delayMs || 0)) * 60000n),
 					tx.pure.u64(BigInt(Number(claimWindowMs || 0)) * 60000n),
 					// Version object validates transaction against current contract version
@@ -394,15 +584,17 @@
 				]
 			});
 
-			// Call donate_to_pool using the wheel (as mutable ref) and donationCoin
+			// Call donate_to_pool (mutates wheel, doesn't return anything)
 			tx.moveCall({
 				target: `${packageId}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.DONATE}`,
+				typeArguments: [selectedCoinType],
 				arguments: [wheel, donationCoin]
 			});
 
-			// Share the wheel object using the new share_wheel function
+			// Share the wheel object using the contract's share_wheel function
 			tx.moveCall({
 				target: `${packageId}::${WHEEL_MODULE}::share_wheel`,
+				typeArguments: [selectedCoinType],
 				arguments: [wheel]
 			});
 
@@ -417,12 +609,13 @@
 				digest,
 				options: { showObjectChanges: true, showInput: true }
 			});
-			const created = (txBlock?.objectChanges || []).find(
-				(ch) =>
-					ch.type === 'created' && String(ch.objectType || '').endsWith(`::${WHEEL_MODULE}::Wheel`)
+			
+			// Find the created wheel object
+			const wheelChange = (txBlock?.objectChanges || []).find(
+				(ch) => ch.type === 'created' && String((ch as any).objectType || '').includes(`::${WHEEL_MODULE}::${WHEEL_STRUCT}`)
 			);
 
-			const finalWheelId = (created as { objectId?: string })?.objectId;
+			const finalWheelId = (wheelChange as { objectId?: string })?.objectId;
 			if (!finalWheelId) throw new Error(t('main.errors.wheelObjectIdNotFound'));
 
 			setupSuccessMsg = t('main.success.wheelCreatedAndFunded');
@@ -466,9 +659,9 @@
 						? input1.value.map(String)
 						: [];
 
-			// 2: vector<u64> - the list of prize amounts (mist)
+			// 2: vector<u64> - the list of prize amounts (in smallest unit)
 			const input2 = inputs?.[2] as { value?: unknown[] } | undefined;
-			const prizesMistFromInputs = Array.isArray(input2?.value)
+			const prizeAmountsFromInputs = Array.isArray(input2?.value)
 				? input2.value.map((v: unknown) => Number(v))
 				: [];
 
@@ -478,10 +671,11 @@
 				txDigest: digest,
 				packageId,
 				organizerAddress: account?.address,
-				prizesMist: prizesMistFromInputs,
-				totalDonationMist: String(totalDonationStr),
+				prizeAmounts: prizeAmountsFromInputs, // Prize amounts in smallest unit
+				totalDonationAmount: String(totalDonationStr), // Total donation in smallest unit
 				network: 'testnet',
-				orderedEntries
+				orderedEntries,
+				coinType: selectedCoinType
 			};
 
 			try {
@@ -530,13 +724,33 @@
 		try {
 			const resp = await fetch(`/api/wheels?wheelId=${encodeURIComponent(wheelId)}`);
 			if (resp?.ok) {
-				const data = (await resp.json()) as { entries?: string[] };
+				const data = (await resp.json()) as { entries?: string[]; coinType?: string };
 				const dbEntries = Array.isArray(data?.entries) ? data.entries.map(String) : [];
+				
+				// Update selectedCoinType if available from API
+				if (data?.coinType) {
+					selectedCoinType = data.coinType;
+				}
+				
 				if (dbEntries.length > 0) return dbEntries;
 			}
 		} catch {}
 		const winnerAddresses = winnersList.map((w: { addr: string }) => w.addr);
 		return [...winnerAddresses, ...entriesOnChainList];
+	}
+
+	async function fetchWheelCoinType(wheelId: string): Promise<void> {
+		try {
+			const resp = await fetch(`/api/wheels?wheelId=${encodeURIComponent(wheelId)}`);
+			if (resp?.ok) {
+				const data = (await resp.json()) as { coinType?: string };
+				if (data?.coinType) {
+					selectedCoinType = data.coinType;
+				}
+			}
+		} catch (err) {
+			console.error('Failed to fetch wheel coin type:', err);
+		}
 	}
 
 	async function fetchWheelFromChain() {
@@ -545,6 +759,9 @@
 		errorMsg = '';
 
 		try {
+			// Fetch coin type from API first and wait for it
+			await fetchWheelCoinType(createdWheelId);
+
 			const res = await suiClient.getObject({
 				id: createdWheelId,
 				options: { showContent: true, showOwner: true, showType: true }
@@ -554,6 +771,21 @@
 				errorMsg = t('main.errors.wheelNotFound');
 				return;
 			}
+			
+			// Extract coin type from object type as fallback
+			// Object type format: "0x...::sui_wheel::Wheel<0x...::coin::COIN>"
+			const objectType = (content as { type?: string }).type;
+			if (objectType && objectType.includes('<') && objectType.includes('>')) {
+				const match = objectType.match(/<(.+)>/);
+				if (match && match[1]) {
+					const extractedCoinType = match[1].trim();
+					// Only update if API didn't provide coin type (still default)
+					if (selectedCoinType === DEFAULT_COIN_TYPE && extractedCoinType !== DEFAULT_COIN_TYPE) {
+						selectedCoinType = extractedCoinType;
+					}
+				}
+			}
+			
 			const f = (content as { fields?: Record<string, unknown> }).fields || {};
 
 			// Cancellation flag
@@ -565,8 +797,8 @@
 			// Entries (addresses)
 			entriesOnChain = ((f['remaining_entries'] as unknown[]) || []).map((v: unknown) => String(v));
 
-			// Prizes (mist amounts)
-			prizesOnChainMist = ((f['prize_amounts'] as unknown[]) || []).map((v: unknown) => {
+			// Prize amounts in smallest unit (works for any coin type)
+			prizesOnChain = ((f['prize_amounts'] as unknown[]) || []).map((v: unknown) => {
 				try {
 					if (
 						typeof v === 'string' ||
@@ -616,15 +848,15 @@
 			const claimRaw = Number(f['claim_window_ms']);
 			claimWindowMsOnChain = Math.max(0, Math.round(claimRaw / 60000));
 
-			// Pool balance
-			let poolMist = 0n;
+			// Pool balance (in smallest unit)
+			let poolBalance = 0n;
 			const poolCandidates = ['pool'];
 			for (const _k of poolCandidates) {
 				const v = f['pool'];
 				if (v == null) continue;
 				try {
 					if (typeof v === 'string' || typeof v === 'number' || typeof v === 'bigint') {
-						poolMist = BigInt(v);
+						poolBalance = BigInt(v);
 						break;
 					}
 					if (typeof v === 'object' && v !== null) {
@@ -648,7 +880,7 @@
 								typeof val === 'bigint' ||
 								typeof val === 'boolean')
 						) {
-							poolMist = BigInt(val);
+							poolBalance = BigInt(val);
 							break;
 						}
 					}
@@ -656,7 +888,7 @@
 					// Ignore parsing errors
 				}
 			}
-			poolBalanceMistOnChain = poolMist;
+			poolBalanceOnChain = poolBalance;
 
 			// Sync form states for edit mode convenience
 			const lowerWinners = winnersOnChain.map((w) => w.addr.toLowerCase());
@@ -677,7 +909,9 @@
 			entries = newEntries;
 			entriesText = entries.join('\n');
 
-			prizeAmounts = prizesOnChainMist.map((m) => formatMistToSuiCompact(m));
+			prizeAmounts = prizesOnChain.map((m) =>
+				formatSmallestUnitToAmount(m, selectedCoinDecimals)
+			);
 			delayMs = delayMsOnChain;
 			claimWindowMs = claimWindowMsOnChain;
 
@@ -697,11 +931,42 @@
 		setupError = '';
 		try {
 			// Top up only if needed
-			if (topUpMist > 0n) {
+			if (topUpAmount > 0n) {
 				const tx = new Transaction();
-				const [coin] = tx.splitCoins(tx.gas, [topUpMist]);
+				
+				// Get top-up coin based on coin type
+				let coin;
+				if (selectedCoinType === DEFAULT_COIN_TYPE) {
+					// For SUI, split from gas
+					[coin] = tx.splitCoins(tx.gas, [topUpAmount]);
+				} else {
+					// For other coins, get from user's wallet
+					const coinService = createTestnetCoinService();
+					const coins = await coinService.selectCoins(
+						account!.address,
+						selectedCoinType,
+						topUpAmount
+					);
+					
+					if (coins.length === 0) {
+						throw new Error(t('main.errors.insufficientCoinBalance', { symbol: selectedCoinSymbol }));
+					}
+
+					// Merge all coins into one if multiple
+					if (coins.length > 1) {
+						tx.mergeCoins(
+							tx.object(coins[0].coinObjectId),
+							coins.slice(1).map((c) => tx.object(c.coinObjectId))
+						);
+					}
+
+					// Split the exact amount needed
+					[coin] = tx.splitCoins(tx.object(coins[0].coinObjectId), [topUpAmount]);
+				}
+				
 				tx.moveCall({
 					target: `${packageId}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.DONATE}`,
+					typeArguments: [selectedCoinType],
 					arguments: [tx.object(createdWheelId), coin]
 				});
 				await signAndExecuteTransaction(tx);
@@ -1422,6 +1687,7 @@
 				accountFromWallet={Boolean(account)}
 				{isNotOrganizer}
 				{shuffledIndexOrder}
+				{selectedCoinType}
 			/>
 		</div>
 
@@ -1486,10 +1752,10 @@
 												entries = [];
 												entriesOnChain = [];
 												prizeAmounts = [];
-												prizesOnChainMist = [];
+												prizesOnChain = [];
 												winnersOnChain = [];
 												spunCountOnChain = 0;
-												poolBalanceMistOnChain = 0n;
+												poolBalanceOnChain = 0n;
 												activeTab = 'entries';
 												entriesViewMode = 'textarea';
 												// Reset off-chain history
@@ -1730,7 +1996,24 @@
 										onclick={() => (activeTab = 'prizes')}
 									/>
 									<div class="tab-content border-base-300 bg-base-100 p-6">
-										<h3 class="mb-4 text-lg font-semibold">{t('main.prizesSui')}</h3>
+										<h3 class="mb-4 text-lg font-semibold">
+											{t('main.prizes')} ({selectedCoinSymbol})
+										</h3>
+
+										<!-- Coin Selector (only show when creating new wheel) -->
+										{#if !createdWheelId && account}
+											<div class="mb-4">
+												<fieldset class="fieldset">
+													<legend class="fieldset-legend">{t('main.selectCoin')}</legend>
+													<CoinSelector
+														bind:selectedCoinType
+														walletAddress={account.address}
+														showBalance={true}
+														placeholder={t('main.selectCoinPlaceholder')}
+													/>
+												</fieldset>
+											</div>
+										{/if}
 
 										{#if createdWheelId && wheelFetched && !isEditing}
 											<div class="overflow-x-auto">
@@ -1743,10 +2026,19 @@
 														</tr>
 													</thead>
 													<tbody>
-														{#each prizesOnChainMist as m, i}
+														{#each prizesOnChain as m, i}
 															<tr>
 																<td class="w-12">{i + 1}</td>
-																<td class="font-mono">{formatMistToSuiCompact(m)}</td>
+																<td>
+																	<CoinDisplay
+																		coinType={selectedCoinType}
+																		amount={m}
+																		showIcon={true}
+																		showSymbol={true}
+																		size="sm"
+																		compact={true}
+																	/>
+																</td>
 																<td class="flex items-center font-mono">
 																	{#if winnersOnChain.find((w) => w.prize_index === i)}
 																		{shortenAddress(
@@ -1796,16 +2088,16 @@
 													>
 												</div>
 											{/each}
-											<div class="mt-2 flex items-center justify-between">
+											<div class="mt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
 												<button class="btn btn-outline" onclick={addPrize}
 													>{t('main.addPrize')}</button
 												>
-												<div class="text-sm">
+												<div class="text-sm flex gap-1">
 													<strong>{t('main.need')}:</strong>
 													<p>
 														<span class="font-mono text-primary"
-															>{formatMistToSuiCompact(totalDonationMist)}</span
-														> SUI
+															>{formatSmallestUnitToAmount(totalDonationAmount, selectedCoinDecimals)}</span
+														> {selectedCoinSymbol}
 													</p>
 												</div>
 											</div>
@@ -1815,9 +2107,9 @@
 													<span class="opacity-70">{t('main.topUpRequired')}:</span>
 													<div class="ml-1">
 														<span class="font-mono font-bold"
-															>{formatMistToSuiCompact(topUpMist)}</span
+															>{formatSmallestUnitToAmount(topUpAmount, selectedCoinDecimals)}</span
 														>
-														SUI
+														{selectedCoinSymbol}
 													</div>
 												</div>
 											{/if}
@@ -2056,17 +2348,14 @@
 											{#if isNotOrganizer}
 												<li>{t('wheel.notOrganizer')}</li>
 											{/if}
-											{#if hasInsufficientBalance}
-												{#if suiBalance.value && typeof suiBalance.value === 'string' && BigInt(suiBalance.value) < 1_000_000_000n}
-													<li>{t('main.walletBalanceNeedsToBeMoreThanOneSui')}</li>
-												{:else if suiBalance.value}
-													<li>
-														{t('main.walletBalanceIsLessThanTotalRequired', {
-															balance: formatMistToSuiCompact(suiBalance.value),
-															required: formatMistToSuiCompact(totalDonationMist)
-														})}
-													</li>
-												{/if}
+											{#if hasInsufficientGas && selectedCoinType !== DEFAULT_COIN_TYPE}
+												<li>{t('main.insufficientGasBalance')}</li>
+											{/if}
+											{#if hasInsufficientCoinBalance}
+												<li>{t('main.insufficientCoinBalance', { symbol: selectedCoinSymbol })}</li>
+											{/if}
+											{#if hasInsufficientBalance && selectedCoinType === DEFAULT_COIN_TYPE}
+												<li>{t('main.insufficientSuiBalance')}</li>
 											{/if}
 										</ul>
 									</div>
@@ -2088,13 +2377,15 @@
 												invalidPrizeAmountsCount > 0 ||
 												entries.length > MAX_ENTRIES ||
 												getAddressEntries().length < 2 ||
-												hasInsufficientBalance}
+												hasInsufficientBalance ||
+												hasInsufficientGas ||
+												hasInsufficientCoinBalance}
 										>
-											{#if totalDonationMist > 0n}
+											{#if totalDonationAmount > 0n}
 												{t('main.createWheelAndFund')}
 												<span class="font-mono font-bold text-success"
-													>{formatMistToSuiCompact(totalDonationMist)}</span
-												> SUI
+													>{formatSmallestUnitToAmount(totalDonationAmount, selectedCoinDecimals)}</span
+												> {selectedCoinSymbol}
 											{:else}
 												{t('main.createWheel')}
 											{/if}
