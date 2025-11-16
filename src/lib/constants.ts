@@ -5,17 +5,12 @@ export const NETWORK = 'sui:testnet';
  * Each key is the package ID, mapped to its metadata.
  */
 export const PACKAGE_VERSIONS = {
-	'0x932dc79b84e8909f0d31c90e8ee07bda3f7c9bf088b0f6a575be554428decab7': {
+	'0x205430cca7290f23a16e7002457965af9902c2090074f55de4c3469dc220486f': {
 		version: 1,
-		versionObjectId: '0xee441334f35535c4b05ccedf78fe8600a8140bb12c5c91a8a0539f7ef32b09dd',
-		timestampMs: '1763211204295'
+		versionObjectId: '0x6e8e0e3c3ec506d18c2eb4dffc6298c89e150d39150ab4118b0c27972e5b9b59',
+		timestampMs: '1763272227557'
 	}
 } as const;
-
-
-// version 2: 
-// package id: 0x205430cca7290f23a16e7002457965af9902c2090074f55de4c3469dc220486f
-// versionObjectId: 0x6e8e0e3c3ec506d18c2eb4dffc6298c89e150d39150ab4118b0c27972e5b9b59
 
 /**
  * Latest (active) package ID
@@ -44,7 +39,7 @@ export const ALL_PACKAGE_IDS = Object.keys(PACKAGE_VERSIONS);
  * - cancel_wheel_and_reclaim_pool: (wheel, v, ctx)
  */
 export const VERSION_OBJECT_ID =
-	PACKAGE_VERSIONS['0x932dc79b84e8909f0d31c90e8ee07bda3f7c9bf088b0f6a575be554428decab7']
+	PACKAGE_VERSIONS['0x205430cca7290f23a16e7002457965af9902c2090074f55de4c3469dc220486f']
 		.versionObjectId;
 
 /**
