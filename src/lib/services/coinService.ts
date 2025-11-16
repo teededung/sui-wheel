@@ -264,6 +264,91 @@ export class CoinService {
 	}
 
 	// ========================================================================
+	// Coin Selection for Transactions
+	// ========================================================================
+
+	/**
+	 * Selects coin objects to cover a specific amount
+	 * @param address - Wallet address
+	 * @param coinType - Coin type to select
+	 * @param amount - Amount needed in smallest unit
+	 * @returns Array of coin objects with sufficient balance
+	 * @throws CoinError if insufficient balance
+	 */
+	async selectCoins(
+		address: string,
+		coinType: string,
+		amount: bigint
+	): Promise<Array<{ coinObjectId: string; balance: bigint }>> {
+		try {
+			// Validate coin type
+			if (!isValidCoinType(coinType)) {
+				throw new CoinError(
+					CoinErrorType.INVALID_COIN_TYPE,
+					`Invalid coin type format: ${coinType}`,
+					coinType
+				);
+			}
+
+			// Get all coins of this type
+			const coins = await this.client.getCoins({
+				owner: address,
+				coinType
+			});
+
+			if (!coins.data || coins.data.length === 0) {
+				throw new CoinError(
+					CoinErrorType.INSUFFICIENT_BALANCE,
+					`No coins found for type: ${coinType}`,
+					coinType
+				);
+			}
+
+			// Sort coins by balance (largest first) for efficiency
+			const sortedCoins = coins.data
+				.map((coin) => ({
+					coinObjectId: coin.coinObjectId,
+					balance: BigInt(coin.balance)
+				}))
+				.sort((a, b) => (a.balance > b.balance ? -1 : 1));
+
+			// Select coins until we have enough
+			const selectedCoins: Array<{ coinObjectId: string; balance: bigint }> = [];
+			let totalSelected = 0n;
+
+			for (const coin of sortedCoins) {
+				selectedCoins.push(coin);
+				totalSelected += coin.balance;
+
+				if (totalSelected >= amount) {
+					break;
+				}
+			}
+
+			// Check if we have enough
+			if (totalSelected < amount) {
+				throw new CoinError(
+					CoinErrorType.INSUFFICIENT_BALANCE,
+					`Insufficient balance. Need ${amount}, have ${totalSelected}`,
+					coinType
+				);
+			}
+
+			return selectedCoins;
+		} catch (error) {
+			if (error instanceof CoinError) {
+				throw error;
+			}
+
+			throw new CoinError(
+				CoinErrorType.NETWORK_ERROR,
+				`Failed to select coins: ${error instanceof Error ? error.message : String(error)}`,
+				coinType
+			);
+		}
+	}
+
+	// ========================================================================
 	// Utility Methods
 	// ========================================================================
 

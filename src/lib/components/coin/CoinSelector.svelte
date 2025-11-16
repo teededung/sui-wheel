@@ -12,14 +12,7 @@
 	import { DEFAULT_COIN_TYPE } from '$lib/utils/coinHelpers';
 	import { COMMON_COINS } from '$lib/constants';
 	import type { CoinBalance } from '$lib/utils/coinHelpers';
-
-	// Helper function to shorten coin type
-	function shortenCoinType(coinType: string, maxLength = 20): string {
-		if (coinType.length <= maxLength) return coinType;
-		const start = coinType.slice(0, 6);
-		const end = coinType.slice(-4);
-		return `${start}...${end}`;
-	}
+	import { getExplorerLink } from '$lib/utils/suiHelpers';
 
 	// Props
 	let {
@@ -324,20 +317,24 @@
 				{:else}
 					{#each filteredCoins as coin, index (coin.coinType)}
 						<div
-							class="group w-full flex items-center justify-between gap-2 px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors {selectedIndex ===
+							class="group w-full flex items-center justify-between gap-2 px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer {selectedIndex ===
 							index
 								? 'bg-gray-100 dark:bg-gray-700'
 								: ''} {coin.coinType === selectedCoinType
 								? 'bg-blue-50 dark:bg-blue-900/20'
 								: ''}"
 							role="option"
+							tabindex="0"
 							aria-selected={coin.coinType === selectedCoinType}
+							onclick={() => selectCoin(coin.coinType)}
+							onkeydown={(e) => {
+								if (e.key === 'Enter' || e.key === ' ') {
+									e.preventDefault();
+									selectCoin(coin.coinType);
+								}
+							}}
 						>
-							<button
-								type="button"
-								onclick={() => selectCoin(coin.coinType)}
-								class="flex-1 flex items-center gap-3 text-left"
-							>
+							<div class="flex items-center gap-3 flex-1 min-w-0">
 								<CoinIcon
 									iconUrl={coin.metadata.iconUrl}
 									symbol={coin.metadata.symbol}
@@ -345,19 +342,46 @@
 								/>
 								<div class="flex flex-col items-start min-w-0">
 									<span class="font-medium">{coin.metadata.symbol}</span>
-									<span class="text-xs text-gray-500 font-mono" title={coin.coinType}>
-										{shortenCoinType(coin.coinType)}
-									</span>
+									<div class="flex items-center gap-2 text-xs text-gray-500">
+										<span title={coin.metadata.name}>{coin.metadata.name}</span>
+										<span
+											role="button"
+											tabindex="0"
+											onclick={(e) => e.stopPropagation()}
+											onkeydown={(e) => {
+												if (e.key === 'Enter' || e.key === ' ') {
+													e.stopPropagation();
+												}
+											}}
+											class="opacity-0 group-hover:opacity-100"
+										>
+											<ButtonCopy originText={coin.coinType} size="xs" />
+										</span>
+										<a
+											href={getExplorerLink('testnet', 'object', coin.coinType)}
+											target="_blank"
+											rel="noopener noreferrer"
+											class="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-blue-500 transition-colors"
+											onclick={(e) => e.stopPropagation()}
+											title="View on Suiscan"
+										>
+											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+												/>
+											</svg>
+										</a>
+									</div>
 								</div>
-							</button>
-							<div class="flex items-center gap-1 flex-shrink-0">
-								{#if showBalance}
-									<span class="text-sm text-gray-600 dark:text-gray-400">
-										{coin.formattedBalance}
-									</span>
-								{/if}
-								<ButtonCopy originText={coin.coinType} className="opacity-0 group-hover:opacity-100" size="xs" />
 							</div>
+							{#if showBalance}
+								<span class="text-sm flex-shrink-0">
+									{coin.formattedBalance}
+								</span>
+							{/if}
 						</div>
 					{/each}
 				{/if}

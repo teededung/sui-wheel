@@ -61,7 +61,23 @@
 	const { data } = $props();
 	let publicWheelsPageState = $state('loaded'); // already loaded from server
 	let publicWheelsErrorMsg = $state('');
-	let publicWheels = $state(Array.isArray(data?.publicWheels) ? data.publicWheels : []); // [{ id, digest, timestampMs, status, remainingSpins, totalEntries }]
+	let publicWheels = $state<Array<{
+		id: string;
+		digest?: string;
+		timestampMs: number;
+		status?: string;
+		remainingSpins?: number;
+		totalEntries?: number;
+	}>>([]); // [{ id, digest, timestampMs, status, remainingSpins, totalEntries }]
+	
+	// Initialize public wheels from server data (run once)
+	let publicWheelsInitialized = $state(false);
+	$effect(() => {
+		if (!publicWheelsInitialized && Array.isArray(data?.publicWheels)) {
+			publicWheels = data.publicWheels;
+			publicWheelsInitialized = true;
+		}
+	});
 
 	async function loadWheelsFor(address: string, opts: { isRefresh?: boolean } = {}) {
 		if (!address) return;
@@ -96,17 +112,23 @@
 				const txData = tx?.transaction?.data as { sender?: string } | undefined;
 				const txSender = String(txData?.sender || '').toLowerCase();
 				if (txSender !== senderLc) continue;
-				const created = (tx?.objectChanges || []).find(
-					(ch: { type?: string; objectType?: string; objectId?: string }) =>
-						ch?.type === 'created' &&
-						String(ch?.objectType || '').endsWith(`::${WHEEL_MODULE}::${WHEEL_STRUCT}`)
-				) as { objectId?: string } | undefined;
-				if (created?.objectId) {
-					items.push({
-						id: created.objectId,
-						digest: tx?.digest,
-						timestampMs: Number(tx?.timestampMs || 0)
-					});
+				
+				// Find created Wheel object
+				const objectChanges = tx?.objectChanges || [];
+				for (const ch of objectChanges) {
+					const change = ch as { type?: string; objectType?: string; objectId?: string };
+					if (change?.type === 'created') {
+						const objectType = String(change?.objectType || '');
+						// Check if it's a Wheel object (handle both with and without type parameters)
+						if (objectType.includes(`::${WHEEL_MODULE}::${WHEEL_STRUCT}`)) {
+							items.push({
+								id: change.objectId!,
+								digest: tx?.digest,
+								timestampMs: Number(tx?.timestampMs || 0)
+							});
+							break; // Only one wheel per transaction
+						}
+					}
 				}
 			}
 
@@ -164,13 +186,6 @@
 		}
 	}
 
-	// Keep public wheels in sync if `data` changes
-	$effect(() => {
-		if (Array.isArray(data?.publicWheels)) {
-			publicWheels = data.publicWheels;
-		}
-	});
-
 	async function loadJoinedWheels(address: string, opts: { isRefresh?: boolean } = {}) {		
 		const isRefresh = Boolean(opts.isRefresh);
 		if (!isRefresh) joinedWheelsPageState = 'loading';
@@ -194,6 +209,7 @@
 
 			// Check joined status for these IDs only (database)
 			let joinedIds = new Set<string>();
+			let dbCheckSucceeded = false;
 			try {
 				const resp = await fetch('/api/wheels/joined/check', {
 					method: 'POST',
@@ -204,13 +220,15 @@
 				if (resp?.ok) {
 					const data = await resp.json();
 					joinedIds = new Set((data?.joinedIds || []).map(String));
+					dbCheckSucceeded = true;
 				}
 			} catch (dbError) {
 				console.warn('Database check failed, will fallback to on-chain:', dbError);
 			}
 
-			// Fallback: if database failed or returned no results, check on-chain
-			if (joinedIds.size === 0) {
+			// Fallback: if database failed, check on-chain
+			// Note: Empty result from DB is valid (user hasn't joined any wheels)
+			if (!dbCheckSucceeded) {
 				try {
 					const objs = await suiClient.multiGetObjects({
 						ids: uniqueIds,
@@ -362,26 +380,41 @@
 
 	const idle = new IsIdle({ timeout: 15000 });
 
+	// Initialize page state on mount (run once)
+	let pageStateInitialized = $state(false);
+	$effect(() => {
+		if (!pageStateInitialized) {
+			// If no account and still initializing, mark as loaded
+			if (!account && pageState === 'initializing') {
+				pageState = 'loaded';
+			}
+			if (!account && joinedWheelsPageState === 'initializing') {
+				joinedWheelsPageState = 'loaded';
+			}
+			pageStateInitialized = true;
+		}
+	});
+
 	// Watch for account changes
 	watch(
 		() => account?.address,
 		(curr, prev) => {
 			void (async () => {
 				// Clear user's wheels and joined wheels status when no account is connected
-				if (curr === undefined && pageState === 'loaded') {
+				if (curr === undefined) {
 					wheels = [];
-					pageState = 'loading';
-					return clearJoinedWheelStatus();
+					clearJoinedWheelStatus();
+					if (pageState === 'initializing') {
+						pageState = 'loaded';
+					}
+					if (joinedWheelsPageState === 'initializing') {
+						joinedWheelsPageState = 'loaded';
+					}
+					return;
 				}
 
-				// Prevent loop
-				if (curr === prev) {
-					if (curr === undefined && prev === undefined && pageState === 'initializing') {
-						pageState = 'loading';
-						joinedWheelsPageState = 'loaded';
-						return;
-					}
-				} else if (curr !== prev) {
+				// Account is connected
+				if (curr !== prev) {
 					// Clear joined wheel status when account changes
 					if (wheels.length > 0 || publicWheels.length > 0) {
 						clearJoinedWheelStatus();
@@ -392,10 +425,16 @@
 						pageState = 'loading';
 						startPolling();
 						await loadWheelsFor(curr);
+					} else if (!isOnTestnet) {
+						// Not on testnet, just mark as loaded
+						if (pageState === 'initializing') {
+							pageState = 'loaded';
+						}
 					}
 
+					// Load joined wheels for any network
 					if (curr) {
-						loadJoinedWheels(curr);
+						await loadJoinedWheels(curr);
 					}
 				}
 			})();
@@ -575,19 +614,17 @@
 			</div>
 			{#if account && !isOnTestnet}
 				<AlertTestnetWarning />
-			{:else if pageState === 'initializing'}
+			{:else if pageState === 'initializing' || (pageState === 'loading' && accountLoading.value)}
 				<div class="flex items-center gap-2">
 					<span class="loading loading-sm loading-spinner"></span>
 					{t('wheelList.loading')}
 				</div>
 			{:else if pageState === 'loading'}
-				{#if accountLoading.value && !account}
-					{@render skeleton()}
-				{:else if !account}
-					<div class="flex items-center gap-2">{t('wheelList.connectWallet')}</div>
-				{/if}
+				{@render skeleton()}
 			{:else if pageState === 'loaded'}
-				{#if wheels.length === 0}
+				{#if !account}
+					<div class="text-sm opacity-70">{t('wheelList.connectWallet')}</div>
+				{:else if wheels.length === 0}
 					<div class="text-sm opacity-70">{t('wheelList.noWheels')}</div>
 				{:else}
 					<div class="relative">
@@ -644,6 +681,7 @@
 				<h2 class="text-lg font-semibold">{t('wheelList.publicWheels.title')}</h2>
 				<p class="mt-1 text-sm opacity-70">{t('wheelList.publicWheels.description')}</p>
 			</div>
+			
 			{#if publicWheelsPageState === 'initializing'}
 				<div class="flex items-center gap-2">
 					<span class="loading loading-sm loading-spinner"></span>

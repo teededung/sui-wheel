@@ -11,7 +11,7 @@
 	import { shortenAddress } from '$lib/utils/string.js';
 	import { isValidSuiAddress } from '$lib/utils/suiHelpers.js';
 	import { useTranslation } from '$lib/hooks/useTranslation.js';
-	import { WHEEL_EVENTS } from '$lib/constants.js';
+	import { WHEEL_EVENTS, DEFAULT_COIN_TYPE } from '$lib/constants.js';
 
 	interface LabelLayout {
 		displayText: string;
@@ -28,6 +28,7 @@
 		accountFromWallet?: boolean;
 		isNotOrganizer?: boolean;
 		shuffledIndexOrder?: number[];
+		selectedCoinType?: string;
 	}
 
 	interface SpinOptions {
@@ -51,7 +52,8 @@
 		entryFormEnabled,
 		accountFromWallet,
 		isNotOrganizer,
-		shuffledIndexOrder = []
+		shuffledIndexOrder = [],
+		selectedCoinType = DEFAULT_COIN_TYPE,
 	}: Props = $props();
 
 	// Context deps/APIs from parent
@@ -618,6 +620,7 @@
 
 			tx.moveCall({
 				target: `${packageId}::${WHEEL_MODULE}::${targetFn}`,
+				typeArguments: [selectedCoinType],
 				arguments: txArgs
 			});
 
