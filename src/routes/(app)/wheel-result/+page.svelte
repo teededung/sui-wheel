@@ -27,7 +27,7 @@
 	import CoinDisplay from '$lib/components/coin/CoinDisplay.svelte';
 	import { toast } from 'svelte-daisy-toaster';
 	import { format, formatDistanceToNow } from 'date-fns';
-	import { watch } from 'runed';
+	import { watch, IsDocumentVisible } from 'runed';
 	import { useSearchParams } from 'runed/kit';
 	import { searchParamsSchema } from '$lib/paramSchema.js';
 	import { useTranslation } from '$lib/hooks/useTranslation.js';
@@ -39,6 +39,7 @@
 
 	const t = useTranslation();
 	const account = $derived(useCurrentAccount());
+	const documentVisible = new IsDocumentVisible();
 	let isOnTestnet = $derived.by(() => {
 		if (!account || !account.chains) return false;
 		return isTestnet({ chains: account.chains });
@@ -117,13 +118,16 @@
 	watch(
 		() => wheelId,
 		() => {
-			void (async () => {
-				await fetchData(wheelId);
+			// Only run when document is visible (client-side)
+			if (documentVisible.current) {
+				void (async () => {
+					await fetchData(wheelId);
 
-				// Precompute static "Spun at" texts based on current time once
-				const base = Date.now();
-				spunAtTexts = (spinTimes || []).map((ts) => formatRelativePreciseAt(ts, base));
-			})();
+					// Precompute static "Spun at" texts based on current time once
+					const base = Date.now();
+					spunAtTexts = (spinTimes || []).map((ts) => formatRelativePreciseAt(ts, base));
+				})();
+			}
 		}
 	);
 
@@ -131,10 +135,13 @@
 	watch(
 		() => isOrganizer,
 		() => {
-			void (async () => {
-				if (!account && !wheelId && !isOrganizer) return;
-				await fetchReclaimEvents(wheelId);
-			})();
+			// Only run when document is visible (client-side)
+			if (documentVisible.current) {
+				void (async () => {
+					if (!account && !wheelId && !isOrganizer) return;
+					await fetchReclaimEvents(wheelId);
+				})();
+			}
 		}
 	);
 
@@ -142,10 +149,13 @@
 	watch(
 		() => winnerInfo,
 		() => {
-			void (async () => {
-				if (!account && !wheelId && !winnerInfo) return;
-				await fetchClaimEventsForWinner(wheelId);
-			})();
+			// Only run when document is visible (client-side)
+			if (documentVisible.current) {
+				void (async () => {
+					if (!account && !wheelId && !winnerInfo) return;
+					await fetchClaimEventsForWinner(wheelId);
+				})();
+			}
 		}
 	);
 

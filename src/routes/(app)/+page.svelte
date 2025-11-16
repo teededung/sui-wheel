@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { watch, StateHistory } from 'runed';
+	import { watch, StateHistory, IsDocumentVisible } from 'runed';
 	import { page } from '$app/state';
 	import { useSearchParams } from 'runed/kit';
 	import { searchParamsSchema } from '$lib/paramSchema.js';
@@ -53,6 +53,7 @@
 	const t = useTranslation();
 	const suiClient = $derived(useSuiClient());
 	const account = $derived(useCurrentAccount());
+	const documentVisible = new IsDocumentVisible();
 	let isOnTestnet = $derived.by(() => {
 		if (!account || !account.chains) return false;
 		return isTestnet({ chains: account.chains });
@@ -1276,7 +1277,10 @@
 	watch(
 		() => params.wheelId,
 		() => {
-			void fetchWheelFromChain();
+			// Only fetch when document is visible (client-side)
+			if (documentVisible.current) {
+				void fetchWheelFromChain();
+			}
 		}
 	);
 
@@ -1284,10 +1288,13 @@
 	watch(
 		() => entryFormEnabled,
 		() => {
-			if (entryFormEnabled) {
-				startEntryPolling();
-			} else {
-				stopEntryPolling();
+			// Only run when document is visible (client-side)
+			if (documentVisible.current) {
+				if (entryFormEnabled) {
+					startEntryPolling();
+				} else {
+					stopEntryPolling();
+				}
 			}
 		}
 	);
