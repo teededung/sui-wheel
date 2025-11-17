@@ -32,6 +32,7 @@
 	import { useSearchParams } from 'runed/kit';
 	import { searchParamsSchema } from '$lib/paramSchema.js';
 	import { useTranslation } from '$lib/hooks/useTranslation.js';
+	import { buildClaimPrizeTx, buildReclaimPoolTx } from '$lib/utils/transactionBuilders.js';
 
 	// Components
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
@@ -513,19 +514,9 @@
 		const toastInstance = toast.loading(t('wheelResult.claiming'), { position: 'bottom-right' });
 		try {
 			const tx = new Transaction();
-			// Call claim to get a Coin back in the PTB
-			const claimedCoin = tx.moveCall({
-				target: `${LATEST_PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.CLAIM}`,
-				typeArguments: [selectedCoinType],
-				arguments: [
-					tx.object(wheelId), 
-					tx.object(CLOCK_OBJECT_ID),
-					// Version object validates transaction against current contract version
-					tx.object(VERSION_OBJECT_ID)
-				]
-			});
-			// Transfer the returned coin to the sender's address
-			tx.transferObjects([claimedCoin], tx.pure.address(account?.address));
+			
+			// Build claim transaction
+			buildClaimPrizeTx(tx, selectedCoinType, wheelId, account.address);
 
 			const res = await signAndExecuteTransaction(tx);
 			const resObj = res as
@@ -621,18 +612,9 @@
 
 		try {
 			const tx = new Transaction();
-			// Call reclaim_pool to get Coin and transfer to organizer (sender)
-			const coin = tx.moveCall({
-				target: `${LATEST_PACKAGE_ID}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.RECLAIM}`,
-				typeArguments: [selectedCoinType],
-				arguments: [
-					tx.object(wheelId), 
-					tx.object(CLOCK_OBJECT_ID),
-					// Version object validates transaction against current contract version
-					tx.object(VERSION_OBJECT_ID)
-				]
-			});
-			tx.transferObjects([coin], tx.pure.address(account.address));
+			
+			// Build reclaim transaction
+			buildReclaimPoolTx(tx, selectedCoinType, wheelId, account.address);
 
 			const res = await signAndExecuteTransaction(tx);
 			const resObj = res as

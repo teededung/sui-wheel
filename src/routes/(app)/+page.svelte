@@ -34,6 +34,12 @@
 	import { getLanguageContext } from '$lib/context/language.js';
 	import { qr } from '@svelte-put/qr/svg';
 	import logo from "$lib/assets/sui-wheel-logo-small.png";
+	import {
+		buildCreateWheelAndFundTx,
+		buildDonateToPoolTx,
+		buildCancelWheelTx,
+		prepareDonationCoin
+	} from '$lib/utils/transactionBuilders.js';
 
 	import {
 		LATEST_PACKAGE_ID,
@@ -538,66 +544,25 @@
 			const total = totalDonationAmount;
 			if (total <= 0n) throw new Error(t('main.errors.totalDonationMustBeGreaterThan0'));
 
-			// Combine into a single PTB
+			// Prepare donation coin and build transaction
 			const tx = new Transaction();
+			const donationCoin = await prepareDonationCoin(
+				tx,
+				selectedCoinType,
+				total,
+				account!.address
+			);
 
-			// Get donation coin based on coin type
-			let donationCoin;
-			if (selectedCoinType === DEFAULT_COIN_TYPE) {
-				// For SUI, split from gas
-				[donationCoin] = tx.splitCoins(tx.gas, [total]);
-			} else {
-				// For other coins, get from user's wallet
-				const coinService = createTestnetCoinService();
-				const coins = await coinService.selectCoins(
-					account!.address,
-					selectedCoinType,
-					total
-				);
-				
-				if (coins.length === 0) {
-					throw new Error(t('main.errors.insufficientCoinBalance', { symbol: selectedCoinSymbol }));
-				}
-
-				// Merge all coins into one if multiple
-				if (coins.length > 1) {
-					tx.mergeCoins(
-						tx.object(coins[0].coinObjectId),
-						coins.slice(1).map((c) => tx.object(c.coinObjectId))
-					);
-				}
-
-				// Split the exact amount needed
-				[donationCoin] = tx.splitCoins(tx.object(coins[0].coinObjectId), [total]);
-			}
-
-			// Call create_wheel and capture the returned Wheel
-			const wheel = tx.moveCall({
-				target: `${packageId}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.CREATE}`,
-				typeArguments: [selectedCoinType],
-				arguments: [
-					tx.pure.vector('address', addrList),
-					tx.pure.vector('u64', prizeAmountsList),
-					tx.pure.u64(BigInt(Number(delayMs || 0)) * 60000n),
-					tx.pure.u64(BigInt(Number(claimWindowMs || 0)) * 60000n),
-					// Version object validates transaction against current contract version
-					tx.object(VERSION_OBJECT_ID)
-				]
-			});
-
-			// Call donate_to_pool (mutates wheel, doesn't return anything)
-			tx.moveCall({
-				target: `${packageId}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.DONATE}`,
-				typeArguments: [selectedCoinType],
-				arguments: [wheel, donationCoin]
-			});
-
-			// Share the wheel object using the contract's share_wheel function
-			tx.moveCall({
-				target: `${packageId}::${WHEEL_MODULE}::share_wheel`,
-				typeArguments: [selectedCoinType],
-				arguments: [wheel]
-			});
+			// Build create wheel and fund transaction
+			buildCreateWheelAndFundTx(
+				tx,
+				selectedCoinType,
+				addrList,
+				prizeAmountsList,
+				BigInt(Number(delayMs || 0)) * 60000n,
+				BigInt(Number(claimWindowMs || 0)) * 60000n,
+				donationCoin
+			);
 
 			// Sign and execute the combined PTB
 			const res = await signAndExecuteTransaction(tx);
@@ -914,41 +879,17 @@
 			if (topUpAmount > 0n) {
 				const tx = new Transaction();
 				
-				// Get top-up coin based on coin type
-				let coin;
-				if (selectedCoinType === DEFAULT_COIN_TYPE) {
-					// For SUI, split from gas
-					[coin] = tx.splitCoins(tx.gas, [topUpAmount]);
-				} else {
-					// For other coins, get from user's wallet
-					const coinService = createTestnetCoinService();
-					const coins = await coinService.selectCoins(
-						account!.address,
-						selectedCoinType,
-						topUpAmount
-					);
-					
-					if (coins.length === 0) {
-						throw new Error(t('main.errors.insufficientCoinBalance', { symbol: selectedCoinSymbol }));
-					}
-
-					// Merge all coins into one if multiple
-					if (coins.length > 1) {
-						tx.mergeCoins(
-							tx.object(coins[0].coinObjectId),
-							coins.slice(1).map((c) => tx.object(c.coinObjectId))
-						);
-					}
-
-					// Split the exact amount needed
-					[coin] = tx.splitCoins(tx.object(coins[0].coinObjectId), [topUpAmount]);
-				}
+				// Prepare top-up coin
+				const coin = await prepareDonationCoin(
+					tx,
+					selectedCoinType,
+					topUpAmount,
+					account!.address
+				);
 				
-				tx.moveCall({
-					target: `${packageId}::${WHEEL_MODULE}::${WHEEL_FUNCTIONS.DONATE}`,
-					typeArguments: [selectedCoinType],
-					arguments: [tx.object(createdWheelId), coin]
-				});
+				// Build donate transaction
+				buildDonateToPoolTx(tx, selectedCoinType, createdWheelId, coin);
+				
 				await signAndExecuteTransaction(tx);
 			}
 			setupSuccessMsg = t('main.success.wheelUpdatedSuccessfully');
@@ -970,24 +911,8 @@
 		try {
 			const tx = new Transaction();
 
-			// Get mutable ref to Wheel
-			const wheelRef = tx.object(createdWheelId);
-
-			// Call cancel_wheel_and_reclaim_pool and capture the optional Coin
-			const optCoin = tx.moveCall({
-				target: `${packageId}::${WHEEL_MODULE}::cancel_wheel_and_reclaim_pool`,
-				arguments: [
-					wheelRef,
-					// Version object validates transaction against current contract version
-					tx.object(VERSION_OBJECT_ID)
-				]
-			});
-
-			// Handle the optional reclaim by transferring to sender if present
-			tx.moveCall({
-				target: `${packageId}::${WHEEL_MODULE}::transfer_optional_reclaim`,
-				arguments: [optCoin, tx.pure.address(account.address)] // Assume walletAddress is the connected organizer's address
-			});
+			// Build cancel wheel transaction
+			buildCancelWheelTx(tx, selectedCoinType, createdWheelId, account.address);
 
 			// Sign and execute the PTB
 			const res = await signAndExecuteTransaction(tx);
