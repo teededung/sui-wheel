@@ -241,15 +241,16 @@
 		onclick={toggleDropdown}
 		onkeydown={handleKeydown}
 		{disabled}
-		class="w-full flex items-center justify-between gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors {disabled
-			? 'opacity-50 cursor-not-allowed'
-			: 'cursor-pointer'}"
+		class="w-full flex items-center justify-between gap-2 px-4 py-2 bg-base-100 border border-base-300 rounded-lg hover:border-base-content/40 focus:outline-none focus:ring-2 focus:ring-primary transition-colors"
+		class:opacity-50={disabled}
+		class:cursor-not-allowed={disabled}
+		class:cursor-pointer={!disabled}
 		aria-label="Select coin type"
 	>
 		{#if loading}
 			<div class="flex items-center gap-2">
-				<div class="w-6 h-6 bg-gray-300 dark:bg-gray-700 rounded-full animate-pulse"></div>
-				<span class="text-gray-500">Loading...</span>
+				<div class="w-6 h-6 bg-base-300 rounded-full animate-pulse"></div>
+				<span class="text-base-content/60">Loading...</span>
 			</div>
 		{:else if selectedCoin}
 			<div class="flex items-center gap-2">
@@ -259,18 +260,19 @@
 					size="md"
 				/>
 				<div class="flex flex-col items-start">
-					<span class="font-medium">{selectedCoin.metadata?.symbol || 'Unknown'}</span>
+					<span class="font-medium text-base-content">{selectedCoin.metadata?.symbol || 'Unknown'}</span>
 					{#if showBalance}
-						<span class="text-xs text-gray-500">{selectedCoin.formattedBalance}</span>
+						<span class="text-xs text-base-content/60">{selectedCoin.formattedBalance}</span>
 					{/if}
 				</div>
 			</div>
 		{:else}
-			<span class="text-gray-500">{placeholder}</span>
+			<span class="text-base-content/60">{placeholder}</span>
 		{/if}
 
 		<svg
-			class="w-5 h-5 text-gray-400 transition-transform {isOpen ? 'rotate-180' : ''}"
+			class="w-5 h-5 text-base-content/60 transition-transform"
+			class:rotate-180={isOpen}
 			fill="none"
 			stroke="currentColor"
 			viewBox="0 0 24 24"
@@ -284,17 +286,17 @@
 	{#if isOpen}
 		<div
 			id="coin-list"
-			class="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-80 overflow-hidden"
+			class="absolute z-50 w-full mt-2 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-80 overflow-hidden"
 			role="listbox"
 			aria-label="Available coins"
 		>
 			<!-- Search input -->
-			<div class="p-2 border-b border-gray-200 dark:border-gray-700">
+			<div class="p-2 border-b border-base-300">
 				<input
 					type="text"
 					bind:value={searchQuery}
 					placeholder="Search coins..."
-					class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+					class="w-full px-3 py-2 bg-base-200 border border-base-300 rounded focus:outline-none focus:ring-2 focus:ring-primary text-base-content"
 					aria-label="Search coins"
 				/>
 			</div>
@@ -302,26 +304,26 @@
 			<!-- Coin list -->
 			<div class="overflow-y-auto max-h-64">
 				{#if loading}
-					<div class="p-4 text-center text-gray-500">Loading coins...</div>
+					<div class="p-4 text-center text-base-content/60">Loading coins...</div>
 				{:else if error}
-					<div class="p-4 text-center text-red-500">
+					<div class="p-4 text-center text-error">
 						<p>{error}</p>
 						<button onclick={fetchCoins} class="mt-2 text-sm underline hover:no-underline">
 							Retry
 						</button>
 					</div>
 				{:else if filteredCoins.length === 0}
-					<div class="p-4 text-center text-gray-500">
+					<div class="p-4 text-center text-base-content/60">
 						{searchQuery ? 'No coins found' : 'No coins available'}
 					</div>
 				{:else}
 					{#each filteredCoins as coin, index (coin.coinType)}
 						<div
-							class="group w-full flex items-center justify-between gap-2 px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer {selectedIndex ===
+							class="group w-full flex items-center justify-between gap-2 px-4 py-3 hover:bg-base-200 transition-colors cursor-pointer {selectedIndex ===
 							index
-								? 'bg-gray-100 dark:bg-gray-700'
+								? 'bg-base-200'
 								: ''} {coin.coinType === selectedCoinType
-								? 'bg-blue-50 dark:bg-blue-900/20'
+								? 'bg-primary/10'
 								: ''}"
 							role="option"
 							tabindex="0"
@@ -341,8 +343,8 @@
 									size="md"
 								/>
 								<div class="flex flex-col items-start min-w-0">
-									<span class="font-medium">{coin.metadata.symbol}</span>
-									<div class="flex items-center gap-2 text-xs text-gray-500">
+									<span class="font-medium text-base-content">{coin.metadata.symbol}</span>
+									<div class="flex items-center gap-2 text-xs text-base-content/60">
 										<span title={coin.metadata.name}>{coin.metadata.name}</span>
 										<span
 											role="button"
@@ -361,7 +363,7 @@
 											href={getExplorerLink('testnet', 'object', coin.coinType)}
 											target="_blank"
 											rel="noopener noreferrer"
-											class="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-blue-500 transition-colors"
+											class="opacity-0 group-hover:opacity-100 text-base-content/60 hover:text-primary transition-colors"
 											onclick={(e) => e.stopPropagation()}
 											title="View on Suiscan"
 										>
@@ -378,7 +380,7 @@
 								</div>
 							</div>
 							{#if showBalance}
-								<span class="text-sm flex-shrink-0">
+								<span class="text-sm flex-shrink-0 text-base-content">
 									{coin.formattedBalance}
 								</span>
 							{/if}
