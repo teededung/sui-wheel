@@ -5,10 +5,10 @@ export const NETWORK = 'sui:testnet';
  * Each key is the package ID, mapped to its metadata.
  */
 export const PACKAGE_VERSIONS = {
-	'0x205430cca7290f23a16e7002457965af9902c2090074f55de4c3469dc220486f': {
+	'0xa8f2280e9a66052b4cb391b02d4b22aa6fed816a73211fcf02d4b9e4e925a850': {
 		version: 1,
-		versionObjectId: '0x6e8e0e3c3ec506d18c2eb4dffc6298c89e150d39150ab4118b0c27972e5b9b59',
-		timestampMs: '1763272227557'
+		versionObjectId: '0x8a46ffeebd0b437517936c9e0a8f618ca118d2141370180c331fc946a8481a79',
+		timestampMs: '1763352546772'
 	}
 } as const;
 
@@ -39,7 +39,7 @@ export const ALL_PACKAGE_IDS = Object.keys(PACKAGE_VERSIONS);
  * - cancel_wheel_and_reclaim_pool: (wheel, v, ctx)
  */
 export const VERSION_OBJECT_ID =
-	PACKAGE_VERSIONS['0x205430cca7290f23a16e7002457965af9902c2090074f55de4c3469dc220486f']
+	PACKAGE_VERSIONS['0xa8f2280e9a66052b4cb391b02d4b22aa6fed816a73211fcf02d4b9e4e925a850']
 		.versionObjectId;
 
 /**
