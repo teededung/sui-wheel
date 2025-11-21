@@ -42,8 +42,8 @@ importers:
         specifier: ^0.35.1
         version: 0.35.1(@sveltejs/kit@2.49.0(@sveltejs/vite-plugin-svelte@6.2.1(svelte@5.43.14)(vite@7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)))(svelte@5.43.14)(vite@7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)))(svelte@5.43.14)
       sui-svelte-wallet-kit:
-        specifier: ^0.8.11
-        version: 0.8.11(react@19.2.0)(svelte@5.43.14)(typescript@5.9.3)
+        specifier: ^0.9.0
+        version: 0.9.0(react@19.2.0)(svelte@5.43.14)(typescript@5.9.3)
       svelte-daisy-toaster:
         specifier: ^0.6.1
         version: 0.6.1(daisyui@5.5.5)(svelte@5.43.14)(tailwindcss@4.1.17)
@@ -2275,8 +2275,8 @@ packages:
   stubs@3.0.0:
     resolution: {integrity: sha512-PdHt7hHUJKxvTCgbKX9C1V/ftOcjJQgz8BZwNfV5c4B6dcGqlpelTbJ999jBGZ2jYiPAwcX5dP6oBwVlBlUbxw==}
 
-  sui-svelte-wallet-kit@0.8.11:
-    resolution: {integrity: sha512-b1MaA1B7Vj/PvKmtY2TR05ixYg6kihaA7RXALe44AY6qGiRy81M+01ddRD+tHzIJwrhGet9VVxhVpct99CM+LA==}
+  sui-svelte-wallet-kit@0.9.0:
+    resolution: {integrity: sha512-847C4vmf7D0iUSRaj/wI9N3KQo4h4GxEenIjLVIxuz2lavI4MUvJ+I7h4QwMsYV6NMOuf8Fsw2rUxHPjq4nVKA==}
     peerDependencies:
       svelte: ^5.0.0
 
@@ -2931,7 +2931,7 @@ snapshots:
   '@ledgerhq/live-network@2.0.19':
     dependencies:
       '@ledgerhq/errors': 6.27.0
-      '@ledgerhq/live-env': 2.18.0
+      '@ledgerhq/live-env': 2.21.0
       '@ledgerhq/live-promise': 0.1.1
       '@ledgerhq/logs': 6.13.0
       axios: 1.11.0
@@ -4839,7 +4839,7 @@ snapshots:
 
   stubs@3.0.0: {}
 
-  sui-svelte-wallet-kit@0.8.11(react@19.2.0)(svelte@5.43.14)(typescript@5.9.3):
+  sui-svelte-wallet-kit@0.9.0(react@19.2.0)(svelte@5.43.14)(typescript@5.9.3):
     dependencies:
       '@mysten/enoki': 0.12.12(react@19.2.0)(typescript@5.9.3)
       '@mysten/sui': 1.45.0(typescript@5.9.3)

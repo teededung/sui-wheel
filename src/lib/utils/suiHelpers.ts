@@ -137,7 +137,7 @@ export function formatSui(balance: string | number | null | undefined = '0'): st
  * @param {Object} account - The account object to check
  * @returns {boolean} True if the account is on the SUI testnet, false otherwise
  */
-export function isTestnet(account: { chains: string[] }): boolean {
+export function isTestnet(account: { chains: readonly string[] }): boolean {
 	if (!account) return true;
 	const chain = account?.chains[0];
 	if (!chain) return true;

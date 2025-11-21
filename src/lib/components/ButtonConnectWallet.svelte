@@ -35,15 +35,12 @@
 	let isInitialized = $state(false);
 	onMount(() => (isInitialized = true));
 
-	// ensure UI reacts to account changes reliably
-	let accAddr = $state<string | null>(null);
-	$effect(() => {
-		accAddr = account?.address || null;
-	});
-
 	const account = $derived(useCurrentAccount());
 	const accounts = $derived(useAccounts());
 	const wallet = $derived(useCurrentWallet());
+
+	// ensure UI reacts to account changes reliably
+	let accAddr = $derived(account?.address || null);
 
 	let walletIcon = $derived(wallet?.iconUrl || null);
 	let walletLabel = $derived(
@@ -63,7 +60,7 @@
 		if (dropdownOpen && accAddr) {
 			try {
 				// Call refresh when dropdown opens; ignore result
-				const maybePromise = refreshSuiBalance?.();
+				const maybePromise = refreshSuiBalance(accAddr);
 				if (maybePromise && typeof maybePromise.then === 'function') {
 					maybePromise.catch(() => {});
 				}
@@ -73,7 +70,7 @@
 		}
 	});
 
-	function display(acc: SuiAccount | null | undefined): string {
+	function display(acc: SuiAccount): string {
 		if (!acc) return '';
 		const names = suiNamesByAddress.value?.[acc.address];
 		if (Array.isArray(names)) {
@@ -183,7 +180,7 @@
 					{/if}
 					<div class="flex flex-col items-start text-[11px] leading-tight">
 						<span class="font-semibold">{walletLabel || 'Wallet'}</span>
-						<span class="opacity-70">{display(account)}</span>
+						<span class="opacity-70">{display(account!)}</span>
 					</div>
 					<span class="icon-[lucide--chevron-down] h-4 w-4"></span>
 				</div>
