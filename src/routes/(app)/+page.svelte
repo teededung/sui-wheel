@@ -15,25 +15,26 @@
 		suiBalance,
 		suiBalanceLoading
 	} from 'sui-svelte-wallet-kit';
+
+	import { createTestnetCoinService } from '$lib/services/coinService';
+	import { type SuiNetwork } from '$lib/services/suiGraphQL';
+	import { fetchWheel } from '$lib/services/wheelService.js';
+	import { wheelContext } from '$lib/context/wheel.js';
+	import { useTranslation } from '$lib/hooks/useTranslation.js';
+	import { getLanguageContext } from '$lib/context/language.js';
+	import type { WheelDataSource } from '$lib/types/wheel.js';
+
 	import { shortenAddress, arraysShallowEqual, shuffleArray } from '$lib/utils/string.js';
+	import { parsePoolBalance } from '$lib/utils/wheelHelpers.js';
 	import {
 		isValidSuiAddress,
 		isTestnet,
 		highlightAddress,
-		getExplorerLink
+		getExplorerLink,
+		getNetworkDisplayName,
+		normalizeCoinTypeForUi
 	} from '$lib/utils/suiHelpers.js';
 
-	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
-	import ButtonCopy from '$lib/components/ButtonCopy.svelte';
-	import Wheel from '$lib/components/Wheel.svelte';
-	import CoinSelector from '$lib/components/coin/CoinSelector.svelte';
-	import CoinDisplay from '$lib/components/coin/CoinDisplay.svelte';
-	import { createTestnetCoinService } from '$lib/services/coinService';
-	import { wheelContext } from '$lib/context/wheel.js';
-	import { useTranslation } from '$lib/hooks/useTranslation.js';
-	import { getLanguageContext } from '$lib/context/language.js';
-	import { qr } from '@svelte-put/qr/svg';
-	import logo from "$lib/assets/sui-wheel-logo-small.png";
 	import {
 		buildCreateWheelAndFundTx,
 		buildDonateToPoolTx,
@@ -42,6 +43,7 @@
 	} from '$lib/utils/transactionBuilders.js';
 
 	import {
+		NETWORK,
 		LATEST_PACKAGE_ID,
 		WHEEL_MODULE,
 		WHEEL_STRUCT,
@@ -56,6 +58,15 @@
 		RESERVED_GAS_FEE_MIST
 	} from '$lib/constants.js';
 
+	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
+	import ButtonCopy from '$lib/components/ButtonCopy.svelte';
+	import Wheel from '$lib/components/Wheel.svelte';
+	import CoinSelector from '$lib/components/coin/CoinSelector.svelte';
+	import CoinDisplay from '$lib/components/coin/CoinDisplay.svelte';
+	import DataSourceBadge from '$lib/components/DataSourceBadge.svelte';
+	import { qr } from '@svelte-put/qr/svg';
+	import logo from '$lib/assets/sui-wheel-logo-small.png';
+
 	const t = useTranslation();
 	const suiClient = $derived(useSuiClient());
 	const account = $derived(useCurrentAccount());
@@ -64,7 +75,9 @@
 		if (!account || !account.chains) return false;
 		return isTestnet({ chains: account.chains });
 	});
-
+	const currentNetwork = $derived.by(() => {
+		return getNetworkDisplayName(NETWORK, { lowercase: true });
+	});
 	// Get current language for date-fns locale
 	const languageContext = getLanguageContext();
 	const dateLocale = $derived.by(() => {
@@ -94,13 +107,15 @@
 
 	// Get selected coin metadata from COMMON_COINS
 	let selectedCoinMetadata = $derived.by(() => {
-		return COMMON_COINS.find((c) => c.coinType === selectedCoinType) || {
-			coinType: DEFAULT_COIN_TYPE,
-			symbol: 'SUI',
-			name: 'Sui',
-			decimals: 9,
-			iconUrl: ''
-		};
+		return (
+			COMMON_COINS.find((c) => c.coinType === selectedCoinType) || {
+				coinType: DEFAULT_COIN_TYPE,
+				symbol: 'SUI',
+				name: 'Sui',
+				decimals: 9,
+				iconUrl: ''
+			}
+		);
 	});
 
 	let selectedCoinSymbol = $derived(selectedCoinMetadata.symbol);
@@ -128,13 +143,13 @@
 			const paddedAmount = amountStr.padStart(decimals + 1, '0');
 			let intPart = paddedAmount.slice(0, -decimals) || '0';
 			const decPart = paddedAmount.slice(-decimals);
-			
+
 			// Add thousand separators to integer part
 			intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-			
+
 			// Remove trailing zeros from decimal part
 			const trimmedDec = decPart.replace(/0+$/, '');
-			
+
 			if (trimmedDec === '') {
 				return intPart;
 			}
@@ -353,8 +368,8 @@
 		return new Set(valid).size;
 	});
 
-	let prizesCount = $derived.by(() =>
-		prizeAmounts.filter((v) => parseAmountToSmallestUnit(v, selectedCoinDecimals) > 0n).length
+	let prizesCount = $derived.by(
+		() => prizeAmounts.filter((v) => parseAmountToSmallestUnit(v, selectedCoinDecimals) > 0n).length
 	);
 
 	let invalidPrizeAmountsCount = $derived.by(() => {
@@ -371,20 +386,20 @@
 		// Do not warn about balance until wallet and balance are fully loaded
 		if (!account) return false;
 		if (suiBalanceLoading?.value) return false;
-		
+
 		try {
 			const suiBalanceValue = suiBalance.value;
 			if (suiBalanceValue == null) return false;
-			
+
 			const suiBalanceBigInt = BigInt(suiBalanceValue);
-			
+
 			// If selected coin is SUI
 			if (selectedCoinType === DEFAULT_COIN_TYPE) {
 				// Need: totalDonation + reserved gas fee
 				const required = totalDonationAmount + RESERVED_GAS_FEE_MIST;
 				return suiBalanceBigInt < required;
 			}
-			
+
 			// If selected coin is NOT SUI, just check if we have enough SUI for gas
 			// (coin balance will be checked separately)
 			return suiBalanceBigInt < RESERVED_GAS_FEE_MIST;
@@ -397,11 +412,11 @@
 	let hasInsufficientGas = $derived.by(() => {
 		if (!account) return false;
 		if (suiBalanceLoading?.value) return false;
-		
+
 		try {
 			const suiBalanceValue = suiBalance.value;
 			if (suiBalanceValue == null) return false;
-			
+
 			return BigInt(suiBalanceValue) < RESERVED_GAS_FEE_MIST;
 		} catch {
 			return false;
@@ -412,16 +427,16 @@
 	let hasInsufficientCoinBalance = $derived.by(() => {
 		if (!account) return false;
 		if (selectedCoinBalanceLoading) return false;
-		
+
 		// Only check for non-SUI coins
 		if (selectedCoinType === DEFAULT_COIN_TYPE) return false;
-		
+
 		try {
 			// If balance is null or 0, and we need some amount, it's insufficient
 			if (selectedCoinBalance == null || selectedCoinBalance === 0n) {
 				return totalDonationAmount > 0n;
 			}
-			
+
 			return selectedCoinBalance < totalDonationAmount;
 		} catch (err) {
 			console.error('Error checking coin balance:', err);
@@ -520,9 +535,7 @@
 			return amount > 0n && amount < minAmount;
 		});
 		if (invalidPrizes.length > 0) {
-			errors.push(
-				t('main.errors.eachPrizeMustBeAtLeast', { minAmount: MINIMUM_PRIZE_AMOUNT.SUI })
-			);
+			errors.push(t('main.errors.eachPrizeMustBeAtLeast', { minAmount: MINIMUM_PRIZE_AMOUNT.SUI }));
 		}
 		return errors;
 	}
@@ -546,12 +559,7 @@
 
 			// Prepare donation coin and build transaction
 			const tx = new Transaction();
-			const donationCoin = await prepareDonationCoin(
-				tx,
-				selectedCoinType,
-				total,
-				account!.address
-			);
+			const donationCoin = await prepareDonationCoin(tx, selectedCoinType, total, account!.address);
 
 			// Build create wheel and fund transaction
 			buildCreateWheelAndFundTx(
@@ -575,10 +583,12 @@
 				digest,
 				options: { showObjectChanges: true, showInput: true }
 			});
-			
+
 			// Find the created wheel object
 			const wheelChange = (txBlock?.objectChanges || []).find(
-				(ch) => ch.type === 'created' && String((ch as any).objectType || '').includes(`::${WHEEL_MODULE}::${WHEEL_STRUCT}`)
+				(ch) =>
+					ch.type === 'created' &&
+					String((ch as any).objectType || '').includes(`::${WHEEL_MODULE}::${WHEEL_STRUCT}`)
 			);
 
 			const finalWheelId = (wheelChange as { objectId?: string })?.objectId;
@@ -639,15 +649,19 @@
 		} catch (e) {
 			const error = e as { message?: string } | Error;
 			const errorMessage = error?.message || String(e);
-			
+
 			// Check for version mismatch error
-			if (errorMessage.includes('EInvalidPackageVersion') || 
-			    errorMessage.toLowerCase().includes('version')) {
-				setupError = t('main.errors.contractVersionMismatch') || 'Contract version mismatch. Please refresh the page and try again.';
+			if (
+				errorMessage.includes('EInvalidPackageVersion') ||
+				errorMessage.toLowerCase().includes('version')
+			) {
+				setupError =
+					t('main.errors.contractVersionMismatch') ||
+					'Contract version mismatch. Please refresh the page and try again.';
 			} else {
 				setupError = errorMessage;
 			}
-			
+
 			toast({
 				type: 'error',
 				message: setupError || t('main.errors.failedToGetTransactionDigest'),
@@ -661,7 +675,7 @@
 	/**
 	 * Fetch wheel data from testnet by createdWheelId and populate read-only state
 	 */
-	async function getEntriesForFinishedWheel(
+	async function getEntriesForFinishedWheel_offchain_api(
 		wheelId: string,
 		winnersList: Array<{ addr: string }>,
 		entriesOnChainList: string[]
@@ -671,12 +685,12 @@
 			if (resp?.ok) {
 				const data = (await resp.json()) as { entries?: string[]; coinType?: string };
 				const dbEntries = Array.isArray(data?.entries) ? data.entries.map(String) : [];
-				
+
 				// Update selectedCoinType if available from API
 				if (data?.coinType) {
-					selectedCoinType = data.coinType;
+					selectedCoinType = normalizeCoinTypeForUi(data.coinType);
 				}
-				
+
 				if (dbEntries.length > 0) return dbEntries;
 			}
 		} catch {}
@@ -684,18 +698,88 @@
 		return [...winnerAddresses, ...entriesOnChainList];
 	}
 
-	async function fetchWheelCoinType(wheelId: string): Promise<void> {
-		try {
-			const resp = await fetch(`/api/wheels?wheelId=${encodeURIComponent(wheelId)}`);
-			if (resp?.ok) {
-				const data = (await resp.json()) as { coinType?: string };
-				if (data?.coinType) {
-					selectedCoinType = data.coinType;
+	// Track wheel data source (graphql or rpc)
+	let wheelDataSource = $state<WheelDataSource>('none');
+
+	/**
+	 * Parse wheel fields into component state
+	 */
+	function parseWheelFields(f: Record<string, unknown>, objectType: string) {
+		// Extract coin type from object type
+		// Object type format: "0x...::sui_wheel::Wheel<0x...::coin::COIN>"
+		if (objectType && objectType.includes('<') && objectType.includes('>')) {
+			const match = objectType.match(/<(.+)>/);
+			if (match && match[1]) {
+				const extractedCoinType = match[1].trim();
+				const normalizedCoinType = normalizeCoinTypeForUi(extractedCoinType);
+				if (normalizedCoinType !== selectedCoinType) {
+					selectedCoinType = normalizedCoinType;
 				}
 			}
-		} catch (err) {
-			console.error('Failed to fetch wheel coin type:', err);
 		}
+
+		// Cancellation flag
+		isCancelled = Boolean(f['is_cancelled']);
+
+		// Organizer address
+		organizerAddress = String(f['organizer'] || '');
+
+		// Entries (addresses)
+		entriesOnChain = ((f['remaining_entries'] as unknown[]) || []).map((v: unknown) => String(v));
+
+		// Prize amounts in smallest unit (works for any coin type)
+		prizesOnChain = ((f['prize_amounts'] as unknown[]) || []).map((v: unknown) => {
+			try {
+				if (
+					typeof v === 'string' ||
+					typeof v === 'number' ||
+					typeof v === 'bigint' ||
+					typeof v === 'boolean'
+				) {
+					return BigInt(v);
+				}
+				return 0n;
+			} catch {
+				return 0n;
+			}
+		});
+
+		// Winners list
+		winnersOnChain = ((f['winners'] as unknown[]) || []).map((w: unknown) => {
+			const winner = w as {
+				fields?: { addr?: unknown; prize_index?: unknown; claimed?: unknown };
+				addr?: unknown;
+				prize_index?: unknown;
+				claimed?: unknown;
+			};
+			return {
+				addr: String(winner?.fields?.addr ?? winner?.addr ?? ''),
+				prize_index: Number(winner?.fields?.prize_index ?? winner?.prize_index ?? 0),
+				claimed: Boolean(winner?.fields?.claimed ?? winner?.claimed ?? false)
+			};
+		});
+
+		// Spin times (ms since epoch) aligned with prize indices
+		try {
+			spinTimesOnChain = ((f['spin_times'] as unknown[]) || []).map((v: unknown) => Number(v));
+		} catch {
+			spinTimesOnChain = [];
+		}
+
+		// Spun count and Delay / ClaimWindow (ms -> minutes)
+		try {
+			spunCountOnChain = Number(f['spun_count'] || 0);
+		} catch {
+			spunCountOnChain = 0;
+		}
+		const delayMsRaw = Number(f['delay_ms']);
+		delayMsOnChain = Math.max(0, Math.round(delayMsRaw / 60000));
+
+		const claimRaw = Number(f['claim_window_ms']);
+		claimWindowMsOnChain = Math.max(0, Math.round(claimRaw / 60000));
+
+		// Pool balance (in smallest unit)
+		poolBalanceOnChain = parsePoolBalance(f);
 	}
 
 	async function fetchWheelFromChain() {
@@ -704,144 +788,33 @@
 		errorMsg = '';
 
 		try {
-			// Fetch coin type from API first and wait for it
-			await fetchWheelCoinType(createdWheelId);
+			const { data: wheelData, source } = await fetchWheel(
+				createdWheelId,
+				currentNetwork as SuiNetwork,
+				suiClient
+			);
 
-			const res = await suiClient.getObject({
-				id: createdWheelId,
-				options: { showContent: true, showOwner: true, showType: true }
-			});
-			const content = res?.data?.content;
-			if (!content || content?.dataType !== 'moveObject') {
+			wheelDataSource = source;
+
+			if (!wheelData) {
 				errorMsg = t('main.errors.wheelNotFound');
 				return;
 			}
-			
-			// Extract coin type from object type as fallback
-			// Object type format: "0x...::sui_wheel::Wheel<0x...::coin::COIN>"
-			const objectType = (content as { type?: string }).type;
-			if (objectType && objectType.includes('<') && objectType.includes('>')) {
-				const match = objectType.match(/<(.+)>/);
-				if (match && match[1]) {
-					const extractedCoinType = match[1].trim();
-					// Only update if API didn't provide coin type (still default)
-					if (selectedCoinType === DEFAULT_COIN_TYPE && extractedCoinType !== DEFAULT_COIN_TYPE) {
-						selectedCoinType = extractedCoinType;
-					}
-				}
-			}
-			
-			const f = (content as { fields?: Record<string, unknown> }).fields || {};
 
-			// Cancellation flag
-			isCancelled = Boolean(f['is_cancelled']);
-
-			// Organizer address
-			organizerAddress = String(f['organizer'] || '');
-
-			// Entries (addresses)
-			entriesOnChain = ((f['remaining_entries'] as unknown[]) || []).map((v: unknown) => String(v));
-
-			// Prize amounts in smallest unit (works for any coin type)
-			prizesOnChain = ((f['prize_amounts'] as unknown[]) || []).map((v: unknown) => {
-				try {
-					if (
-						typeof v === 'string' ||
-						typeof v === 'number' ||
-						typeof v === 'bigint' ||
-						typeof v === 'boolean'
-					) {
-						return BigInt(v);
-					}
-					return 0n;
-				} catch {
-					return 0n;
-				}
-			});
-
-			// Winners list
-			winnersOnChain = ((f['winners'] as unknown[]) || []).map((w: unknown) => {
-				const winner = w as {
-					fields?: { addr?: unknown; prize_index?: unknown; claimed?: unknown };
-					addr?: unknown;
-					prize_index?: unknown;
-					claimed?: unknown;
-				};
-				return {
-					addr: String(winner?.fields?.addr ?? winner?.addr ?? ''),
-					prize_index: Number(winner?.fields?.prize_index ?? winner?.prize_index ?? 0),
-					claimed: Boolean(winner?.fields?.claimed ?? winner?.claimed ?? false)
-				};
-			});
-
-			// Spin times (ms since epoch) aligned with prize indices
-			try {
-				spinTimesOnChain = ((f['spin_times'] as unknown[]) || []).map((v: unknown) => Number(v));
-			} catch {
-				spinTimesOnChain = [];
+			// Set coin type from wheel object (extracted from objectType)
+			if (wheelData.coinType) {
+				selectedCoinType = normalizeCoinTypeForUi(wheelData.coinType);
 			}
 
-			// Spun count and Delay / ClaimWindow (ms -> minutes)
-			try {
-				spunCountOnChain = Number(f['spun_count'] || 0);
-			} catch {
-				spunCountOnChain = 0;
-			}
-			const delayMsRaw = Number(f['delay_ms']);
-			delayMsOnChain = Math.max(0, Math.round(delayMsRaw / 60000));
-
-			const claimRaw = Number(f['claim_window_ms']);
-			claimWindowMsOnChain = Math.max(0, Math.round(claimRaw / 60000));
-
-			// Pool balance (in smallest unit)
-			let poolBalance = 0n;
-			const poolCandidates = ['pool'];
-			for (const _k of poolCandidates) {
-				const v = f['pool'];
-				if (v == null) continue;
-				try {
-					if (typeof v === 'string' || typeof v === 'number' || typeof v === 'bigint') {
-						poolBalance = BigInt(v);
-						break;
-					}
-					if (typeof v === 'object' && v !== null) {
-						const vObj = v as {
-							fields?: {
-								balance?: { fields?: { value?: unknown } };
-								value?: unknown;
-							};
-							value?: unknown;
-							balance?: unknown;
-						};
-						const val =
-							vObj?.fields?.balance?.fields?.value ??
-							vObj?.fields?.value ??
-							vObj?.value ??
-							vObj?.balance;
-						if (
-							val != null &&
-							(typeof val === 'string' ||
-								typeof val === 'number' ||
-								typeof val === 'bigint' ||
-								typeof val === 'boolean')
-						) {
-							poolBalance = BigInt(val);
-							break;
-						}
-					}
-				} catch {
-					// Ignore parsing errors
-				}
-			}
-			poolBalanceOnChain = poolBalance;
+			// Parse wheel fields into component state
+			parseWheelFields(wheelData.fields, wheelData.objectType);
 
 			// Sync form states for edit mode convenience
-			const lowerWinners = winnersOnChain.map((w) => w.addr.toLowerCase());
 			let newEntries = [];
 
 			// Show entries after the wheel is finished
 			if (remainingSpins === 0 && winnersOnChain.length > 0) {
-				newEntries = await getEntriesForFinishedWheel(
+				newEntries = await getEntriesForFinishedWheel_offchain_api(
 					createdWheelId,
 					winnersOnChain,
 					entriesOnChain
@@ -854,9 +827,7 @@
 			entries = newEntries;
 			entriesText = entries.join('\n');
 
-			prizeAmounts = prizesOnChain.map((m) =>
-				formatSmallestUnitToAmount(m, selectedCoinDecimals)
-			);
+			prizeAmounts = prizesOnChain.map((m) => formatSmallestUnitToAmount(m, selectedCoinDecimals));
 			delayMs = delayMsOnChain;
 			claimWindowMs = claimWindowMsOnChain;
 
@@ -866,7 +837,7 @@
 			shuffledIndexOrder = computeShuffledIndexOrder(entriesOnChain, entries);
 		} catch (e) {
 			console.error('Failed to fetch wheel:', e);
-		} finally {
+			wheelDataSource = 'none';
 		}
 	}
 
@@ -878,18 +849,13 @@
 			// Top up only if needed
 			if (topUpAmount > 0n) {
 				const tx = new Transaction();
-				
+
 				// Prepare top-up coin
-				const coin = await prepareDonationCoin(
-					tx,
-					selectedCoinType,
-					topUpAmount,
-					account!.address
-				);
-				
+				const coin = await prepareDonationCoin(tx, selectedCoinType, topUpAmount, account!.address);
+
 				// Build donate transaction
 				buildDonateToPoolTx(tx, selectedCoinType, createdWheelId, coin);
-				
+
 				await signAndExecuteTransaction(tx);
 			}
 			setupSuccessMsg = t('main.success.wheelUpdatedSuccessfully');
@@ -946,10 +912,12 @@
 		} catch (e) {
 			const error = e as { message?: string } | Error;
 			const errorMessage = error?.message || String(e);
-			
+
 			// Check for version mismatch error
-			if (errorMessage.includes('EInvalidPackageVersion') || 
-			    errorMessage.toLowerCase().includes('version')) {
+			if (
+				errorMessage.includes('EInvalidPackageVersion') ||
+				errorMessage.toLowerCase().includes('version')
+			) {
 				setupError = t('common.contractVersionMismatch');
 			} else {
 				setupError = errorMessage;
@@ -1649,6 +1617,7 @@
 											><span class="icon-[lucide--circle-x]"></span> {t('main.cancelled')}</span
 										>
 									{/if}
+									<DataSourceBadge source={wheelDataSource} />
 								</div>
 
 								<div class="flex items-center gap-2">
@@ -1659,6 +1628,7 @@
 											onclick={() => {
 												params.update({ wheelId: undefined });
 												wheelFetched = false;
+												wheelDataSource = 'none';
 												entriesText = '';
 												entries = [];
 												entriesOnChain = [];
@@ -1957,7 +1927,7 @@
 																		)}
 																		{#if Number(spinTimesOnChain[i] || 0) > 0}
 																			<span
-																				class="ml-2 badge badge-soft badge-sm text-xs whitespace-nowrap opacity-70 badge-success"
+																				class="ml-2 badge badge-soft text-xs badge-sm whitespace-nowrap opacity-70 badge-success"
 																				>{formatDistanceToNow(spinTimesOnChain[i], {
 																					addSuffix: true,
 																					locale: dateLocale
@@ -1999,16 +1969,22 @@
 													>
 												</div>
 											{/each}
-											<div class="mt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+											<div
+												class="mt-2 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center"
+											>
 												<button class="btn btn-outline" onclick={addPrize}
 													>{t('main.addPrize')}</button
 												>
-												<div class="text-sm flex gap-1">
+												<div class="flex gap-1 text-sm">
 													<strong>{t('main.need')}:</strong>
 													<p>
 														<span class="font-mono text-primary"
-															>{formatSmallestUnitToAmount(totalDonationAmount, selectedCoinDecimals)}</span
-														> {selectedCoinSymbol}
+															>{formatSmallestUnitToAmount(
+																totalDonationAmount,
+																selectedCoinDecimals
+															)}</span
+														>
+														{selectedCoinSymbol}
 													</p>
 												</div>
 											</div>
@@ -2101,10 +2077,7 @@
 												aria-label={t('main.resultQr')}
 												onclick={() => openQRLightbox(resultQRUrl, t('main.resultQr'))}
 											>
-												<svg
-													use:qr={{ data: resultQRUrl, logo }}
-													aria-hidden="true"
-												/>
+												<svg use:qr={{ data: resultQRUrl, logo }} aria-hidden="true" />
 											</button>
 
 											<div class="flex w-full flex-col items-center gap-2 text-center opacity-80">
@@ -2132,10 +2105,7 @@
 												aria-label={t('main.entryFormQr')}
 												onclick={() => openQRLightbox(entryFormQRUrl, t('main.entryFormQr'))}
 											>
-												<svg
-													use:qr={{ data: entryFormQRUrl, logo }}
-													aria-hidden="true"
-												/>
+												<svg use:qr={{ data: entryFormQRUrl, logo }} aria-hidden="true" />
 											</button>
 											<div class="flex w-full flex-col items-center gap-2">
 												{#if remainingTime > 0}
@@ -2295,8 +2265,12 @@
 											{#if totalDonationAmount > 0n}
 												{t('main.createWheelAndFund')}
 												<span class="font-mono font-bold text-success"
-													>{formatSmallestUnitToAmount(totalDonationAmount, selectedCoinDecimals)}</span
-												> {selectedCoinSymbol}
+													>{formatSmallestUnitToAmount(
+														totalDonationAmount,
+														selectedCoinDecimals
+													)}</span
+												>
+												{selectedCoinSymbol}
 											{:else}
 												{t('main.createWheel')}
 											{/if}

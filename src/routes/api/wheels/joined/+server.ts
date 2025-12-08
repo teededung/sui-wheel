@@ -4,7 +4,10 @@ import type { RequestHandler } from './$types';
 export const GET: RequestHandler = async ({ url, locals }) => {
 	try {
 		const address = url.searchParams.get('address')?.toLowerCase();
-		
+		// Optional: filter by specific wheelIds (comma-separated)
+		const wheelIdsParam = url.searchParams.get('wheelIds');
+		const wheelIds = wheelIdsParam ? wheelIdsParam.split(',').filter(Boolean) : null;
+
 		if (!address) {
 			return json({ success: false, message: 'Missing address parameter' }, { status: 400 });
 		}
@@ -17,10 +20,34 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			);
 		}
 
-		// Get all wheels that the user has joined
+		// If wheelIds provided, just check which ones user has joined (fast path)
+		if (wheelIds && wheelIds.length > 0) {
+			const { data, error } = await locals.supabaseAdmin
+				.from('wheel_entries')
+				.select('wheel_id')
+				.eq('entry_address', address)
+				.in('wheel_id', wheelIds)
+				.limit(10000);
+
+			if (error) {
+				console.error('[api/wheels/joined] Supabase error (check mode)', error);
+				return json(
+					{ success: false, message: 'Failed to check joined wheels', error: error.message },
+					{ status: 500 }
+				);
+			}
+
+			const joinedIds = Array.from(
+				new Set((data || []).map((r: { wheel_id: string }) => String(r.wheel_id)))
+			);
+			return json({ success: true, joinedIds });
+		}
+
+		// Otherwise, get all wheels that the user has joined (with full info)
 		const { data, error } = await locals.supabaseAdmin
 			.from('wheel_entries')
-			.select(`
+			.select(
+				`
 				wheel_id,
 				wheels!inner (
 					wheel_id,
@@ -30,7 +57,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 					total_donation,
 					coin_type
 				)
-			`)
+			`
+			)
 			.eq('entry_address', address)
 			.order('created_at', { referencedTable: 'wheels', ascending: false })
 			.limit(50);

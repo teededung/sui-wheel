@@ -58,7 +58,7 @@
 	let currentTween: ReturnType<typeof gsap.to> | null = null;
 	let animState = { angle: 0 };
 
-	const segmentColors = colors;
+	const segmentColors = $derived(colors);
 
 	// Track previous entries to avoid unnecessary re-renders
 	let previousEntries = $state<string[]>([]);

@@ -113,3 +113,13 @@ export interface WheelComplete extends Wheel {
 	/** Cached coin metadata */
 	coinMetadata: CoinMetadata;
 }
+
+/**
+ * Data source type for fetching wheel data
+ */
+export type WheelDataSource = 'graphql' | 'rpc' | 'none';
+
+/**
+ * Extended data source type that includes offchain backup
+ */
+export type ExtendedWheelDataSource = 'offchain backup' | 'graphql' | 'rpc' | 'none';

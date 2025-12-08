@@ -1,4 +1,4 @@
-import { MIST_PER_SUI } from '../constants.js';
+import { DEFAULT_COIN_TYPE, MIST_PER_SUI } from '../constants.js';
 
 /**
  * Converts SUI amount to MIST (the smallest unit of SUI)
@@ -88,7 +88,22 @@ export function isValidSuiAddress(address: string): boolean {
  * isSuiAccount({}) // returns false
  */
 export function isSuiAccount(acc: { chains: string[] }): boolean {
-	return (acc.chains ?? []).some(c => c.startsWith('sui:'));
+	return (acc.chains ?? []).some((c) => c.startsWith('sui:'));
+}
+
+/**
+ * Normalizes coin type strings for UI usage.
+ * - Trims whitespace
+ * - Coerces any variant ending with ::sui::SUI back to canonical DEFAULT_COIN_TYPE
+ * @param coinType Coin type string (optional)
+ */
+export function normalizeCoinTypeForUi(coinType?: string | null): string {
+	if (!coinType) return DEFAULT_COIN_TYPE;
+	const normalized = String(coinType).trim();
+	if (!normalized) return DEFAULT_COIN_TYPE;
+	const lower = normalized.toLowerCase();
+	if (lower.endsWith('::sui::sui')) return DEFAULT_COIN_TYPE;
+	return normalized;
 }
 
 /**
@@ -153,12 +168,17 @@ export function isTestnet(account: { chains: readonly string[] }): boolean {
  * getNetworkDisplayName('sui:testnet') // returns 'Testnet'
  * getNetworkDisplayName('sui:devnet') // returns 'Devnet'
  */
-export function getNetworkDisplayName(network: string): string {
-	if (!network) return 'Unknown';
-	if (network.includes('mainnet')) return 'Mainnet';
-	if (network.includes('testnet')) return 'Testnet';
-	if (network.includes('devnet')) return 'Devnet';
-	return network.replace('sui:', '').charAt(0).toUpperCase() + network.replace('sui:', '').slice(1);
+export function getNetworkDisplayName(network: string, options?: { lowercase?: boolean }): string {
+	if (!network) return options?.lowercase ? 'unknown' : 'Unknown';
+	let name = '';
+	if (network.includes('mainnet')) name = 'Mainnet';
+	else if (network.includes('testnet')) name = 'Testnet';
+	else if (network.includes('devnet')) name = 'Devnet';
+	else {
+		const clean = network.replace('sui:', '');
+		name = clean.charAt(0).toUpperCase() + clean.slice(1);
+	}
+	return options?.lowercase ? name.toLowerCase() : name;
 }
 
 /**
@@ -198,7 +218,12 @@ export type ExplorerProvider = 'suiscan' | 'suivision';
  * getExplorerLink('mainnet', 'txblock', '0x123...') // returns 'https://suiscan.xyz/mainnet/tx/0x123...'
  * getExplorerLink('testnet', 'object', '0x456...', 'suivision') // returns 'https://testnet.suivision.xyz/object/0x456...'
  */
-export function getExplorerLink(network: string, type: string, identifier: string, provider: ExplorerProvider = 'suiscan'): string {
+export function getExplorerLink(
+	network: string,
+	type: string,
+	identifier: string,
+	provider: ExplorerProvider = 'suiscan'
+): string {
 	const validNetworks: NetworkType[] = ['mainnet', 'testnet'];
 	const validTypes: ExplorerType[] = ['txblock', 'object', 'address', 'package'];
 

@@ -5,19 +5,32 @@
 	import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 	import { formatDistanceToNow, format } from 'date-fns';
 	import { shortenAddress } from '$lib/utils/string.js';
-	import { isTestnet, getExplorerLink } from '$lib/utils/suiHelpers.js';
+	import { isTestnet, getExplorerLink, getNetworkDisplayName } from '$lib/utils/suiHelpers.js';
 	import {
+		NETWORK,
 		LATEST_PACKAGE_ID,
 		WHEEL_MODULE,
 		WHEEL_FUNCTIONS,
 		WHEEL_STRUCT
 	} from '$lib/constants.js';
+	import { createGraphQLService, type SuiNetwork } from '$lib/services/suiGraphQL.js';
 	import { watch, IsIdle } from 'runed';
 	import { useTranslation } from '$lib/hooks/useTranslation.js';
-	import AlertTestnetWarning from '$lib/components/AlertTestnetWarning.svelte';
-	import DebugFallbackStatus from '$lib/components/DebugFallbackStatus.svelte';
+	import type { WheelDataSource, ExtendedWheelDataSource } from '$lib/types/wheel.js';
 	import { dev } from '$app/environment';
 
+	import AlertTestnetWarning from '$lib/components/AlertTestnetWarning.svelte';
+	import DataSourceBadge from '$lib/components/DataSourceBadge.svelte';
+
+	type WheelRow = {
+		id: string;
+		digest?: string;
+		timestampMs: number;
+		status?: string;
+		remainingSpins?: number;
+		totalEntries?: number;
+		joined?: boolean;
+	};
 
 	const t = useTranslation();
 
@@ -25,6 +38,9 @@
 	let isOnTestnet = $derived.by(() => {
 		if (!account || !account.chains) return false;
 		return isTestnet({ chains: account.chains });
+	});
+	const currentNetwork = $derived.by(() => {
+		return getNetworkDisplayName(NETWORK, { lowercase: true });
 	});
 
 	const suiClient = $derived(
@@ -60,127 +76,187 @@
 	let joinedWheelsDbStatus = $state<'success' | 'failed' | 'unknown'>('unknown');
 	let joinedWheelsFallbackUsed = $state(false);
 	let joinedWheelsWarning = $state('');
+	let joinedWheelsSource = $state<ExtendedWheelDataSource>('none');
 
 	// Public wheels state (server-provided)
 	const { data } = $props();
 	let publicWheelsPageState = $state('loaded'); // already loaded from server
-	let publicWheels = $state<Array<{
-		id: string;
-		digest?: string;
-		timestampMs: number;
-		status?: string;
-		remainingSpins?: number;
-		totalEntries?: number;
-	}>>([]); // [{ id, digest, timestampMs, status, remainingSpins, totalEntries }]
-	
+	let publicWheelsSource = $state<WheelDataSource>('none');
+	let publicWheels = $state<
+		Array<{
+			id: string;
+			digest?: string;
+			timestampMs: number;
+			status?: string;
+			remainingSpins?: number;
+			totalEntries?: number;
+		}>
+	>([]); // [{ id, digest, timestampMs, status, remainingSpins, totalEntries }]
+
+	// Your wheels source tracking
+	let yourWheelsSource = $state<WheelDataSource>('none');
+
 	// Initialize public wheels from server data (run once)
 	let publicWheelsInitialized = $state(false);
 	$effect(() => {
 		if (!publicWheelsInitialized && Array.isArray(data?.publicWheels)) {
 			publicWheels = data.publicWheels;
+			publicWheelsSource = data.publicWheelsSource || 'none';
 			publicWheelsInitialized = true;
 		}
 	});
+
+	// Load wheels using GraphQL
+	async function loadWheelsWithGraphQL(
+		address: string
+	): Promise<Array<{ id: string; digest?: string; timestampMs: number }>> {
+		const suiGQL = createGraphQLService(currentNetwork as SuiNetwork);
+		const txResult = await suiGQL.getTransactionsBySenderAndFunction(
+			address,
+			LATEST_PACKAGE_ID,
+			WHEEL_MODULE,
+			WHEEL_FUNCTIONS.CREATE,
+			50
+		);
+
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const transactions = (txResult as any)?.nodes || [];
+		const items: Array<{ id: string; digest?: string; timestampMs: number }> = [];
+
+		for (const tx of transactions) {
+			const objectChanges = tx?.effects?.objectChanges?.nodes || [];
+			const timestampMs = tx?.effects?.timestamp ? new Date(tx.effects.timestamp).getTime() : 0;
+
+			for (const change of objectChanges) {
+				const outputState = change?.outputState;
+				if (!outputState?.address) continue;
+
+				const objectType = outputState?.asMoveObject?.contents?.type?.repr || '';
+				if (objectType.includes(`::${WHEEL_MODULE}::${WHEEL_STRUCT}`)) {
+					items.push({
+						id: outputState.address,
+						digest: tx?.digest,
+						timestampMs
+					});
+					break;
+				}
+			}
+		}
+		return items;
+	}
+
+	// Load wheels using JSON-RPC (fallback)
+	async function loadWheelsWithRPC(
+		address: string
+	): Promise<Array<{ id: string; digest?: string; timestampMs: number }>> {
+		const response = await suiClient.queryTransactionBlocks({
+			filter: {
+				MoveFunction: {
+					package: LATEST_PACKAGE_ID,
+					module: WHEEL_MODULE,
+					function: WHEEL_FUNCTIONS.CREATE
+				}
+			},
+			options: {
+				showObjectChanges: true,
+				showInput: true,
+				showEffects: false,
+				showEvents: false
+			},
+			order: 'descending',
+			limit: 50
+		});
+
+		const transactions = response?.data || [];
+		const senderLc = String(address).toLowerCase();
+		const items: Array<{ id: string; digest?: string; timestampMs: number }> = [];
+
+		for (const tx of transactions) {
+			const txData = tx?.transaction?.data as { sender?: string } | undefined;
+			const txSender = String(txData?.sender || '').toLowerCase();
+			if (txSender !== senderLc) continue;
+
+			const objectChanges = tx?.objectChanges || [];
+			for (const ch of objectChanges) {
+				const change = ch as { type?: string; objectType?: string; objectId?: string };
+				if (change?.type === 'created') {
+					const objectType = String(change?.objectType || '');
+					if (objectType.includes(`::${WHEEL_MODULE}::${WHEEL_STRUCT}`)) {
+						items.push({
+							id: change.objectId!,
+							digest: tx?.digest,
+							timestampMs: Number(tx?.timestampMs || 0)
+						});
+						break;
+					}
+				}
+			}
+		}
+		return items;
+	}
+
+	// Enrich wheel items with on-chain status
+	async function enrichWheelItems(
+		items: Array<{ id: string; digest?: string; timestampMs: number }>
+	) {
+		if (items.length === 0) return items;
+
+		try {
+			const objs = await suiClient.multiGetObjects({
+				ids: items.map((i) => i.id),
+				options: { showContent: true }
+			});
+			const idToMeta = new Map();
+			for (const o of objs || []) {
+				try {
+					const id = String(o?.data?.objectId || '');
+					const content = o?.data?.content as
+						| { dataType?: string; fields?: Record<string, unknown> }
+						| undefined;
+					const f = (content?.dataType === 'moveObject' ? content?.fields : {}) || {};
+					const isCancelled = Boolean(f['is_cancelled']);
+					const spunCount = Number(f['spun_count'] || 0);
+					const prizesLen = Array.isArray(f['prize_amounts']) ? f['prize_amounts'].length : 0;
+					const remainingEntriesCount = Array.isArray(f['remaining_entries'])
+						? f['remaining_entries'].length
+						: 0;
+					const totalEntries = remainingEntriesCount + spunCount;
+					const remaining = Math.max(0, prizesLen - spunCount);
+					const status = isCancelled ? 'Cancelled' : remaining > 0 ? 'Running' : 'Finished';
+					idToMeta.set(id, { status, remainingSpins: remaining, totalEntries });
+				} catch {}
+			}
+			return items.map((it) => ({
+				...it,
+				...(idToMeta.get(it.id) || { status: '—', remainingSpins: 0, totalEntries: 0 })
+			}));
+		} catch {
+			return items;
+		}
+	}
 
 	async function loadWheelsFor(address: string, opts: { isRefresh?: boolean } = {}) {
 		if (!address) return;
 		const isRefresh = Boolean(opts.isRefresh);
 		if (!isRefresh) pageState = 'loading';
+
 		try {
-			const response = await suiClient.queryTransactionBlocks({
-				filter: {
-					MoveFunction: {
-						package: LATEST_PACKAGE_ID,
-						module: WHEEL_MODULE,
-						function: WHEEL_FUNCTIONS.CREATE
-					}
-				},
-				options: {
-					showObjectChanges: true,
-					showInput: true,
-					showEffects: false,
-					showEvents: false
-				},
-				order: 'descending',
-				limit: 50
-			});
+			let items: Array<{ id: string; digest?: string; timestampMs: number }> = [];
 
-			// Get transactions from single response
-			const transactions = response?.data || [];
-
-			const senderLc = String(address).toLowerCase();
-			const items = [];
-			for (const tx of transactions) {
-				const txData = tx?.transaction?.data as { sender?: string } | undefined;
-				const txSender = String(txData?.sender || '').toLowerCase();
-				if (txSender !== senderLc) continue;
-				
-				// Find created Wheel object
-				const objectChanges = tx?.objectChanges || [];
-				for (const ch of objectChanges) {
-					const change = ch as { type?: string; objectType?: string; objectId?: string };
-					if (change?.type === 'created') {
-						const objectType = String(change?.objectType || '');
-						// Check if it's a Wheel object (handle both with and without type parameters)
-						if (objectType.includes(`::${WHEEL_MODULE}::${WHEEL_STRUCT}`)) {
-							items.push({
-								id: change.objectId!,
-								digest: tx?.digest,
-								timestampMs: Number(tx?.timestampMs || 0)
-							});
-							break; // Only one wheel per transaction
-						}
-					}
-				}
+			// Try GraphQL first (for Sui GraphQL challenge)
+			try {
+				items = await loadWheelsWithGraphQL(address);
+				yourWheelsSource = 'graphql';
+			} catch (gqlErr) {
+				console.warn('[WheelList] GraphQL failed, falling back to RPC:', gqlErr);
+				items = await loadWheelsWithRPC(address);
+				yourWheelsSource = 'rpc';
 			}
 
-			// Enrich items with on-chain status (Cancelled / Running / Finished)
-			if (items.length > 0) {
-				try {
-					const objs = await suiClient.multiGetObjects({
-						ids: items.map((i) => i.id),
-						options: { showContent: true }
-					});
-					const idToMeta = new Map();
-					for (const o of objs || []) {
-						try {
-							const id = String(o?.data?.objectId || '');
-							const content = o?.data?.content as
-								| { dataType?: string; fields?: Record<string, unknown> }
-								| undefined;
-							const f = (content?.dataType === 'moveObject' ? content?.fields : {}) || {};
-							const isCancelled = Boolean(f['is_cancelled']);
-							let spunCount = 0;
-							try {
-								spunCount = Number(f['spun_count'] || 0);
-							} catch {}
-							let prizesLen = 0;
-							try {
-								prizesLen = Array.isArray(f['prize_amounts']) ? f['prize_amounts'].length : 0;
-							} catch {}
-							let remainingEntriesCount = 0;
-							try {
-								remainingEntriesCount = Array.isArray(f['remaining_entries'])
-									? f['remaining_entries'].length
-									: 0;
-							} catch {}
-							const totalEntries = remainingEntriesCount + spunCount;
-							const remaining = Math.max(0, prizesLen - spunCount);
-							const status = isCancelled ? 'Cancelled' : remaining > 0 ? 'Running' : 'Finished';
-							idToMeta.set(id, { status, remainingSpins: remaining, totalEntries });
-						} catch {}
-					}
-					wheels = items.map((it) => {
-						const meta = idToMeta.get(it.id) || { status: '—', remainingSpins: 0, totalEntries: 0 };
-						return { ...it, ...meta };
-					});
-				} catch {
-					wheels = items;
-				}
-			} else {
-				wheels = items;
-			}
+			// Enrich with on-chain status
+			wheels = await enrichWheelItems(items);
 		} catch {
+			yourWheelsSource = 'none';
 			// Error loading wheels
 		} finally {
 			if (!isRefresh) pageState = 'loaded';
@@ -188,12 +264,12 @@
 		}
 	}
 
-	async function loadJoinedWheels(address: string, opts: { isRefresh?: boolean } = {}) {		
+	async function loadJoinedWheels(address: string, opts: { isRefresh?: boolean } = {}) {
 		const isRefresh = Boolean(opts.isRefresh);
 		if (!isRefresh) joinedWheelsPageState = 'loading';
 		try {
 			const addr = String(address || '').toLowerCase();
-			
+
 			if (!addr) {
 				joinedWheels = [];
 				if (!isRefresh) joinedWheelsPageState = 'loaded';
@@ -204,119 +280,137 @@
 			joinedWheelsDbStatus = 'unknown';
 			joinedWheelsFallbackUsed = false;
 			joinedWheelsWarning = '';
+			joinedWheelsSource = 'none';
 
-			// First, fetch joined wheels from database
 			let joinedIds = new Set<string>();
 			let dbWheels: Array<{ id: string; digest?: string; timestampMs: number }> = [];
 			let dbCheckSucceeded = false;
-			
+
+			// Fetch joined wheels from database
 			try {
 				const resp = await fetch(`/api/wheels/joined?address=${encodeURIComponent(addr)}`);
-				
+
 				if (resp?.ok) {
 					const data = await resp.json();
-					
-					if (data?.success && Array.isArray(data?.wheels)) {
-						dbWheels = data.wheels;
-						joinedIds = new Set(dbWheels.map((w: any) => w.id));
+
+					if (data?.success) {
+						// API returns either { wheels: [...] } or { joinedIds: [...] }
+						if (Array.isArray(data?.wheels)) {
+							dbWheels = data.wheels;
+							joinedIds = new Set(dbWheels.map((w: any) => w.id));
+						} else if (Array.isArray(data?.joinedIds)) {
+							joinedIds = new Set((data.joinedIds || []).map(String));
+						}
 						dbCheckSucceeded = true;
 						joinedWheelsDbStatus = 'success';
+						joinedWheelsSource = 'offchain backup';
 					}
 				}
 			} catch {
 				joinedWheelsDbStatus = 'failed';
 			}
 
-			// If database fetch failed, try checking visible wheels via API
-			if (!dbCheckSucceeded) {
-				const allIds = [...(wheels || []), ...(publicWheels || [])].map((w) => w.id);
-				const uniqueIds = Array.from(new Set(allIds)).filter(Boolean);
-				
-				if (uniqueIds.length > 0) {
-					try {
-						const resp = await fetch('/api/wheels/joined/check', {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({ address: addr, wheelIds: uniqueIds })
-						});			
-						
-						if (resp?.ok) {
-							const data = await resp.json();
-							joinedIds = new Set((data?.joinedIds || []).map(String));
-							dbCheckSucceeded = true;
-							joinedWheelsDbStatus = 'success';
-						}
-					} catch {}
-				}
-			}
-
 			// Final fallback: check on-chain for visible wheels
 			if (!dbCheckSucceeded) {
 				const allIds = [...(wheels || []), ...(publicWheels || [])].map((w) => w.id);
 				const uniqueIds = Array.from(new Set(allIds)).filter(Boolean);
-				
+
 				if (uniqueIds.length > 0) {
 					joinedWheelsFallbackUsed = true;
-					try {
-						const objs = await suiClient.multiGetObjects({
-							ids: uniqueIds,
-							options: { showContent: true }
-						});
-						
-						const validObjs = objs?.filter((o) => o?.data && o?.data?.content) || [];
-						
-						if (validObjs.length === 0) {
-							joinedWheelsWarning = 'Database unavailable and wheels not found on-chain.';
-						}
-						
-						// Check each wheel for user participation
-						for (const o of validObjs) {
+
+					// Helper: check if user participated in wheel from fields
+					const checkUserParticipation = (
+						wheelId: string,
+						fields: Record<string, unknown>,
+						userAddr: string
+					): boolean => {
+						// Skip cancelled wheels
+						if (Boolean(fields['is_cancelled'])) return false;
+
+						// Check winners array
+						const winners = Array.isArray(fields['winners']) ? fields['winners'] : [];
+						const hasWon = winners.some((winner: any) => {
 							try {
-								const wheelId = String(o?.data?.objectId || '');
-								
-								const content = o?.data?.content as
-									| { dataType?: string; fields?: Record<string, unknown> }
-									| undefined;
-								const f = (content?.dataType === 'moveObject' ? content?.fields : {}) || {};
-								
-								// Skip cancelled wheels
-								const isCancelled = Boolean(f['is_cancelled']);
-								if (isCancelled) continue;
-								
-								// Check winners array first
-								const winners = Array.isArray(f['winners']) ? f['winners'] : [];
-								const hasWon = winners.some((winner: any) => {
-									try {
-										const winnerAddr = String(winner?.fields?.addr || winner?.fields?.address || '').toLowerCase();
-										return winnerAddr === addr;
-									} catch {
-										return false;
+								const winnerAddr = String(winner?.fields?.addr || winner?.addr || '').toLowerCase();
+								return winnerAddr === userAddr;
+							} catch {
+								return false;
+							}
+						});
+						if (hasWon) return true;
+
+						// Check remaining_entries
+						const entries = Array.isArray(fields['remaining_entries'])
+							? fields['remaining_entries']
+							: [];
+						return entries.some((entry: any) => {
+							return String(entry || '').toLowerCase() === userAddr;
+						});
+					};
+
+					let onChainCheckSucceeded = false;
+
+					// Try GraphQL first
+					try {
+						const suiGQL = createGraphQLService(currentNetwork as SuiNetwork);
+						const gqlObjs = await suiGQL.getMultipleObjects(uniqueIds);
+
+						if (gqlObjs.length > 0) {
+							for (const obj of gqlObjs) {
+								try {
+									const wheelId = obj?.address || '';
+									const json = obj?.asMoveObject?.contents?.json as Record<string, unknown>;
+									if (!json) continue;
+
+									if (checkUserParticipation(wheelId, json, addr)) {
+										joinedIds.add(wheelId);
 									}
-								});
-								
-								if (hasWon) {
-									joinedIds.add(wheelId);
-									continue;
-								}
-								
-								// Check remaining_entries (these are user addresses, not entry object IDs!)
-								const entries = Array.isArray(f['remaining_entries']) ? f['remaining_entries'] : [];
-								const hasEntry = entries.some((entry: any) => {
-									const entryAddr = String(entry || '').toLowerCase();
-									return entryAddr === addr;
-								});
-								
-								if (hasEntry) {
-									joinedIds.add(wheelId);
-								}
-							} catch {}
+								} catch {}
+							}
+							onChainCheckSucceeded = true;
+							joinedWheelsSource = 'graphql';
 						}
-						
-						if (joinedIds.size === 0) {
-							joinedWheelsWarning = 'Database unavailable. Cannot verify joined wheels that are not in the visible list.';
+					} catch (gqlErr) {
+						console.warn('[loadJoinedWheels] GraphQL failed, falling back to RPC:', gqlErr);
+					}
+
+					// Fallback to RPC
+					if (!onChainCheckSucceeded) {
+						try {
+							const objs = await suiClient.multiGetObjects({
+								ids: uniqueIds,
+								options: { showContent: true }
+							});
+
+							const validObjs = objs?.filter((o) => o?.data && o?.data?.content) || [];
+
+							if (validObjs.length === 0) {
+								joinedWheelsWarning = 'Database unavailable and wheels not found on-chain.';
+							} else {
+								for (const o of validObjs) {
+									try {
+										const wheelId = String(o?.data?.objectId || '');
+										const content = o?.data?.content as
+											| { dataType?: string; fields?: Record<string, unknown> }
+											| undefined;
+										const f = (content?.dataType === 'moveObject' ? content?.fields : {}) || {};
+
+										if (checkUserParticipation(wheelId, f, addr)) {
+											joinedIds.add(wheelId);
+										}
+									} catch {}
+								}
+								onChainCheckSucceeded = true;
+								joinedWheelsSource = 'rpc';
+							}
+						} catch {
+							joinedWheelsWarning = 'Database unavailable and on-chain check failed.';
 						}
-					} catch {
-						joinedWheelsWarning = 'Database unavailable and on-chain check failed.';
+					}
+
+					if (onChainCheckSucceeded && joinedIds.size === 0) {
+						joinedWheelsWarning =
+							'Database unavailable. Cannot verify joined wheels that are not in the visible list.';
 					}
 				} else {
 					joinedWheelsWarning = 'Database unavailable. No wheels available to check.';
@@ -330,9 +424,11 @@
 			}
 
 			// Use database wheels if available, otherwise use visible wheels
-			let baseWheels = dbWheels.length > 0 ? dbWheels : 
-				[...(wheels || []), ...(publicWheels || [])].filter((w) => joinedIds.has(w.id));
-			
+			let baseWheels =
+				dbWheels.length > 0
+					? dbWheels
+					: [...(wheels || []), ...(publicWheels || [])].filter((w) => joinedIds.has(w.id));
+
 			// Deduplicate by wheel ID
 			const seenIds = new Set<string>();
 			baseWheels = baseWheels.filter((w) => {
@@ -344,7 +440,7 @@
 			// Enrich joined list status similar to others
 			try {
 				const ids = baseWheels.map((w) => w.id);
-				
+
 				const objs = await suiClient.multiGetObjects({
 					ids,
 					options: { showContent: true }
@@ -524,17 +620,7 @@
 	<meta property="og:description" content={t('wheelList.ogDescription')} />
 </svelte:head>
 
-{#snippet wheelsTable(
-	rows: Array<{
-		id: string;
-		digest?: string;
-		timestampMs: number;
-		status?: string;
-		remainingSpins?: number;
-		totalEntries?: number;
-		joined?: boolean;
-	}>
-)}
+{#snippet wheelsTable(rows: WheelRow[])}
 	<div class="relative">
 		<div class="overflow-x-auto">
 			<table class="table table-zebra">
@@ -643,7 +729,12 @@
 	<div class="card bg-base-200 shadow">
 		<div class="card-body">
 			<div class="mb-4 flex items-center justify-between">
-				<h2 class="text-lg font-semibold">{t('wheelList.pageTitle')}</h2>
+				<div class="flex items-center gap-2">
+					<h2 class="text-lg font-semibold">{t('wheelList.pageTitle')}</h2>
+					{#if wheels.length > 0}
+						<DataSourceBadge source={yourWheelsSource} />
+					{/if}
+				</div>
 				<a href="/" class="btn btn-sm btn-primary" aria-label={t('wheelList.createNew')}
 					>{t('wheelList.createNew')}</a
 				>
@@ -688,25 +779,22 @@
 	<div class="card mt-8 bg-base-200 shadow">
 		<div class="card-body">
 			<div class="mb-4">
-				<h2 class="text-lg font-semibold">{t('wheelList.joinedWheels.title')}</h2>
+				<div class="flex items-center gap-2">
+					<h2 class="text-lg font-semibold">{t('wheelList.joinedWheels.title')}</h2>
+					{#if joinedWheels.length > 0}
+						<DataSourceBadge source={joinedWheelsSource} />
+					{/if}
+				</div>
 				<p class="mt-1 text-sm opacity-70">{t('wheelList.joinedWheels.description')}</p>
 			</div>
-			
-			{#if dev}
-				<DebugFallbackStatus 
-					dbStatus={joinedWheelsDbStatus} 
-					fallbackUsed={joinedWheelsFallbackUsed}
-					itemsCount={joinedWheels.length}
-				/>
-			{/if}
-			
+
 			{#if joinedWheelsWarning && dev}
 				<div class="alert alert-warning">
 					<span class="icon-[lucide--alert-triangle]"></span>
 					<span>{joinedWheelsWarning}</span>
 				</div>
 			{/if}
-			
+
 			{#if joinedWheelsPageState === 'initializing'}
 				<div class="flex items-center gap-2">
 					<span class="loading loading-sm loading-spinner"></span>
@@ -730,10 +818,14 @@
 	<div class="card mt-8 bg-base-200 shadow">
 		<div class="card-body">
 			<div class="mb-4">
-				<h2 class="text-lg font-semibold">{t('wheelList.publicWheels.title')}</h2>
+				<div class="flex items-center gap-2">
+					<h2 class="text-lg font-semibold">{t('wheelList.publicWheels.title')}</h2>
+					<DataSourceBadge source={publicWheelsSource} />
+				</div>
+
 				<p class="mt-1 text-sm opacity-70">{t('wheelList.publicWheels.description')}</p>
 			</div>
-			
+
 			{#if publicWheelsPageState === 'initializing'}
 				<div class="flex items-center gap-2">
 					<span class="loading loading-sm loading-spinner"></span>
