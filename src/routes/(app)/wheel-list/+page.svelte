@@ -248,7 +248,9 @@
 				items = await loadWheelsWithGraphQL(address);
 				yourWheelsSource = 'graphql';
 			} catch (gqlErr) {
-				console.warn('[WheelList] GraphQL failed, falling back to RPC:', gqlErr);
+				if (dev) {
+					console.warn('[WheelList] GraphQL failed, falling back to RPC:', gqlErr);
+				}
 				items = await loadWheelsWithRPC(address);
 				yourWheelsSource = 'rpc';
 			}
@@ -371,7 +373,9 @@
 							joinedWheelsSource = 'graphql';
 						}
 					} catch (gqlErr) {
-						console.warn('[loadJoinedWheels] GraphQL failed, falling back to RPC:', gqlErr);
+						if (dev) {
+							console.warn('[loadJoinedWheels] GraphQL failed, falling back to RPC:', gqlErr);
+						}
 					}
 
 					// Fallback to RPC
