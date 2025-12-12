@@ -27,39 +27,29 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		}
 
 		// Otherwise, get all wheels that the user has joined (with full info)
-		const data = await locals.prisma.wheelEntry.findMany({
-			where: { entryAddress: addressNormalized },
-			select: {
-				wheelId: true,
-				wheel: {
-					select: {
-						wheelId: true,
-						txDigest: true,
-						createdAt: true
+		const data = await locals.prisma.wheel.findMany({
+			where: {
+				entries: {
+					some: {
+						entryAddress: addressNormalized
 					}
 				}
 			},
-			orderBy: { wheel: { createdAt: 'desc' } },
+			select: {
+				wheelId: true,
+				txDigest: true,
+				createdAt: true
+			},
+			orderBy: { createdAt: 'desc' },
 			take: 50
 		});
 
-		// Transform data to match expected format
-		const wheels = Array.from(
-			new Map(
-				(data || []).map((entry) => {
-					const wheel = entry.wheel;
-					return [
-						wheel.wheelId,
-						{
-							id: wheel.wheelId,
-							digest: wheel.txDigest,
-							timestampMs: new Date(wheel.createdAt).getTime(),
-							joined: true
-						}
-					];
-				})
-			).values()
-		);
+		const wheels = (data ?? []).map((wheel) => ({
+			id: wheel.wheelId,
+			digest: wheel.txDigest,
+			timestampMs: new Date(wheel.createdAt).getTime(),
+			joined: true
+		}));
 
 		return json({ success: true, wheels });
 	} catch (e) {
