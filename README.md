@@ -25,28 +25,44 @@ The wheel uses on-chain randomness to select winners from the remaining entries 
 - No updates after spins start; wheel can be cancelled only before spins.
 - Auto-assign last prize if one entry remains for the final spin.
 
+## Features
+
+- **Multi-token Rewards**: Organizers can choose SUI or other tokens/coins for prizes.
+- **Robust Data Fetching**: Utilizes GraphQL (beta) with automatic fallback to RPC for reliable data access.
+- **X Integration**: Import entries directly from X (Twitter) posts (requires API key).
+- **Analytics**: Track spins and outcomes (uses MongoDB for optional off-chain backup).
+
 ## Roadmap
 
 - ✅ Initial release
-- Edit entries & prizes (guarded)
-- Support Sui Names for entries
-- Expand prizes: coins & NFTs
+- ✅ Multiple reward tokens support
+- ✅ GraphQL query support (beta)
+- [ ] Edit entries & prizes (guarded)
+- [ ] Support Sui Names for entries
 
 Built with Svelte 5, Tailwind CSS 4 and daisyUI.
+
+## Configuration
+
+Create a `.env` file (copy from `.env.example`) to configure optional features:
+
+- `DATABASE_URL`: MongoDB connection string. Optional. Required if you want to enable analytics.
+- `X_API_KEY`: X (Twitter) API Key. Optional. Required for importing entries from X posts.
+- `PUBLIC_ENOKI_API_KEY` & `PUBLIC_GOOGLE_CLIENT_ID`: Required for Google login (use Enoki ZkLogin). Visit [https://enoki.mystenlabs.com/](https://enoki.mystenlabs.com/) to setup.
 
 ## Front-end deployment (simple)
 
 ### Requirements
 
 - Node.js 22.12.0 (configured in `netlify.toml`)
-- Yarn 4 (the project uses Yarn as the package manager; see `package.json`)
+- pnpm 10.25 (the project uses pnpm as the package manager; see `package.json`)
 
-Enable Corepack to use the exact Yarn version:
+Enable Corepack to use the exact pnpm version:
 
 ```bash
 corepack enable
-corepack use yarn@4.9.2
-yarn --version
+corepack prepare pnpm@10.25.0 --activate
+pnpm --version
 ```
 
 ### Run locally
@@ -54,10 +70,10 @@ yarn --version
 Use the scripts from `package.json`:
 
 ```bash
-yarn install
-yarn dev       # start the dev server
-yarn build     # build the app
-yarn preview   # preview the production build locally
+pnpm install
+pnpm dev       # start the dev server
+pnpm build     # build the app
+pnpm preview   # preview the production build locally
 ```
 
 ### Deploy to Netlify (recommended)
@@ -66,7 +82,7 @@ This project is already configured with the Netlify adapter and `netlify.toml`:
 
 1. Connect this repo to Netlify (New site from Git > select this repo)
 2. Settings:
-   - Build command: `yarn build`
+   - Build command: `pnpm build`
    - Publish directory: `build`
    - Node version: `22.12.0` (already in `netlify.toml`)
 3. Deploy. Each push to the default branch will auto build & deploy.
@@ -75,14 +91,14 @@ This project is already configured with the Netlify adapter and `netlify.toml`:
 
 ```bash
 # Log in and initialize the site (first time)
-yarn dlx netlify-cli@latest login
-yarn dlx netlify-cli@latest init
+pnpm dlx netlify-cli@latest login
+pnpm dlx netlify-cli@latest init
 
 # Build using the package.json script
-yarn build
+pnpm build
 
 # Deploy the build directory to production
-yarn dlx netlify-cli@latest deploy --dir=build --prod
+pnpm dlx netlify-cli@latest deploy --dir=build --prod
 ```
 
 Note: This is a front-end app using SvelteKit + the Netlify adapter, no separate backend required. If you need environment variables, set them in your Netlify site settings.
