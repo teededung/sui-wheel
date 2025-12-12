@@ -29,6 +29,21 @@ function createSuiGraphQLClient(network: SuiNetwork = 'mainnet'): SuiGraphQLClie
 	});
 }
 
+type GraphQLErrorLike = {
+	message?: string;
+	extensions?: { code?: string };
+};
+
+function toGraphQLFailure(opName: string, errors: GraphQLErrorLike[]) {
+	const first = errors?.[0];
+	const code = first?.extensions?.code;
+	const message = first?.message || 'Unknown GraphQL error';
+
+	const err = new Error(`[SuiGraphQL:${opName}] ${message}`) as Error & { code?: string };
+	if (code) err.code = code;
+	return err;
+}
+
 // ========================================================================
 // Pre-built Queries
 // ========================================================================
@@ -197,6 +212,9 @@ export class SuiGraphQLService {
 			variables: { id: objectId }
 		});
 		//console.log('[suiGQL.getObject] result:', JSON.stringify(result, null, 2));
+		if (result.errors?.length) {
+			throw toGraphQLFailure('GetObject', result.errors as GraphQLErrorLike[]);
+		}
 		return result.data?.object;
 	}
 
@@ -224,8 +242,9 @@ export class SuiGraphQLService {
 			}
 		});
 
-		if (result.errors) {
-			console.error('[SuiGraphQL] GraphQL errors:', result.errors);
+		if (result.errors?.length) {
+			// Throw so callers can fall back to JSON-RPC when GraphQL features are unavailable.
+			throw toGraphQLFailure('GetTransactionsByFunction', result.errors as GraphQLErrorLike[]);
 		}
 
 		return result.data?.transactions;
@@ -279,8 +298,12 @@ export class SuiGraphQLService {
 			}
 		});
 
-		if (result.errors) {
-			console.error('[SuiGraphQL] GraphQL errors:', result.errors);
+		if (result.errors?.length) {
+			// Throw so callers can fall back to JSON-RPC when GraphQL features are unavailable.
+			throw toGraphQLFailure(
+				'GetTransactionsBySenderAndFunction',
+				result.errors as GraphQLErrorLike[]
+			);
 		}
 
 		return result.data?.transactions;
