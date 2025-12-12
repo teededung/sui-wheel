@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
-		const body = await request.json() as {
+		const body = (await request.json()) as {
 			wheelId?: string;
 			txDigest?: string;
 			packageId?: string;
@@ -30,48 +30,45 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			return json({ success: false, message: 'Missing required fields' }, { status: 400 });
 		}
 
-		// Upsert wheel row
-		const { error: wheelErr } = await locals.supabaseAdmin.from('wheels').upsert(
-			{
-				wheel_id: wheelId,
-				tx_digest: txDigest,
-				package_id: packageId,
-				organizer_address: organizerAddress,
-				prizes: prizeAmounts,
-				total_donation: totalDonationAmount,
-				network,
-				coin_type: coinType
-			},
-			{ onConflict: 'wheel_id' }
-		);
+		const organizerAddressNormalized = String(organizerAddress).toLowerCase();
 
-		if (wheelErr) {
-			console.error('[api/wheels] upsert wheel error', wheelErr);
-			return json({ success: false, message: 'Failed to save wheel' }, { status: 500 });
-		}
+		// Upsert wheel + replace entries transactionally for idempotency
+		await locals.prisma.$transaction(async (tx) => {
+			await tx.wheel.upsert({
+				where: { wheelId },
+				create: {
+					wheelId,
+					txDigest,
+					packageId,
+					organizerAddress: organizerAddressNormalized,
+					prizes: prizeAmounts.map(String),
+					totalDonation: totalDonationAmount,
+					network,
+					coinType
+				},
+				update: {
+					txDigest,
+					packageId,
+					organizerAddress: organizerAddressNormalized,
+					prizes: prizeAmounts.map(String),
+					totalDonation: totalDonationAmount,
+					network,
+					coinType
+				}
+			});
 
-		// Insert ordered entries (clear previous first)
-		if (Array.isArray(orderedEntries) && orderedEntries.length > 0) {
-			// Delete existing entries for idempotency
-			const { error: delErr } = await locals.supabaseAdmin
-				.from('wheel_entries')
-				.delete()
-				.eq('wheel_id', wheelId);
-			if (delErr) {
-				console.error('[api/wheels] delete entries error', delErr);
+			// Replace all entries (even if empty) to keep behavior deterministic
+			await tx.wheelEntry.deleteMany({ where: { wheelId } });
+			if (Array.isArray(orderedEntries) && orderedEntries.length > 0) {
+				await tx.wheelEntry.createMany({
+					data: orderedEntries.map((entry: string, idx: number) => ({
+						wheelId,
+						entryAddress: String(entry).toLowerCase(),
+						entryIndex: idx
+					}))
+				});
 			}
-
-			const rows = orderedEntries.map((entry: string, idx: number) => ({
-				wheel_id: wheelId,
-				entry_address: String(entry),
-				entry_index: idx
-			}));
-			const { error: insErr } = await locals.supabaseAdmin.from('wheel_entries').insert(rows);
-			if (insErr) {
-				console.error('[api/wheels] insert entries error', insErr);
-				return json({ success: false, message: 'Failed to save entries' }, { status: 500 });
-			}
-		}
+		});
 
 		return json({ success: true });
 	} catch (err) {
@@ -87,32 +84,21 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			return json({ success: false, message: 'Missing wheelId' }, { status: 400 });
 		}
 
-		// Get wheel info including coin_type
-		const { data: wheel, error: wheelErr } = await locals.supabaseAdmin
-			.from('wheels')
-			.select('coin_type')
-			.eq('wheel_id', wheelId)
-			.single();
+		const wheel = await locals.prisma.wheel.findUnique({
+			where: { wheelId },
+			select: { coinType: true }
+		});
 
-		if (wheelErr) {
-			console.error('[api/wheels] GET wheel error', wheelErr);
-		}
+		const entries = await locals.prisma.wheelEntry.findMany({
+			where: { wheelId },
+			select: { entryAddress: true },
+			orderBy: { entryIndex: 'asc' }
+		});
 
-		const { data: entries, error: err } = await locals.supabaseAdmin
-			.from('wheel_entries')
-			.select('entry_address, entry_index')
-			.eq('wheel_id', wheelId)
-			.order('entry_index', { ascending: true });
-
-		if (err) {
-			console.error('[api/wheels] GET entries error', err);
-			return json({ success: false, message: 'Failed to fetch entries' }, { status: 500 });
-		}
-
-		return json({ 
-			success: true, 
-			entries: (entries ?? []).map((r: { entry_address: string }) => r.entry_address),
-			coinType: wheel?.coin_type || '0x2::sui::SUI'
+		return json({
+			success: true,
+			entries: entries.map((r) => r.entryAddress),
+			coinType: wheel?.coinType || '0x2::sui::SUI'
 		});
 	} catch (e) {
 		console.error('[api/wheels] GET error', e);

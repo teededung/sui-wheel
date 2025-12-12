@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
-		const body = await request.json() as {
+		const body = (await request.json()) as {
 			wheelId?: string;
 			winnerAddress?: string;
 			prizeIndex?: number;
@@ -22,28 +22,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			return json({ success: false, message: 'Missing required fields' }, { status: 400 });
 		}
 
-		const row: {
-			wheel_id: string;
-			winner_address: string;
-			prize_index: number;
-			spin_tx_digest: string;
-			spin_time?: string;
-		} = {
-			wheel_id: wheelId,
-			winner_address: String(winnerAddress).toLowerCase(),
-			prize_index: prizeIndex,
-			spin_tx_digest: spinTxDigest
-		};
-		if (spinTime) row.spin_time = new Date(spinTime).toISOString();
+		const winnerAddressNormalized = String(winnerAddress).toLowerCase();
+		const spinTimeDate = spinTime ? new Date(spinTime) : undefined;
 
-		const { error: upsertErr } = await locals.supabaseAdmin
-			.from('wheel_winners')
-			.upsert(row, { onConflict: 'wheel_id,prize_index' });
-
-		if (upsertErr) {
-			console.error('[api/wheels/winner] upsert error', upsertErr);
-			return json({ success: false, message: 'Failed to save winner' }, { status: 500 });
-		}
+		await locals.prisma.wheelWinner.upsert({
+			where: { wheelId_prizeIndex: { wheelId, prizeIndex } },
+			create: {
+				wheelId,
+				winnerAddress: winnerAddressNormalized,
+				prizeIndex,
+				spinTxDigest,
+				...(spinTimeDate ? { spinTime: spinTimeDate } : {})
+			},
+			update: {
+				winnerAddress: winnerAddressNormalized,
+				spinTxDigest,
+				...(spinTimeDate ? { spinTime: spinTimeDate } : {})
+			}
+		});
 
 		return json({ success: true });
 	} catch (err) {

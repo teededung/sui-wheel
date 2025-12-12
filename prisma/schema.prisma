@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Wheel {
+  id               String      @id @default(auto()) @map("_id") @db.ObjectId
+  wheelId          String      @unique
+  txDigest         String
+  packageId        String
+  organizerAddress String
+  prizes           String[]
+  totalDonation    String?
+  network          String      @default("testnet")
+  coinType         String      @default("0x2::sui::SUI")
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  entries          WheelEntry[]
+  winners          WheelWinner[]
+
+  @@index([organizerAddress])
+  @@index([createdAt])
+  @@index([coinType])
+}
+
+model WheelEntry {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  wheelId      String
+  entryAddress String
+  entryIndex   Int
+  createdAt    DateTime @default(now())
+
+  wheel        Wheel    @relation(fields: [wheelId], references: [wheelId], onDelete: Cascade)
+
+  @@unique([wheelId, entryIndex])
+  @@index([wheelId])
+  @@index([entryAddress])
+}
+
+model WheelWinner {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  wheelId       String
+  winnerAddress String
+  prizeIndex    Int
+  spinTxDigest  String   @unique
+  spinTime      DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  wheel         Wheel    @relation(fields: [wheelId], references: [wheelId], onDelete: Cascade)
+
+  @@unique([wheelId, prizeIndex])
+  @@index([wheelId])
+  @@index([winnerAddress])
+}
+
+

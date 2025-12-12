@@ -53,7 +53,7 @@
 		accountFromWallet,
 		isNotOrganizer,
 		shuffledIndexOrder = [],
-		selectedCoinType = DEFAULT_COIN_TYPE,
+		selectedCoinType = DEFAULT_COIN_TYPE
 	}: Props = $props();
 
 	// Context deps/APIs from parent
@@ -615,6 +615,7 @@
 			// Add remaining arguments
 			if (RANDOM_OBJECT_ID) txArgs.push(tx.object(RANDOM_OBJECT_ID));
 			if (CLOCK_OBJECT_ID) txArgs.push(tx.object(CLOCK_OBJECT_ID));
+
 			// Version object validates transaction against current contract version
 			if (VERSION_OBJECT_ID) txArgs.push(tx.object(VERSION_OBJECT_ID));
 
@@ -655,7 +656,7 @@
 						: -1;
 				}
 
-				// Persist winner to Supabase API
+				// Persist winner to Database API
 				try {
 					const prizeIndexRaw = Number((parsed?.prize_index ?? parsed?.prizeIndex ?? -1) as number);
 					if (
@@ -991,7 +992,7 @@
 		{#if accountFromWallet && createdWheelId}
 			<div class="mt-4 flex justify-center">
 				<div
-					class="badge rounded badge-lg px-2 py-1 text-center text-xs font-medium shadow badge-primary"
+					class="badge rounded px-2 py-1 text-center text-xs badge-lg font-medium shadow badge-primary"
 				>
 					{t('wheel.remainingSpins')}: {Math.max(0, remainingSpins || 0)}
 				</div>
