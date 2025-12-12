@@ -1,6 +1,7 @@
 .DS_Store
 .cursor
 .kiro
+.agent
 node_modules
 
 /build
@@ -18,6 +19,7 @@ node_modules
 !.yarn/sdks
 !.yarn/versions
 
+# maybe not needed anymore (prisma 7)
 /src/generated/prisma
 
 # Netlify
