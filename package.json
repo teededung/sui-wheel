@@ -1,20 +1,21 @@
 {
 	"name": "sui-wheel",
-	"version": "1.1.1",
+	"version": "1.2.0",
 	"description": "Sui Wheel",
 	"author": "Tuan Anh Nguyen",
 	"license": "MIT",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
-		"build": "vite build",
+		"build": "prisma generate && vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"prisma": "prisma generate",
 		"format": "prettier --write .",
-		"lint": "prettier --check . && eslint ."
+		"lint": "prettier --check . && eslint .",
+		"postinstall": "prisma generate"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.4.1",
@@ -47,7 +48,6 @@
 		"@mysten/sui": "^1.45.2",
 		"@prisma/client": "6.19.0",
 		"@svelte-put/qr": "^2.1.1",
-		"@upstash/redis": "^1.35.7",
 		"date-fns": "^4.1.0",
 		"graphql": "^16.12.0",
 		"graphql-request": "^7.3.5",
