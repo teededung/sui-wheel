@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { IsIdle, watch } from 'runed';
-	import { gsap } from 'gsap';
 	import { Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 	import { toast } from 'svelte-daisy-toaster';
 	import { useSuiClient, signAndExecuteTransaction } from 'sui-svelte-wallet-kit';
@@ -128,12 +127,21 @@
 	let winnerModal = $state<HTMLDialogElement | null>(null);
 
 	// Animation state
-	let currentTween: ReturnType<typeof gsap.to> | null = null;
-	let idleTween: ReturnType<typeof gsap.to> | null = null;
+	type TweenLike = { kill: () => void };
+	let currentTween: TweenLike | null = null;
+	let idleTween: TweenLike | null = null;
 	const idleAnimState = { angle: 0 };
 	const animState = { angle: 0 };
 	let lastTickIndex: number | null = null;
 	let lastAngle = 0;
+
+	let gsap: any = null;
+	async function ensureGsap() {
+		if (gsap) return gsap;
+		const mod: any = await import('gsap');
+		gsap = mod?.gsap ?? mod?.default ?? mod;
+		return gsap;
+	}
 
 	const segmentColors = [
 		'#22c55e',
@@ -147,6 +155,8 @@
 	];
 
 	onMount(async () => {
+		void ensureGsap().then(() => startIdleRotationIfNeeded());
+
 		winAudio = new Audio('/crowd-reaction.mp3');
 		winAudio.preload = 'auto';
 		winAudio.volume = 0.5;
@@ -277,16 +287,9 @@
 		if (pointerBounce) return; // Prevent overlapping animations
 
 		pointerBounce = true;
-		gsap.to(
-			{},
-			{
-				duration: 0.15,
-				ease: 'power2.out',
-				onComplete: () => {
-					pointerBounce = false;
-				}
-			}
-		);
+		setTimeout(() => {
+			pointerBounce = false;
+		}, 150);
 	}
 
 	function updatePointerColor() {
@@ -465,6 +468,7 @@
 	}
 
 	function startIdleRotationIfNeeded() {
+		if (!gsap) return;
 		if (spinning || currentTween || idleTween || !idle.current) return;
 		idleAnimState.angle = spinAngle;
 		idleTween = gsap.to(idleAnimState, {
@@ -799,6 +803,10 @@
 	function spinToIndex(targetIndex: number, opts: SpinOptions = {}) {
 		const n = Math.max(1, entries.length);
 		if (spinning || n < 1) return;
+		if (!gsap) {
+			void ensureGsap().then(() => spinToIndex(targetIndex, opts));
+			return;
+		}
 		const idx = Math.max(0, Math.min(n - 1, Number(targetIndex) | 0));
 		setSpinning?.(true);
 		selectedIndex = null;

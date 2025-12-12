@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { gsap } from 'gsap';
 	import logo from '$lib/assets/sui-wheel-logo.png';
 
 	interface LabelLayout {
@@ -55,10 +54,19 @@
 	let offscreenCtx: CanvasRenderingContext2D | null = null;
 
 	// Animation
-	let currentTween: ReturnType<typeof gsap.to> | null = null;
+	type TweenLike = { kill: () => void };
+	let currentTween: TweenLike | null = null;
 	let animState = { angle: 0 };
 
 	const segmentColors = $derived(colors);
+
+	let gsap: any = null;
+	async function ensureGsap() {
+		if (gsap) return gsap;
+		const mod: any = await import('gsap');
+		gsap = mod?.gsap ?? mod?.default ?? mod;
+		return gsap;
+	}
 
 	// Track previous entries to avoid unnecessary re-renders
 	let previousEntries = $state<string[]>([]);
@@ -79,6 +87,7 @@
 
 	onMount(async () => {
 		setupCanvas();
+		await ensureGsap();
 		startContinuousRotation();
 	});
 
@@ -133,6 +142,7 @@
 	}
 
 	function startContinuousRotation() {
+		if (!gsap) return;
 		if (currentTween) {
 			currentTween.kill();
 			currentTween = null;
