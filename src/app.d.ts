@@ -6,7 +6,7 @@ declare global {
 	namespace App {
 		// interface Error {}
 		interface Locals {
-			prisma: PrismaClient;
+			prisma: PrismaClient | null;
 		}
 		// interface PageData {}
 		// interface PageState {}

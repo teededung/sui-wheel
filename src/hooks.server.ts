@@ -11,5 +11,5 @@ export const handle: Handle = async ({ event, resolve }) => {
 };
 
 export async function handleClose() {
-	await prisma.$disconnect();
+	await prisma?.$disconnect();
 }

@@ -8,6 +8,7 @@ import {
 	WHEEL_STRUCT,
 	NETWORK
 } from '$lib/constants.js';
+import { dev } from '$app/environment';
 
 interface WheelItem {
 	id: string;
@@ -186,14 +187,18 @@ export const load: PageServerLoad = async () => {
 		const publicWheels = await loadWithGraphQL(networkPart);
 		return { publicWheels, publicWheelsSource: 'graphql' as const };
 	} catch (gqlErr) {
-		console.warn('[WheelList Server] GraphQL failed, falling back to RPC:', gqlErr);
+		if (dev) {
+			console.warn('[WheelList Server] GraphQL failed, falling back to RPC:', gqlErr);
+		}
 
 		// Fallback to JSON-RPC
 		try {
 			const publicWheels = await loadWithRPC(networkPart as 'mainnet' | 'testnet' | 'devnet');
 			return { publicWheels, publicWheelsSource: 'rpc' as const };
 		} catch (rpcErr) {
-			console.error('[WheelList Server] RPC fallback also failed:', rpcErr);
+			if (dev) {
+				console.error('[WheelList Server] RPC fallback also failed:', rpcErr);
+			}
 			return { publicWheels: [] as WheelItem[], publicWheelsSource: 'none' as const };
 		}
 	}

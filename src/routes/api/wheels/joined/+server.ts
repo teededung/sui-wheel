@@ -12,6 +12,13 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			return json({ success: false, message: 'Missing address parameter' }, { status: 400 });
 		}
 
+		// Backup DB is optional. If not configured, return empty results.
+		if (!locals.prisma) {
+			if (wheelIds && wheelIds.length > 0)
+				return json({ success: true, joinedIds: [], skippedDb: true });
+			return json({ success: true, wheels: [], skippedDb: true });
+		}
+
 		const addressNormalized = address.toLowerCase();
 
 		// If wheelIds provided, just check which ones user has joined (fast path)

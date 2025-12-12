@@ -30,6 +30,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			return json({ success: false, message: 'Missing required fields' }, { status: 400 });
 		}
 
+		// Backup DB is optional. If DATABASE_URL is not configured, no-op and keep onchain flow working.
+		if (!locals.prisma) return json({ success: true, skippedDb: true });
+
 		const organizerAddressNormalized = String(organizerAddress).toLowerCase();
 
 		// Upsert wheel + replace entries transactionally for idempotency
@@ -82,6 +85,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		const wheelId = url.searchParams.get('wheelId');
 		if (!wheelId) {
 			return json({ success: false, message: 'Missing wheelId' }, { status: 400 });
+		}
+
+		// If DB is not configured, return safe defaults (onchain remains source of truth).
+		if (!locals.prisma) {
+			return json({ success: true, entries: [], coinType: '0x2::sui::SUI', skippedDb: true });
 		}
 
 		const wheel = await locals.prisma.wheel.findUnique({

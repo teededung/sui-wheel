@@ -22,6 +22,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			return json({ success: false, message: 'Missing required fields' }, { status: 400 });
 		}
 
+		// Backup DB is optional. If DATABASE_URL is not configured, no-op and keep onchain flow working.
+		if (!locals.prisma) return json({ success: true, skippedDb: true });
+
 		const winnerAddressNormalized = String(winnerAddress).toLowerCase();
 		const spinTimeDate = spinTime ? new Date(spinTime) : undefined;
 
@@ -36,7 +39,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			},
 			update: {
 				winnerAddress: winnerAddressNormalized,
-				spinTxDigest,
+				// Do not update spinTxDigest. It is @unique and represents the original spin transaction.
 				...(spinTimeDate ? { spinTime: spinTimeDate } : {})
 			}
 		});
