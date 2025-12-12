@@ -67,6 +67,8 @@
 	import { qr } from '@svelte-put/qr/svg';
 	import logo from '$lib/assets/sui-wheel-logo-small.png';
 
+	const { data } = $props();
+
 	const t = useTranslation();
 	const suiClient = $derived(useSuiClient());
 	const account = $derived(useCurrentAccount());
@@ -1749,7 +1751,7 @@
 														{t('main.onlineEntryForm')}
 													</button>
 												</li>
-												{#if account}
+												{#if account && data?.xImportEnabled}
 													<li>
 														<button onclick={openXImportModal} aria-label={t('main.importByXPost')}>
 															<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">

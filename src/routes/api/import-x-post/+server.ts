@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { Rettiwt } from 'rettiwt-api';
-import { X_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 import { isValidSuiAddress } from '$lib/utils/suiHelpers.js';
 
 /**
@@ -19,7 +19,7 @@ function extractTweetId(rawInput: unknown): string {
 		const url = new URL(input);
 		// Path like: /<user>/status/<id>
 		const parts = url.pathname.split('/').filter(Boolean);
-		const statusIdx = parts.findIndex(p => p.toLowerCase() === 'status');
+		const statusIdx = parts.findIndex((p) => p.toLowerCase() === 'status');
 		if (statusIdx !== -1 && parts[statusIdx + 1] && /^\d{5,}$/.test(parts[statusIdx + 1])) {
 			return parts[statusIdx + 1];
 		}
@@ -48,11 +48,13 @@ export const POST: RequestHandler = async ({ request }) => {
 			return json({ success: false, error: 'Missing or invalid tweet id/url' }, { status: 400 });
 		}
 
-		if (!X_API_KEY) {
-			return json({ success: false, error: 'X API key is not set' }, { status: 400 });
+		const xApiKey = env.X_API_KEY;
+		if (!xApiKey) {
+			console.log('[import-x-post] disabled: missing X_API_KEY');
+			return json({ success: false, error: 'X API key is not set' }, { status: 501 });
 		}
 
-		const rettiwt = new Rettiwt({ apiKey: X_API_KEY });
+		const rettiwt = new Rettiwt({ apiKey: xApiKey });
 		let replies = [];
 
 		try {
@@ -70,7 +72,11 @@ export const POST: RequestHandler = async ({ request }) => {
 				if (!list.length) break;
 
 				for (const item of list) {
-					const tweetItem = item as unknown as { id?: string; tweetId?: string; [key: string]: unknown };
+					const tweetItem = item as unknown as {
+						id?: string;
+						tweetId?: string;
+						[key: string]: unknown;
+					};
 					const id = String(tweetItem?.id ?? tweetItem?.tweetId ?? '');
 					if (!id || seenIds.has(id)) continue;
 					seenIds.add(id);
@@ -108,11 +114,11 @@ export const POST: RequestHandler = async ({ request }) => {
 				};
 				const textCandidates = [tweetItem?.fullText, tweetItem?.text, tweetItem?.legacy?.full_text];
 				const sourceText = String(
-					textCandidates.find(v => typeof v === 'string' && v.length > 0) || ''
+					textCandidates.find((v) => typeof v === 'string' && v.length > 0) || ''
 				);
 				if (!sourceText) continue;
 				const matches = sourceText.match(addressRegex) || [];
-				const firstValid = matches.find(m => isValidSuiAddress(m));
+				const firstValid = matches.find((m) => isValidSuiAddress(m));
 				if (firstValid) addressesAll.push(firstValid);
 			}
 			// Unique addresses, preserve first appearance order
