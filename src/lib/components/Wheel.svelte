@@ -97,8 +97,9 @@
 		}
 		// Off-chain: disable if not enough entries
 		if (accountFromWallet && !createdWheelId) return true;
-		// Not enough entries
-		return entries.length < 2;
+		const itemCount = mode === 'rewards' ? rewards.length : entries.length;
+		// Not enough items to spin
+		return itemCount < 2;
 	});
 
 	// Local state
@@ -192,7 +193,7 @@
 
 	// Watch entries for layout updates
 	watch(
-		() => [entries, rewards, mode, loadedImages],
+		() => [entries, rewards, mode, loadedImages, equalSlices],
 		() => {
 			recomputeLabelLayouts();
 			renderWheelBitmap();
@@ -325,26 +326,31 @@
 	}
 
 	function updatePointerColor() {
-		const n2 = Math.max(1, entries.length);
-		const arc2 = (Math.PI * 2) / n2;
+		const sliceCount =
+			mode === 'rewards' && rewards.length > 0 ? rewards.length : Math.max(1, entries.length);
 		const normalized = (((Math.PI / 2 - spinAngle) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
 
 		let newIndex = 0;
 		if (mode === 'rewards' && rewards.length > 0) {
-			const totalProb = rewards.reduce((acc, r) => acc + r.probability, 0);
-			let currentAngle = 0;
-			for (let i = 0; i < rewards.length; i++) {
-				const arcSize = (rewards[i].probability / totalProb) * Math.PI * 2;
-				if (normalized >= currentAngle && normalized < currentAngle + arcSize) {
-					newIndex = i;
-					break;
+			if (equalSlices) {
+				const count = rewards.length;
+				const arc = (Math.PI * 2) / count;
+				newIndex = Math.floor(normalized / arc) % count;
+			} else {
+				const totalProb = rewards.reduce((acc, r) => acc + r.probability, 0);
+				let currentAngle = 0;
+				for (let i = 0; i < rewards.length; i++) {
+					const arcSize = (rewards[i].probability / totalProb) * Math.PI * 2;
+					if (normalized >= currentAngle && normalized < currentAngle + arcSize) {
+						newIndex = i;
+						break;
+					}
+					currentAngle += arcSize;
 				}
-				currentAngle += arcSize;
 			}
 		} else {
-			const n2 = Math.max(1, entries.length);
-			const arc2 = (Math.PI * 2) / n2;
-			newIndex = Math.floor(normalized / arc2) % n2;
+			const arc = (Math.PI * 2) / sliceCount;
+			newIndex = Math.floor(normalized / arc) % sliceCount;
 		}
 
 		if (pointerColorOverride && pointerColorOverride.trim() !== '') {
@@ -371,12 +377,15 @@
 
 		if (newIndex !== lastTickIndex && deltaAngle !== 0) {
 			const dir = deltaAngle > 0 ? -1 : 1;
-			const steps = dir > 0 ? mod(newIndex - lastTickIndex, n2) : mod(lastTickIndex - newIndex, n2);
+			const steps =
+				dir > 0
+					? mod(newIndex - lastTickIndex, sliceCount)
+					: mod(lastTickIndex - newIndex, sliceCount);
 			const MAX_TICKS_PER_FRAME = 12;
 			const toFire = Math.min(steps, MAX_TICKS_PER_FRAME);
 
 			for (let i = 0; i < toFire; i++) {
-				lastTickIndex = mod(lastTickIndex + dir, n2);
+				lastTickIndex = mod(lastTickIndex + dir, sliceCount);
 				fireTickForIndex(lastTickIndex);
 			}
 		}
@@ -935,8 +944,9 @@
 	}
 
 	function spinToIndex(targetIndex: number, opts: SpinOptions = {}) {
-		const n = Math.max(1, entries.length);
-		if (spinning || n < 1) return;
+		const itemCount = mode === 'rewards' ? rewards.length : entries.length;
+		const n = Math.max(1, itemCount);
+		if (spinning || itemCount < 1) return;
 		if (!gsap) {
 			void ensureGsap().then(() => spinToIndex(targetIndex, opts));
 			return;
@@ -1007,15 +1017,21 @@
 			onComplete: () => {
 				currentTween = null;
 				setSpinning?.(false);
-				selectedIndex = pickSelectedIndex();
+				selectedIndex = pickSelectedIndex(); // Restore this call
+				const winnerIndex = selectedIndex;
+				const isLossReward =
+					mode === 'rewards' &&
+					winnerIndex !== null &&
+					(rewards[winnerIndex]?.isLoss || rewards[winnerIndex]?.icon === 'x');
+
 				updatePointerColor();
-				if (!muted && winAudio) {
+				if (!muted && winAudio && !isLossReward) {
 					try {
 						winAudio.currentTime = 0;
 						winAudio.play();
 					} catch {}
 				}
-				const winnerIndex = selectedIndex;
+
 				if (winnerIndex !== null) {
 					if (mode === 'rewards') {
 						lastWinner = rewards[winnerIndex].text;
@@ -1041,7 +1057,9 @@
 					if (!createdWheelId) spinAngle = 0;
 					if (winnerModal) {
 						winnerModal.showModal();
-						showConfetti();
+						if (!isLossReward) {
+							showConfetti();
+						}
 					}
 				}
 				if (postSpinFetchRequested) {

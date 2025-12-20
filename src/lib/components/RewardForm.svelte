@@ -65,7 +65,8 @@
 		'plane',
 		'ship',
 		'umbrella',
-		'wrench'
+		'wrench',
+		'x'
 	];
 
 	// Load presets on mount
@@ -125,7 +126,8 @@
 
 	function selectIcon(icon: string) {
 		if (activeIconRewardId) {
-			updateReward(activeIconRewardId, { icon });
+			const isLoss = icon === 'x';
+			updateReward(activeIconRewardId, { icon, isLoss });
 		}
 		iconModalEl?.close();
 	}
@@ -355,10 +357,18 @@
 						<!-- Icon & Color Row on Mobile -->
 						<div class="flex w-full items-center gap-3 sm:w-auto">
 							<!-- Icon Selector Button -->
-							<div class="tooltip tooltip-top" data-tip={t('reward.icon') || 'Icon'}>
+							<div
+								class="tooltip tooltip-top"
+								data-tip={reward.icon === 'x'
+									? t('reward.noPrize') || 'No Prize (Better luck next time)'
+									: t('reward.icon') || 'Icon'}
+							>
 								<button
 									id="reward-icon-{reward.id}"
-									class="relative flex h-12 w-12 items-center justify-center rounded-xl border-2 border-base-300 bg-base-100 transition-all hover:border-primary hover:shadow-md active:scale-95"
+									class="relative flex h-12 w-12 items-center justify-center rounded-xl border-2 transition-all hover:shadow-md active:scale-95 {reward.icon ===
+									'x'
+										? 'border-error/50 bg-error/5 hover:border-error'
+										: 'border-base-300 bg-base-100 hover:border-primary'}"
 									class:cursor-pointer={!disabled}
 									class:cursor-not-allowed={disabled}
 									class:opacity-50={disabled}
@@ -366,7 +376,11 @@
 									{disabled}
 								>
 									{#if reward.icon}
-										<span class="icon-[lucide--{reward.icon}] text-xl text-primary"></span>
+										<span
+											class="icon-[lucide--{reward.icon}] text-xl {reward.icon === 'x'
+												? 'text-error'
+												: 'text-primary'}"
+										></span>
 									{:else}
 										<span class="icon-[lucide--image] text-xl text-primary"></span>
 									{/if}
@@ -475,9 +489,12 @@
 		<div class="grid grid-cols-6 gap-2">
 			{#each curatedIcons as iconName}
 				<button
-					class="btn btn-square text-2xl btn-ghost btn-md hover:btn-primary"
+					class="tooltip btn btn-square text-2xl btn-ghost btn-md {iconName === 'x'
+						? 'text-error hover:bg-error/20'
+						: 'hover:btn-primary'}"
+					data-tip={iconName === 'x' ? t('reward.noPrize') || 'No Prize' : iconName}
 					onclick={() => selectIcon(iconName)}
-					title={iconName}
+					aria-label={iconName === 'x' ? t('reward.noPrize') || 'No Prize' : iconName}
 				>
 					<span class="icon-[lucide--{iconName}]"></span>
 				</button>

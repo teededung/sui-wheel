@@ -133,4 +133,5 @@ export interface Reward {
 	probability: number; // 0 to 100
 	icon?: string;
 	color?: string; // Optional override color
+	isLoss?: boolean;
 }
