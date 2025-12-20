@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Reward } from '$lib/types/wheel.js';
+	import type { Reward, RewardPreset } from '$lib/types/wheel.js';
 	import { useTranslation } from '$lib/hooks/useTranslation.js';
 	import { toast } from 'svelte-daisy-toaster';
 
@@ -9,6 +9,12 @@
 		onUpdate: (rewards: Reward[]) => void;
 		onUpdateEqualSlices?: (equalSlices: boolean) => void;
 		disabled?: boolean;
+		savedPresets?: RewardPreset[]; // Lifted state
+		onOpenIconModal?: (rewardId: string) => void;
+		onOpenSaveModal?: () => void;
+		onLoadPreset?: (preset: RewardPreset) => void;
+		onDeletePreset?: (id: string) => void;
+		onClearPresets?: () => void;
 	}
 
 	let {
@@ -16,71 +22,15 @@
 		equalSlices = false,
 		onUpdate,
 		onUpdateEqualSlices,
-		disabled = false
+		disabled = false,
+		savedPresets = [],
+		onOpenIconModal,
+		onOpenSaveModal,
+		onLoadPreset,
+		onDeletePreset,
+		onClearPresets
 	}: Props = $props();
 	const t = useTranslation();
-
-	interface RewardPreset {
-		id: string;
-		name: string;
-		rewards: Reward[];
-		createdAt: number;
-	}
-
-	let activeIconRewardId = $state<string | null>(null);
-	let iconModalEl = $state<HTMLDialogElement | null>(null);
-	let saveModalEl = $state<HTMLDialogElement | null>(null);
-	let newPresetName = $state('');
-	let savedPresets = $state<RewardPreset[]>([]);
-
-	const curatedIcons = [
-		'gift',
-		'trophy',
-		'gem',
-		'star',
-		'heart',
-		'flame',
-		'clover',
-		'coffee',
-		'pizza',
-		'music',
-		'camera',
-		'smile',
-		'rocket',
-		'package',
-		'ticket',
-		'crown',
-		'zap',
-		'sun',
-		'moon',
-		'ghost',
-		'piggy-bank',
-		'coins',
-		'shopping-bag',
-		'map-pin',
-		'bell',
-		'anchor',
-		'bike',
-		'car',
-		'plane',
-		'ship',
-		'umbrella',
-		'wrench',
-		'x'
-	];
-
-	// Load presets on mount
-	import { onMount } from 'svelte';
-	onMount(() => {
-		const stored = localStorage.getItem('wheel_reward_presets');
-		if (stored) {
-			try {
-				savedPresets = JSON.parse(stored);
-			} catch (e) {
-				console.error('Failed to parse presets', e);
-			}
-		}
-	});
 
 	function addReward() {
 		const newReward: Reward = {
@@ -119,49 +69,6 @@
 		updateReward(id, { probability: value });
 	}
 
-	function openIconModal(id: string) {
-		activeIconRewardId = id;
-		iconModalEl?.showModal();
-	}
-
-	function selectIcon(icon: string) {
-		if (activeIconRewardId) {
-			const isLoss = icon === 'x';
-			updateReward(activeIconRewardId, { icon, isLoss });
-		}
-		iconModalEl?.close();
-	}
-
-	function openSaveModal() {
-		newPresetName = `Preset ${savedPresets.length + 1}`;
-		saveModalEl?.showModal();
-	}
-
-	function savePresetWithName() {
-		if (!newPresetName.trim()) return;
-		const newPreset: RewardPreset = {
-			id: crypto.randomUUID(),
-			name: newPresetName.trim(),
-			rewards: JSON.parse(JSON.stringify(rewards)), // deep copy
-			createdAt: Date.now()
-		};
-		savedPresets = [newPreset, ...savedPresets];
-		localStorage.setItem('wheel_reward_presets', JSON.stringify(savedPresets));
-		saveModalEl?.close();
-		toast({
-			type: 'success',
-			message: t('reward.presetSaved') || 'Preset saved successfully'
-		});
-	}
-
-	function loadPreset(preset: RewardPreset) {
-		onUpdate(JSON.parse(JSON.stringify(preset.rewards)));
-		toast({
-			type: 'success',
-			message: t('reward.presetLoaded') || 'Preset loaded successfully'
-		});
-	}
-
 	let pendingDeleteId = $state<string | null>(null);
 	let pendingClearAll = $state(false);
 	let resetTimer: ReturnType<typeof setTimeout> | null = null;
@@ -173,7 +80,7 @@
 		resetTimer = null;
 	}
 
-	function deletePreset(id: string) {
+	function handleDeletePreset(id: string) {
 		if (pendingDeleteId !== id) {
 			pendingDeleteId = id;
 			if (resetTimer) clearTimeout(resetTimer);
@@ -181,16 +88,11 @@
 			return;
 		}
 
-		savedPresets = savedPresets.filter((p) => p.id !== id);
-		localStorage.setItem('wheel_reward_presets', JSON.stringify(savedPresets));
+		onDeletePreset?.(id);
 		resetConfirmStates();
-		toast({
-			type: 'info',
-			message: t('reward.presetDeleted') || 'Preset deleted'
-		});
 	}
 
-	function clearAllPresets() {
+	function handleClearAllPresets() {
 		if (!pendingClearAll) {
 			pendingClearAll = true;
 			if (resetTimer) clearTimeout(resetTimer);
@@ -198,25 +100,11 @@
 			return;
 		}
 
-		savedPresets = [];
-		localStorage.removeItem('wheel_reward_presets');
+		onClearPresets?.();
 		resetConfirmStates();
-		toast({
-			type: 'success',
-			message: t('reward.allPresetsCleared') || 'All presets cleared'
-		});
 	}
 
 	let totalProbability = $derived(rewards.reduce((acc, r) => acc + r.probability, 0));
-
-	// Tailwind 4 safelist for icons used in the grid
-	// icon-[lucide--gift] icon-[lucide--trophy] icon-[lucide--gem] icon-[lucide--star] icon-[lucide--heart]
-	// icon-[lucide--flame] icon-[lucide--clover] icon-[lucide--coffee] icon-[lucide--pizza] icon-[lucide--music]
-	// icon-[lucide--camera] icon-[lucide--smile] icon-[lucide--rocket] icon-[lucide--package] icon-[lucide--ticket]
-	// icon-[lucide--crown] icon-[lucide--zap] icon-[lucide--sun] icon-[lucide--moon] icon-[lucide--ghost]
-	// icon-[lucide--piggy-bank] icon-[lucide--coins] icon-[lucide--shopping-bag] icon-[lucide--map-pin] icon-[lucide--bell]
-	// icon-[lucide--anchor] icon-[lucide--bike] icon-[lucide--car] icon-[lucide--plane] icon-[lucide--ship]
-	// icon-[lucide--umbrella] icon-[lucide--wrench]
 </script>
 
 <div class="flex flex-col gap-4">
@@ -249,7 +137,7 @@
 										: 'text-error hover:bg-error/10'}"
 									onclick={(e) => {
 										e.stopPropagation();
-										clearAllPresets();
+										handleClearAllPresets();
 									}}
 								>
 									{pendingClearAll
@@ -271,7 +159,7 @@
 										class:opacity-40={pendingDeleteId === preset.id}
 										onclick={() => {
 											resetConfirmStates();
-											loadPreset(preset);
+											onLoadPreset?.(preset);
 										}}
 									>
 										{preset.name}
@@ -282,7 +170,7 @@
 											: 'btn-square opacity-0 group-hover:opacity-100'}"
 										onclick={(e) => {
 											e.stopPropagation();
-											deletePreset(preset.id);
+											handleDeletePreset(preset.id);
 										}}
 										title={t('reward.deletePreset') || 'Delete Preset'}
 									>
@@ -301,7 +189,11 @@
 				{/if}
 			</div>
 
-			<button class="btn flex-1 btn-outline btn-sm sm:flex-none" onclick={openSaveModal} {disabled}>
+			<button
+				class="btn flex-1 btn-outline btn-sm sm:flex-none"
+				onclick={() => onOpenSaveModal?.()}
+				{disabled}
+			>
 				<span class="mr-1 icon-[lucide--save]"></span>
 				{t('reward.saveAs') || 'Save As...'}
 			</button>
@@ -372,7 +264,7 @@
 									class:cursor-pointer={!disabled}
 									class:cursor-not-allowed={disabled}
 									class:opacity-50={disabled}
-									onclick={() => !disabled && openIconModal(reward.id)}
+									onclick={() => !disabled && onOpenIconModal?.(reward.id)}
 									{disabled}
 								>
 									{#if reward.icon}
@@ -480,65 +372,3 @@
 		<span class="text-lg font-bold">{t('reward.add') || 'Add Reward'}</span>
 	</button>
 </div>
-
-<!-- Icon Selection Modal -->
-<dialog bind:this={iconModalEl} class="modal modal-middle">
-	<div class="modal-box max-w-lg bg-base-200">
-		<h3 class="mb-4 text-xl font-bold">{t('reward.selectIcon') || 'Select Icon'}</h3>
-
-		<div class="grid grid-cols-6 gap-2">
-			{#each curatedIcons as iconName}
-				<button
-					class="tooltip btn btn-square text-2xl btn-ghost btn-md {iconName === 'x'
-						? 'text-error hover:bg-error/20'
-						: 'hover:btn-primary'}"
-					data-tip={iconName === 'x' ? t('reward.noPrize') || 'No Prize' : iconName}
-					onclick={() => selectIcon(iconName)}
-					aria-label={iconName === 'x' ? t('reward.noPrize') || 'No Prize' : iconName}
-				>
-					<span class="icon-[lucide--{iconName}]"></span>
-				</button>
-			{/each}
-		</div>
-
-		<div class="modal-action">
-			<form method="dialog">
-				<button class="btn">{t('common.close') || 'Close'}</button>
-			</form>
-		</div>
-	</div>
-	<form method="dialog" class="modal-backdrop">
-		<button>close</button>
-	</form>
-</dialog>
-
-<!-- Save Preset Modal -->
-<dialog bind:this={saveModalEl} class="modal modal-middle">
-	<div class="modal-box bg-base-200">
-		<h3 class="mb-4 text-xl font-bold">{t('reward.saveAs') || 'Save As...'}</h3>
-		<div class="form-control w-full">
-			<label class="label p-0 pb-2" for="preset-name-input">
-				<span class="label-text text-xs">{t('reward.enterPresetName') || 'Enter preset name'}</span>
-			</label>
-			<input
-				id="preset-name-input"
-				type="text"
-				bind:value={newPresetName}
-				class="input-bordered input w-full"
-				placeholder={t('reward.enterPresetName') || 'Enter preset name'}
-				onkeydown={(e) => e.key === 'Enter' && savePresetWithName()}
-			/>
-		</div>
-		<div class="modal-action">
-			<form method="dialog">
-				<button class="btn btn-ghost">{t('common.cancel') || 'Cancel'}</button>
-				<button class="btn btn-primary" onclick={savePresetWithName}>
-					{t('common.save') || 'Save'}
-				</button>
-			</form>
-		</div>
-	</div>
-	<form method="dialog" class="modal-backdrop">
-		<button>close</button>
-	</form>
-</dialog>

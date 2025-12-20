@@ -135,3 +135,10 @@ export interface Reward {
 	color?: string; // Optional override color
 	isLoss?: boolean;
 }
+
+export interface RewardPreset {
+	id: string;
+	name: string;
+	rewards: Reward[];
+	createdAt: number;
+}
