@@ -109,39 +109,39 @@
 	let savedPresets = $state<RewardPreset[]>([]);
 
 	const curatedIcons = [
-		'gift',
-		'trophy',
-		'gem',
-		'star',
-		'heart',
-		'flame',
-		'clover',
-		'coffee',
-		'pizza',
-		'music',
-		'camera',
-		'smile',
-		'rocket',
-		'package',
-		'ticket',
-		'crown',
-		'zap',
-		'sun',
-		'moon',
-		'ghost',
-		'piggy-bank',
-		'coins',
-		'shopping-bag',
-		'map-pin',
-		'bell',
-		'anchor',
-		'bike',
-		'car',
-		'plane',
-		'ship',
-		'umbrella',
-		'wrench',
-		'x'
+		{ name: 'gift', icon: 'icon-[lucide--gift]' },
+		{ name: 'trophy', icon: 'icon-[lucide--trophy]' },
+		{ name: 'gem', icon: 'icon-[lucide--gem]' },
+		{ name: 'star', icon: 'icon-[lucide--star]' },
+		{ name: 'heart', icon: 'icon-[lucide--heart]' },
+		{ name: 'flame', icon: 'icon-[lucide--flame]' },
+		{ name: 'clover', icon: 'icon-[lucide--clover]' },
+		{ name: 'coffee', icon: 'icon-[lucide--coffee]' },
+		{ name: 'pizza', icon: 'icon-[lucide--pizza]' },
+		{ name: 'music', icon: 'icon-[lucide--music]' },
+		{ name: 'camera', icon: 'icon-[lucide--camera]' },
+		{ name: 'smile', icon: 'icon-[lucide--smile]' },
+		{ name: 'rocket', icon: 'icon-[lucide--rocket]' },
+		{ name: 'package', icon: 'icon-[lucide--package]' },
+		{ name: 'ticket', icon: 'icon-[lucide--ticket]' },
+		{ name: 'crown', icon: 'icon-[lucide--crown]' },
+		{ name: 'zap', icon: 'icon-[lucide--zap]' },
+		{ name: 'sun', icon: 'icon-[lucide--sun]' },
+		{ name: 'moon', icon: 'icon-[lucide--moon]' },
+		{ name: 'ghost', icon: 'icon-[lucide--ghost]' },
+		{ name: 'piggy-bank', icon: 'icon-[lucide--piggy-bank]' },
+		{ name: 'coins', icon: 'icon-[lucide--coins]' },
+		{ name: 'shopping-bag', icon: 'icon-[lucide--shopping-bag]' },
+		{ name: 'map-pin', icon: 'icon-[lucide--map-pin]' },
+		{ name: 'bell', icon: 'icon-[lucide--bell]' },
+		{ name: 'anchor', icon: 'icon-[lucide--anchor]' },
+		{ name: 'bike', icon: 'icon-[lucide--bike]' },
+		{ name: 'car', icon: 'icon-[lucide--car]' },
+		{ name: 'plane', icon: 'icon-[lucide--plane]' },
+		{ name: 'ship', icon: 'icon-[lucide--ship]' },
+		{ name: 'umbrella', icon: 'icon-[lucide--umbrella]' },
+		{ name: 'wrench', icon: 'icon-[lucide--wrench]' },
+		{ name: 'x', icon: 'icon-[lucide--x]' }
 	];
 
 	onMount(() => {
@@ -221,10 +221,10 @@
 	}
 	// ----------------------------------------
 	let rewards = $state<Reward[]>([
-		{ id: '1', text: 'Móc khoá', probability: 79.5, color: '#22c55e', icon: 'gift' },
+		{ id: '1', text: 'Móc khoá', probability: 70, color: '#22c55e', icon: 'gift' },
 		{ id: '2', text: 'Cốc', probability: 15, color: '#f59e0b', icon: 'coffee' },
-		{ id: '3', text: 'Pad chuột vuông', probability: 4, color: '#3b82f6', icon: 'package' },
-		{ id: '4', text: 'Thú bông', probability: 1.5, color: '#ef4444', icon: 'smile' }
+		{ id: '3', text: 'Pad chuột vuông', probability: 10, color: '#3b82f6', icon: 'package' },
+		{ id: '4', text: 'Thú bông', probability: 5, color: '#ef4444', icon: 'smile' }
 	]);
 
 	// Reactive URL search params
@@ -2820,16 +2820,16 @@
 		<h3 class="mb-4 text-xl font-bold">{t('reward.selectIcon') || 'Select Icon'}</h3>
 
 		<div class="grid grid-cols-6 gap-2">
-			{#each curatedIcons as iconName}
+			{#each curatedIcons as { name, icon }}
 				<button
-					class="tooltip btn btn-square text-2xl btn-ghost btn-md {iconName === 'x'
+					class="tooltip btn btn-square text-2xl btn-ghost btn-md {name === 'x'
 						? 'text-error hover:bg-error/20'
 						: 'hover:btn-primary'}"
-					data-tip={iconName === 'x' ? t('reward.noPrize') || 'No Prize' : iconName}
-					onclick={() => selectIcon(iconName)}
-					aria-label={iconName === 'x' ? t('reward.noPrize') || 'No Prize' : iconName}
+					data-tip={name === 'x' ? t('reward.noPrize') || 'No Prize' : name}
+					onclick={() => selectIcon(name)}
+					aria-label={name === 'x' ? t('reward.noPrize') || 'No Prize' : name}
 				>
-					<span class="icon-[lucide--{iconName}]"></span>
+					<span class={icon}></span>
 				</button>
 			{/each}
 		</div>

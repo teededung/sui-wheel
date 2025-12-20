@@ -200,7 +200,9 @@
 		</div>
 	</div>
 
-	<div class="alert flex flex-col gap-3 py-3 alert-info shadow-sm sm:flex-row sm:items-center">
+	<div
+		class="alert flex flex-col gap-3 alert-soft py-3 alert-info shadow-sm sm:flex-row sm:items-center"
+	>
 		<div class="flex flex-1 items-center gap-2">
 			<span class="icon-[lucide--info] text-lg"></span>
 			<div class="text-xs">
@@ -216,7 +218,7 @@
 
 		<div class="flex items-center gap-4 border-t border-info/20 pt-2 sm:border-t-0 sm:pt-0">
 			<button
-				class="btn h-8 min-h-0 cursor-pointer border-none bg-info-content/10 font-bold text-info-content btn-sm hover:bg-info-content/20"
+				class="btn h-8 min-h-0 cursor-pointer border-none font-bold btn-soft btn-sm"
 				onclick={setEqualProbabilities}
 				{disabled}
 			>
@@ -224,10 +226,10 @@
 				{t('reward.setEqual') || 'Set Equal'}
 			</button>
 
-			<div class="h-4 w-[1px] bg-info-content/20"></div>
+			<div class="h-4 w-[1px]"></div>
 
 			<label class="label cursor-pointer justify-start gap-2.5 p-0">
-				<span class="label-text text-xs font-semibold whitespace-nowrap text-info-content/90"
+				<span class="label-text text-xs font-semibold whitespace-nowrap"
 					>{t('reward.equalSlices') || 'Equal Slices'}</span
 				>
 				<input
