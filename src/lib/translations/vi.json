@@ -288,6 +288,8 @@
 		"pasteXLinkOrTweetId": "Dán link X hoặc ID tweet.",
 		"noteOnlyFirstEntriesFromReplies": "Lưu ý: chỉ {max} địa chỉ Sui đầu tiên từ các bình luận.",
 		"importing": "Đang nhập...",
+		"showForm": "Hiện bảng cài đặt",
+		"hideForm": "Ẩn bảng cài đặt",
 		"importButton": "Nhập",
 		"close": "Đóng",
 		"onlineEntryFormSettings": "Cài đặt Form tham gia trực tuyến",

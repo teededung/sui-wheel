@@ -1,8 +1,7 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 @plugin 'daisyui' {
-	themes:
-		light, dark
+	themes: light, dark;
 }
 @plugin '@iconify/tailwind4' {
 	prefixes: lucide;

@@ -287,6 +287,8 @@
 		"pasteXLinkOrTweetId": "Paste an X link or tweet ID.",
 		"noteOnlyFirstEntriesFromReplies": "Note: we only take the first {max} Sui addresses from replies.",
 		"importing": "Importing...",
+		"showForm": "Show Form",
+		"hideForm": "Hide Form",
 		"importButton": "Import",
 		"close": "Close",
 		"onlineEntryFormSettings": "Online Entry Form Settings",
