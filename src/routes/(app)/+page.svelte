@@ -1610,6 +1610,7 @@
 							class="btn btn-circle bg-base-100/50 shadow-sm btn-ghost backdrop-blur-sm btn-sm hover:bg-base-100"
 							onclick={() => modeSelectionModalEl?.showModal()}
 							title={t('main.wheelSettings') || 'Wheel Settings'}
+							disabled={spinning}
 						>
 							<span class="icon-[lucide--settings] h-5 w-5"></span>
 						</button>
@@ -1814,6 +1815,7 @@
 										aria-label={`${t('main.entries')} (${wheelMode === 'participants' ? entries.length : rewards.length})`}
 										checked={activeTab === 'entries'}
 										onclick={() => (activeTab = 'entries')}
+										disabled={spinning}
 									/>
 									<div class="tab-content border-base-300 bg-base-100 p-4">
 										{#if wheelMode === 'rewards' && !createdWheelId}
@@ -1822,6 +1824,7 @@
 												{equalSlices}
 												onUpdate={(val) => (rewards = val)}
 												onUpdateEqualSlices={(val) => (equalSlices = val)}
+												disabled={spinning}
 											/>
 										{:else}
 											<div class="mb-1 flex items-center justify-end gap-2">
@@ -1834,6 +1837,7 @@
 															class:btn-soft={entriesViewMode !== 'textarea'}
 															onclick={() => (entriesViewMode = 'textarea')}
 															aria-label={t('main.textareaView')}
+															disabled={spinning}
 														>
 															<span class="icon-[lucide--edit] h-4 w-4"></span>
 															{t('main.text')}
@@ -1844,6 +1848,7 @@
 															class:btn-soft={entriesViewMode !== 'table'}
 															onclick={() => (entriesViewMode = 'table')}
 															aria-label={t('main.tableView')}
+															disabled={spinning}
 														>
 															<span class="icon-[lucide--table] h-4 w-4"></span>
 															{t('main.table')}
@@ -1856,6 +1861,7 @@
 													<button
 														class="btn btn-soft btn-xs btn-primary"
 														aria-label={t('main.importEntries')}
+														disabled={spinning}
 													>
 														<span class="icon-[lucide--list-plus] h-4 w-4"></span>
 														<span>{t('main.import')}</span>
@@ -1929,6 +1935,7 @@
 											aria-label={`${t('main.history')} (${currentWinnersFromHistory.length})`}
 											checked={activeTab === 'history'}
 											onclick={() => (activeTab = 'history')}
+											disabled={spinning}
 										/>
 										<div class="tab-content border-base-300 bg-base-100 p-6">
 											<div class="mb-4 flex items-center justify-between">
@@ -2002,6 +2009,7 @@
 											aria-label={t('main.prizes')}
 											checked={activeTab === 'prizes'}
 											onclick={() => (activeTab = 'prizes')}
+											disabled={spinning}
 										/>
 										<div class="tab-content border-base-300 bg-base-100 p-6">
 											<h3 class="mb-4 text-lg font-semibold">
@@ -2018,6 +2026,7 @@
 															walletAddress={account.address}
 															showBalance={true}
 															placeholder={t('main.selectCoinPlaceholder')}
+															disabled={spinning}
 														/>
 													</fieldset>
 												</div>
@@ -2086,11 +2095,12 @@
 															onchange={(e) => updatePrizeAmount(i, e.currentTarget.value)}
 															onkeydown={(e) => handlePrizeKeydown(i, e)}
 															aria-label={t('main.prizeAmountInSui', { number: i + 1 })}
+															disabled={spinning}
 														/>
 														<button
 															class="btn join-item btn-soft btn-error"
 															onclick={() => removePrize(i)}
-															disabled={prizeAmounts.length <= 1}
+															disabled={prizeAmounts.length <= 1 || spinning}
 															aria-label={t('main.removePrize')}
 															><span class="icon-[lucide--x] h-4 w-4"></span></button
 														>
@@ -2099,7 +2109,7 @@
 												<div
 													class="mt-2 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center"
 												>
-													<button class="btn btn-outline" onclick={addPrize}
+													<button class="btn btn-outline" onclick={addPrize} disabled={spinning}
 														>{t('main.addPrize')}</button
 													>
 													<div class="flex gap-1 text-sm">
@@ -2143,6 +2153,7 @@
 											aria-label={t('main.settings')}
 											checked={activeTab === 'settings'}
 											onclick={() => (activeTab = 'settings')}
+											disabled={spinning}
 										/>
 										<div class="tab-content border-base-300 bg-base-100 p-6">
 											<h3 class="mb-4 text-lg font-semibold">{t('main.settings')}</h3>
@@ -2153,7 +2164,8 @@
 														class="select"
 														bind:value={delayMs}
 														aria-label={t('main.delay')}
-														disabled={Boolean(createdWheelId && wheelFetched && !isEditing)}
+														disabled={Boolean(createdWheelId && wheelFetched && !isEditing) ||
+															spinning}
 													>
 														<option value={0}>{t('main.zeroMinuteDefault')}</option>
 														<option value={15}>{t('main.fifteenMinutes')}</option>
@@ -2170,7 +2182,8 @@
 														class="select"
 														bind:value={claimWindowMs}
 														aria-label={t('main.claimWindow')}
-														disabled={Boolean(createdWheelId && wheelFetched && !isEditing)}
+														disabled={Boolean(createdWheelId && wheelFetched && !isEditing) ||
+															spinning}
 													>
 														<option value={60}>{t('main.oneHour')}</option>
 														<option value={1440}>{t('main.twentyFourHoursDefault')}</option>

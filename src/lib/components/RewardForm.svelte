@@ -8,9 +8,16 @@
 		equalSlices?: boolean;
 		onUpdate: (rewards: Reward[]) => void;
 		onUpdateEqualSlices?: (equalSlices: boolean) => void;
+		disabled?: boolean;
 	}
 
-	let { rewards, equalSlices = false, onUpdate, onUpdateEqualSlices }: Props = $props();
+	let {
+		rewards,
+		equalSlices = false,
+		onUpdate,
+		onUpdateEqualSlices,
+		disabled = false
+	}: Props = $props();
 	const t = useTranslation();
 
 	interface RewardPreset {
@@ -215,76 +222,84 @@
 		<h3 class="text-lg font-bold">{t('reward.title') || 'Rewards Configuration'}</h3>
 		<div class="flex flex-wrap gap-2">
 			<div class="dropdown-hover dropdown dropdown-end flex-1 sm:flex-none">
-				<div tabindex="0" role="button" class="btn w-full btn-outline btn-sm">
+				<div
+					tabindex="0"
+					role="button"
+					class="btn w-full btn-outline btn-sm"
+					class:pointer-events-none={disabled}
+					class:opacity-50={disabled}
+				>
 					<span class="mr-1 icon-[lucide--archive]"></span>
 					{t('reward.presets') || 'Presets'}
 				</div>
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-				<ul
-					tabindex="0"
-					class="dropdown-content menu z-[1] w-64 rounded-box border border-base-100 bg-base-300 p-2 shadow-xl"
-				>
-					<li class="flex flex-row items-center justify-between menu-title px-2">
-						<span>{t('reward.presets') || 'Presets'}</span>
-						{#if savedPresets.length > 0}
-							<button
-								class="btn btn-ghost transition-all btn-xs {pendingClearAll
-									? 'bg-error/20 text-error hover:bg-error/30'
-									: 'text-error hover:bg-error/10'}"
-								onclick={(e) => {
-									e.stopPropagation();
-									clearAllPresets();
-								}}
-							>
-								{pendingClearAll
-									? t('reward.confirmClear') || 'Clear anyway?'
-									: t('reward.clearAll') || 'Clear All'}
-							</button>
-						{/if}
-					</li>
-					{#if savedPresets.length === 0}
-						<li class="px-3 py-4 text-center text-xs opacity-50">
-							{t('reward.noPresetFound') || 'No saved preset found'}
-						</li>
-					{/if}
-					{#each savedPresets as preset}
-						<li>
-							<div class="group flex items-center justify-between gap-2">
+				{#if !disabled}
+					<ul
+						tabindex="0"
+						class="dropdown-content menu z-[1] w-64 rounded-box border border-base-100 bg-base-300 p-2 shadow-xl"
+					>
+						<li class="flex flex-row items-center justify-between menu-title px-2">
+							<span>{t('reward.presets') || 'Presets'}</span>
+							{#if savedPresets.length > 0}
 								<button
-									class="flex-1 cursor-pointer truncate text-left"
-									class:opacity-40={pendingDeleteId === preset.id}
-									onclick={() => {
-										resetConfirmStates();
-										loadPreset(preset);
-									}}
-								>
-									{preset.name}
-								</button>
-								<button
-									class="btn btn-ghost transition-all btn-xs {pendingDeleteId === preset.id
-										? 'w-24 bg-error/20 px-2 opacity-100'
-										: 'btn-square opacity-0 group-hover:opacity-100'}"
+									class="btn btn-ghost transition-all btn-xs {pendingClearAll
+										? 'bg-error/20 text-error hover:bg-error/30'
+										: 'text-error hover:bg-error/10'}"
 									onclick={(e) => {
 										e.stopPropagation();
-										deletePreset(preset.id);
+										clearAllPresets();
 									}}
-									title={t('reward.deletePreset') || 'Delete Preset'}
 								>
-									{#if pendingDeleteId === preset.id}
-										<span class="text-[10px] font-bold whitespace-nowrap text-error">
-											{t('reward.confirmDelete') || 'Press to Delete'}
-										</span>
-									{:else}
-										<span class="icon-[lucide--trash-2] h-3.5 w-3.5 text-error"></span>
-									{/if}
+									{pendingClearAll
+										? t('reward.confirmClear') || 'Clear anyway?'
+										: t('reward.clearAll') || 'Clear All'}
 								</button>
-							</div>
+							{/if}
 						</li>
-					{/each}
-				</ul>
+						{#if savedPresets.length === 0}
+							<li class="px-3 py-4 text-center text-xs opacity-50">
+								{t('reward.noPresetFound') || 'No saved preset found'}
+							</li>
+						{/if}
+						{#each savedPresets as preset}
+							<li>
+								<div class="group flex items-center justify-between gap-2">
+									<button
+										class="flex-1 cursor-pointer truncate text-left"
+										class:opacity-40={pendingDeleteId === preset.id}
+										onclick={() => {
+											resetConfirmStates();
+											loadPreset(preset);
+										}}
+									>
+										{preset.name}
+									</button>
+									<button
+										class="btn btn-ghost transition-all btn-xs {pendingDeleteId === preset.id
+											? 'w-24 bg-error/20 px-2 opacity-100'
+											: 'btn-square opacity-0 group-hover:opacity-100'}"
+										onclick={(e) => {
+											e.stopPropagation();
+											deletePreset(preset.id);
+										}}
+										title={t('reward.deletePreset') || 'Delete Preset'}
+									>
+										{#if pendingDeleteId === preset.id}
+											<span class="text-[10px] font-bold whitespace-nowrap text-error">
+												{t('reward.confirmDelete') || 'Press to Delete'}
+											</span>
+										{:else}
+											<span class="icon-[lucide--trash-2] h-3.5 w-3.5 text-error"></span>
+										{/if}
+									</button>
+								</div>
+							</li>
+						{/each}
+					</ul>
+				{/if}
 			</div>
 
-			<button class="btn flex-1 btn-outline btn-sm sm:flex-none" onclick={openSaveModal}>
+			<button class="btn flex-1 btn-outline btn-sm sm:flex-none" onclick={openSaveModal} {disabled}>
 				<span class="mr-1 icon-[lucide--save]"></span>
 				{t('reward.saveAs') || 'Save As...'}
 			</button>
@@ -309,6 +324,7 @@
 			<button
 				class="btn h-8 min-h-0 cursor-pointer border-none bg-info-content/10 font-bold text-info-content btn-sm hover:bg-info-content/20"
 				onclick={setEqualProbabilities}
+				{disabled}
 			>
 				<span class="icon-[lucide--layout-grid] h-3.5 w-3.5"></span>
 				{t('reward.setEqual') || 'Set Equal'}
@@ -325,6 +341,7 @@
 					class="toggle toggle-primary toggle-xs"
 					checked={equalSlices}
 					onchange={(e) => onUpdateEqualSlices?.(e.currentTarget.checked)}
+					{disabled}
 				/>
 			</label>
 		</div>
@@ -341,8 +358,12 @@
 							<div class="tooltip tooltip-top" data-tip={t('reward.icon') || 'Icon'}>
 								<button
 									id="reward-icon-{reward.id}"
-									class="relative flex h-12 w-12 cursor-pointer items-center justify-center rounded-xl border-2 border-base-300 bg-base-100 transition-all hover:border-primary hover:shadow-md active:scale-95"
-									onclick={() => openIconModal(reward.id)}
+									class="relative flex h-12 w-12 items-center justify-center rounded-xl border-2 border-base-300 bg-base-100 transition-all hover:border-primary hover:shadow-md active:scale-95"
+									class:cursor-pointer={!disabled}
+									class:cursor-not-allowed={disabled}
+									class:opacity-50={disabled}
+									onclick={() => !disabled && openIconModal(reward.id)}
+									{disabled}
 								>
 									{#if reward.icon}
 										<span class="icon-[lucide--{reward.icon}] text-xl text-primary"></span>
@@ -355,13 +376,19 @@
 							<!-- Color Selector -->
 							<div class="tooltip tooltip-top" data-tip={t('reward.color') || 'Color'}>
 								<label
-									class="relative flex h-12 w-12 cursor-pointer items-center justify-center rounded-xl border-2 border-base-300 bg-base-100 transition-all hover:border-primary hover:shadow-md active:scale-95"
+									class="relative flex h-12 w-12 items-center justify-center rounded-xl border-2 border-base-300 bg-base-100 transition-all hover:border-primary hover:shadow-md active:scale-95"
+									class:cursor-pointer={!disabled}
+									class:cursor-not-allowed={disabled}
+									class:opacity-50={disabled}
 								>
 									<input
 										type="color"
-										class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+										class="absolute inset-0 h-full w-full opacity-0"
+										class:cursor-pointer={!disabled}
+										class:cursor-not-allowed={disabled}
 										value={reward.color || '#cccccc'}
 										oninput={(e) => updateReward(reward.id, { color: e.currentTarget.value })}
+										{disabled}
 									/>
 									<div
 										class="h-7 w-7 rounded-lg shadow-inner ring-1 ring-black/10"
@@ -375,6 +402,7 @@
 								class="btn btn-circle btn-soft btn-md btn-error sm:hidden"
 								onclick={() => removeReward(reward.id)}
 								aria-label={t('reward.remove') || 'Remove Reward'}
+								{disabled}
 							>
 								<span class="icon-[lucide--trash-2]"></span>
 							</button>
@@ -392,6 +420,7 @@
 									placeholder={t('reward.placeholder') || 'Enter reward name...'}
 									value={reward.text}
 									oninput={(e) => updateReward(reward.id, { text: e.currentTarget.value })}
+									{disabled}
 								/>
 							</label>
 
@@ -408,6 +437,7 @@
 									value={reward.probability}
 									oninput={(e) =>
 										handleProbabilityChange(reward.id, parseFloat(e.currentTarget.value) || 0)}
+									{disabled}
 								/>
 							</label>
 						</div>
@@ -417,6 +447,7 @@
 							class="btn hidden btn-circle text-error btn-ghost btn-md hover:bg-error/10 sm:flex"
 							onclick={() => removeReward(reward.id)}
 							title={t('reward.remove') || 'Remove Reward'}
+							{disabled}
 						>
 							<span class="icon-[lucide--trash-2]"></span>
 						</button>
@@ -429,6 +460,7 @@
 	<button
 		class="btn mt-2 w-full shadow-lg transition-all btn-primary hover:scale-[1.01] active:scale-[0.99]"
 		onclick={addReward}
+		{disabled}
 	>
 		<span class="icon-[lucide--plus] text-xl"></span>
 		<span class="text-lg font-bold">{t('reward.add') || 'Add Reward'}</span>
