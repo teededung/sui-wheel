@@ -61,7 +61,9 @@
 	import ButtonLoading from '$lib/components/ButtonLoading.svelte';
 	import ButtonCopy from '$lib/components/ButtonCopy.svelte';
 	import Wheel from '$lib/components/Wheel.svelte';
+	import RewardForm from '$lib/components/RewardForm.svelte';
 	import CoinSelector from '$lib/components/coin/CoinSelector.svelte';
+	import type { Reward } from '$lib/types/wheel.js';
 	import CoinDisplay from '$lib/components/coin/CoinDisplay.svelte';
 	import DataSourceBadge from '$lib/components/DataSourceBadge.svelte';
 	import { qr } from '@svelte-put/qr/svg';
@@ -93,6 +95,15 @@
 		'0xf4be218d73c57b9622de671b683221274f9f5a306a2825c470563249e2c718e5'
 	]);
 
+	let wheelMode = $state<'participants' | 'rewards'>('participants');
+	let modeSelectionModalEl = $state<HTMLDialogElement | null>(null);
+	let rewards = $state<Reward[]>([
+		{ id: '1', text: 'Móc khoá', probability: 79.5, color: '#22c55e', icon: 'gift' },
+		{ id: '2', text: 'Cốc', probability: 15, color: '#f59e0b', icon: 'coffee' },
+		{ id: '3', text: 'Pad chuột vuông', probability: 4, color: '#3b82f6', icon: 'package' },
+		{ id: '4', text: 'Thú bông', probability: 1.5, color: '#ef4444', icon: 'smile' }
+	]);
+
 	// Reactive URL search params
 	const params = useSearchParams(searchParamsSchema);
 
@@ -106,6 +117,9 @@
 	let setupError = $state('');
 	let setupSuccessMsg = $state('');
 	let errorMsg = $state('');
+	let muted = $state(false);
+	let wheelTitle = $state('');
+	let equalSlices = $state(false);
 
 	// Get selected coin metadata from COMMON_COINS
 	let selectedCoinMetadata = $derived.by(() => {
@@ -194,6 +208,13 @@
 		}
 
 		fetchSelectedCoinBalance();
+	});
+
+	// Automatically switch back to participants mode if wallet connected
+	$effect(() => {
+		if (account && wheelMode === 'rewards') {
+			wheelMode = 'participants';
+		}
 	});
 
 	// Reactive wheel ID from URL params
@@ -1558,18 +1579,49 @@
 <section class="container mx-auto px-4 py-12">
 	<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 		<div class="w-full">
-			<Wheel
-				{entries}
-				{spinning}
-				{createdWheelId}
-				{remainingSpins}
-				{isCancelled}
-				{entryFormEnabled}
-				accountFromWallet={Boolean(account)}
-				{isNotOrganizer}
-				{shuffledIndexOrder}
-				{selectedCoinType}
-			/>
+			<div class="relative w-full">
+				<div class="absolute top-4 right-4 z-10 flex gap-2">
+					<button
+						class="tooltip btn tooltip-left btn-circle bg-base-100/50 shadow-sm btn-ghost backdrop-blur-sm btn-sm hover:bg-base-100"
+						onclick={() => (muted = !muted)}
+						aria-label={muted ? t('wheel.soundOff') : t('wheel.soundOn')}
+						title={t('wheel.toggleSound')}
+						data-tip={muted ? t('wheel.soundOff') : t('wheel.soundOn')}
+					>
+						{#if muted}
+							<span class="icon-[lucide--volume-off] h-5 w-5"></span>
+						{:else}
+							<span class="icon-[lucide--volume-2] h-5 w-5"></span>
+						{/if}
+					</button>
+
+					{#if !createdWheelId}
+						<button
+							class="btn btn-circle bg-base-100/50 shadow-sm btn-ghost backdrop-blur-sm btn-sm hover:bg-base-100"
+							onclick={() => modeSelectionModalEl?.showModal()}
+							title={t('main.wheelSettings') || 'Wheel Settings'}
+						>
+							<span class="icon-[lucide--settings] h-5 w-5"></span>
+						</button>
+					{/if}
+				</div>
+				<Wheel
+					{entries}
+					{spinning}
+					{createdWheelId}
+					{remainingSpins}
+					{isCancelled}
+					{entryFormEnabled}
+					accountFromWallet={Boolean(account)}
+					{isNotOrganizer}
+					{shuffledIndexOrder}
+					{selectedCoinType}
+					mode={wheelMode}
+					{rewards}
+					{equalSlices}
+					bind:muted
+				/>
+			</div>
 		</div>
 
 		<div class="w-full">
@@ -1698,100 +1750,112 @@
 									type="radio"
 									name="wheel_tabs"
 									class="tab"
-									aria-label={`${t('main.entries')} (${entries.length})`}
+									aria-label={`${t('main.entries')} (${wheelMode === 'participants' ? entries.length : rewards.length})`}
 									checked={activeTab === 'entries'}
 									onclick={() => (activeTab = 'entries')}
 								/>
 								<div class="tab-content border-base-300 bg-base-100 p-4">
-									<div class="mb-1 flex items-center justify-end gap-2">
-										<div class="text-xs opacity-70">{t('main.entriesViewModeLabel')}</div>
-										<div class="flex items-center gap-2">
-											<div class="join">
+									{#if wheelMode === 'rewards' && !createdWheelId}
+										<RewardForm
+											{rewards}
+											{equalSlices}
+											onUpdate={(val) => (rewards = val)}
+											onUpdateEqualSlices={(val) => (equalSlices = val)}
+										/>
+									{:else}
+										<div class="mb-1 flex items-center justify-end gap-2">
+											<div class="text-xs opacity-70">{t('main.entriesViewModeLabel')}</div>
+											<div class="flex items-center gap-2">
+												<div class="join">
+													<button
+														class="btn join-item btn-xs"
+														class:btn-primary={entriesViewMode === 'textarea'}
+														class:btn-soft={entriesViewMode !== 'textarea'}
+														onclick={() => (entriesViewMode = 'textarea')}
+														aria-label={t('main.textareaView')}
+													>
+														<span class="icon-[lucide--edit] h-4 w-4"></span>
+														{t('main.text')}
+													</button>
+													<button
+														class="btn join-item btn-xs"
+														class:btn-primary={entriesViewMode === 'table'}
+														class:btn-soft={entriesViewMode !== 'table'}
+														onclick={() => (entriesViewMode = 'table')}
+														aria-label={t('main.tableView')}
+													>
+														<span class="icon-[lucide--table] h-4 w-4"></span>
+														{t('main.table')}
+													</button>
+												</div>
+											</div>
+
+											<!-- Import buttons -->
+											<div class="dropdown dropdown-end">
 												<button
-													class="btn join-item btn-xs"
-													class:btn-primary={entriesViewMode === 'textarea'}
-													class:btn-soft={entriesViewMode !== 'textarea'}
-													onclick={() => (entriesViewMode = 'textarea')}
-													aria-label={t('main.textareaView')}
+													class="btn btn-soft btn-xs btn-primary"
+													aria-label={t('main.importEntries')}
 												>
-													<span class="icon-[lucide--edit] h-4 w-4"></span>
-													{t('main.text')}
+													<span class="icon-[lucide--list-plus] h-4 w-4"></span>
+													<span>{t('main.import')}</span>
 												</button>
-												<button
-													class="btn join-item btn-xs"
-													class:btn-primary={entriesViewMode === 'table'}
-													class:btn-soft={entriesViewMode !== 'table'}
-													onclick={() => (entriesViewMode = 'table')}
-													aria-label={t('main.tableView')}
+												<ul
+													class="dropdown-content menu z-[1] w-56 rounded-box bg-base-200 p-2 shadow"
 												>
-													<span class="icon-[lucide--table] h-4 w-4"></span>
-													{t('main.table')}
-												</button>
+													<li>
+														<button
+															onclick={openEntryFormModal}
+															aria-label={t('main.setupOnlineEntryForm')}
+														>
+															<span class="icon-[lucide--qr-code] h-4 w-4"></span>
+															{t('main.onlineEntryForm')}
+														</button>
+													</li>
+													{#if account && data?.xImportEnabled}
+														<li>
+															<button
+																onclick={openXImportModal}
+																aria-label={t('main.importByXPost')}
+															>
+																<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+																	<path
+																		d="M13.317 10.774L20.28 2h-1.73l-6.32 7.353L8.29 2H2.115l7.33 10.638L2.115 22h1.73l6.707-7.783L15.315 22H21.59l-7.482-10.774z"
+																	/>
+																</svg>
+																{t('main.importByXPost')}
+															</button>
+														</li>
+													{/if}
+												</ul>
 											</div>
 										</div>
 
-										<!-- Import buttons -->
-										<div class="dropdown dropdown-end">
-											<button
-												class="btn btn-soft btn-xs btn-primary"
-												aria-label={t('main.importEntries')}
-											>
-												<span class="icon-[lucide--list-plus] h-4 w-4"></span>
-												<span>{t('main.import')}</span>
-											</button>
-											<ul
-												class="dropdown-content menu z-[1] w-56 rounded-box bg-base-200 p-2 shadow"
-											>
-												<li>
-													<button
-														onclick={openEntryFormModal}
-														aria-label={t('main.setupOnlineEntryForm')}
-													>
-														<span class="icon-[lucide--qr-code] h-4 w-4"></span>
-														{t('main.onlineEntryForm')}
-													</button>
-												</li>
-												{#if account && data?.xImportEnabled}
-													<li>
-														<button onclick={openXImportModal} aria-label={t('main.importByXPost')}>
-															<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-																<path
-																	d="M13.317 10.774L20.28 2h-1.73l-6.32 7.353L8.29 2H2.115l7.33 10.638L2.115 22h1.73l6.707-7.783L15.315 22H21.59l-7.482-10.774z"
-																/>
-															</svg>
-															{t('main.importByXPost')}
-														</button>
-													</li>
-												{/if}
-											</ul>
-										</div>
-									</div>
-
-									{#if createdWheelId && wheelFetched && !isEditing}
-										{#if entriesViewMode === 'table'}
-											{@render entriesTable(entries, false, false)}
+										{#if createdWheelId && wheelFetched && !isEditing}
+											{#if entriesViewMode === 'table'}
+												{@render entriesTable(entries, false, false)}
+											{:else}
+												<textarea
+													class="textarea h-48 w-full text-base"
+													placeholder={t('main.oneEntryPerLine')}
+													value={entries.join('\n')}
+													readonly
+													aria-label={t('main.entriesListReadOnly')}
+												></textarea>
+											{/if}
+										{:else if entriesViewMode === 'table'}
+											{@render entriesTable(entries, true)}
 										{:else}
 											<textarea
 												class="textarea h-48 w-full text-base"
 												placeholder={t('main.oneEntryPerLine')}
-												value={entries.join('\n')}
-												readonly
-												aria-label={t('main.entriesListReadOnly')}
+												bind:value={entriesText}
+												oninput={() => onEntriesTextChange(entriesText)}
+												bind:this={entriesTextareaEl}
+												disabled={spinning}
 											></textarea>
-										{/if}
-									{:else if entriesViewMode === 'table'}
-										{@render entriesTable(entries, true)}
-									{:else}
-										<textarea
-											class="textarea h-48 w-full text-base"
-											placeholder={t('main.oneEntryPerLine')}
-											bind:value={entriesText}
-											oninput={() => onEntriesTextChange(entriesText)}
-											bind:this={entriesTextareaEl}
-											disabled={spinning}
-										></textarea>
 
-										{@render showDuplicateEntries()}
+											{@render showDuplicateEntries()}
+										{/if}
 									{/if}
 								</div>
 
@@ -1948,7 +2012,7 @@
 										{:else}
 											<!-- Prize repeater -->
 											{#each prizeAmounts as prize, i}
-												<div class="mb-2 join w-full">
+												<div class="join mb-2 w-full">
 													<button class="btn btn-disabled join-item"
 														>{t('main.prize')} #{i + 1}</button
 													>
@@ -2280,10 +2344,12 @@
 									</div>
 								{/if}
 							{:else if isInitialized}
-								<div class="mt-3 alert alert-soft alert-info light:!border-info">
-									<span class="icon-[lucide--info] h-5 w-5"></span>
-									{t('main.connectWalletToCreateAndSpin')}
-								</div>
+								{#if wheelMode !== 'rewards'}
+									<div class="mt-3 alert alert-soft alert-info light:!border-info">
+										<span class="icon-[lucide--info] h-5 w-5"></span>
+										{t('main.connectWalletToCreateAndSpin')}
+									</div>
+								{/if}
 							{/if}
 						{/if}
 					{/if}
@@ -2474,5 +2540,68 @@
 
 	<form method="dialog" class="modal-backdrop">
 		<button>{t('main.close')}</button>
+	</form>
+</dialog>
+
+<!-- Wheel Mode Selection Modal -->
+<dialog bind:this={modeSelectionModalEl} class="modal modal-middle">
+	<div class="modal-box max-w-md bg-base-200">
+		<h3 class="mb-4 text-xl font-bold">{t('main.wheelSettings') || 'Wheel Settings'}</h3>
+
+		<div class="flex flex-col gap-4">
+			<fieldset class="fieldset">
+				<legend class="fieldset-legend">{t('main.wheelMode') || 'Wheel Mode'}</legend>
+				<div class="join w-full shadow-sm">
+					<button
+						class="btn join-item flex-1"
+						class:btn-primary={wheelMode === 'participants'}
+						class:btn-soft={wheelMode !== 'participants'}
+						onclick={() => {
+							wheelMode = 'participants';
+							modeSelectionModalEl?.close();
+						}}
+					>
+						<span class="mr-2 icon-[lucide--users]"></span>
+						{t('main.participantsMode') || 'Participants'}
+					</button>
+					<button
+						class="btn join-item flex-1"
+						class:btn-primary={wheelMode === 'rewards'}
+						class:btn-soft={wheelMode !== 'rewards'}
+						disabled={!!account}
+						onclick={() => {
+							wheelMode = 'rewards';
+							modeSelectionModalEl?.close();
+						}}
+					>
+						<span class="mr-2 icon-[lucide--gift]"></span>
+						{t('main.rewardsMode') || 'Rewards'}
+					</button>
+				</div>
+				<p class="label text-xs opacity-70">
+					{wheelMode === 'participants'
+						? t('main.participantsModeDesc') || 'Standard mode using participant addresses.'
+						: t('main.rewardsModeDesc') || 'Reward mode with weighted probabilities.'}
+				</p>
+			</fieldset>
+			{#if account}
+				<div class="mt-2 alert w-full origin-left border-none alert-soft p-2 text-xs alert-info">
+					<span class="icon-[lucide--info] h-4 w-4"></span>
+					<span
+						>{t('main.rewardsOffchainOnly') ||
+							'Reward mode is currently off-chain only (please disconnect wallet first).'}</span
+					>
+				</div>
+			{/if}
+		</div>
+
+		<div class="modal-action">
+			<form method="dialog">
+				<button class="btn">{t('common.close') || 'Close'}</button>
+			</form>
+		</div>
+	</div>
+	<form method="dialog" class="modal-backdrop">
+		<button>close</button>
 	</form>
 </dialog>

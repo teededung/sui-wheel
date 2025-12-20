@@ -11,6 +11,7 @@
 	import { isValidSuiAddress } from '$lib/utils/suiHelpers.js';
 	import { useTranslation } from '$lib/hooks/useTranslation.js';
 	import { WHEEL_EVENTS, DEFAULT_COIN_TYPE } from '$lib/constants.js';
+	import type { Reward } from '$lib/types/wheel.js';
 
 	interface LabelLayout {
 		displayText: string;
@@ -28,6 +29,10 @@
 		isNotOrganizer?: boolean;
 		shuffledIndexOrder?: number[];
 		selectedCoinType?: string;
+		mode?: 'participants' | 'rewards';
+		rewards?: Reward[];
+		equalSlices?: boolean;
+		muted?: boolean;
 	}
 
 	interface SpinOptions {
@@ -52,7 +57,11 @@
 		accountFromWallet,
 		isNotOrganizer,
 		shuffledIndexOrder = [],
-		selectedCoinType = DEFAULT_COIN_TYPE
+		selectedCoinType = DEFAULT_COIN_TYPE,
+		mode = 'participants',
+		rewards = [],
+		equalSlices = false,
+		muted = $bindable(false)
 	}: Props = $props();
 
 	// Context deps/APIs from parent
@@ -95,13 +104,13 @@
 	// Local state
 	const idle = new IsIdle({ timeout: 15000 });
 	let progressing = $state(false);
-	let muted = $state(false);
 	let selectedIndex = $state<number | null>(null);
 	let spinAngle = $state(0);
 	let pointerIndex = $state(0);
 	let pointerColor = $state('#ef4444');
 	let pointerColorOverride = $state(''); // sea color #4DA2FF
 	let lastWinner = $state('');
+	let lastWinnerIcon = $state('');
 	let secondaryWinner = $state('');
 	let usedCombinedSpin = $state(false);
 	let postSpinFetchRequested = $state(false);
@@ -115,6 +124,7 @@
 	let wheelSize = $state(0);
 	let offscreenCanvas: HTMLCanvasElement | null = null;
 	let offscreenCtx: CanvasRenderingContext2D | null = null;
+	let loadedImages = $state<Record<string, HTMLImageElement>>({});
 
 	// Audio
 	let winAudio: HTMLAudioElement | null = null;
@@ -182,7 +192,7 @@
 
 	// Watch entries for layout updates
 	watch(
-		() => entries,
+		() => [entries, rewards, mode, loadedImages],
 		() => {
 			recomputeLabelLayouts();
 			renderWheelBitmap();
@@ -190,6 +200,28 @@
 			updatePointerColor();
 		}
 	);
+
+	// Preload reward icons
+	$effect(() => {
+		if (mode === 'rewards' && rewards.length > 0) {
+			rewards.forEach((r) => {
+				if (r.icon && !loadedImages[r.icon]) {
+					// Use Iconify API to get SVG icon as image with explicit dimensions
+					const iconUrl = `https://api.iconify.design/lucide/${r.icon}.svg?color=black&width=48&height=48`;
+					const img = new Image();
+					img.crossOrigin = 'anonymous';
+					img.onload = () => {
+						// Ensure reactivity in Svelte 5 by replacing the object
+						loadedImages = { ...loadedImages, [r.icon!]: img };
+					};
+					img.onerror = () => {
+						console.error('Failed to load icon:', iconUrl);
+					};
+					img.src = iconUrl;
+				}
+			});
+		}
+	});
 
 	// Resize/canvas setup
 	let resizeObserver: ResizeObserver | null = null;
@@ -296,7 +328,24 @@
 		const n2 = Math.max(1, entries.length);
 		const arc2 = (Math.PI * 2) / n2;
 		const normalized = (((Math.PI / 2 - spinAngle) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-		const newIndex = Math.floor(normalized / arc2) % n2;
+
+		let newIndex = 0;
+		if (mode === 'rewards' && rewards.length > 0) {
+			const totalProb = rewards.reduce((acc, r) => acc + r.probability, 0);
+			let currentAngle = 0;
+			for (let i = 0; i < rewards.length; i++) {
+				const arcSize = (rewards[i].probability / totalProb) * Math.PI * 2;
+				if (normalized >= currentAngle && normalized < currentAngle + arcSize) {
+					newIndex = i;
+					break;
+				}
+				currentAngle += arcSize;
+			}
+		} else {
+			const n2 = Math.max(1, entries.length);
+			const arc2 = (Math.PI * 2) / n2;
+			newIndex = Math.floor(normalized / arc2) % n2;
+		}
 
 		if (pointerColorOverride && pointerColorOverride.trim() !== '') {
 			pointerColor = pointerColorOverride.trim();
@@ -359,9 +408,22 @@
 		// Defer drawing of rim pins until after all slices are filled so they stay on top
 		const deferredPins = [];
 		const baseStart = -Math.PI / 2;
-		for (let i = 0; i < n; i++) {
-			const start = baseStart + i * arc;
-			const end = start + arc;
+		let currentStart = baseStart;
+
+		const itemCount = mode === 'rewards' ? rewards.length : entries.length;
+		const totalProb =
+			mode === 'rewards' ? rewards.reduce((acc, r) => acc + r.probability, 0) : itemCount;
+
+		for (let i = 0; i < itemCount; i++) {
+			const itemProb = mode === 'rewards' ? rewards[i].probability : 1;
+			const arcSize =
+				equalSlices && mode === 'rewards'
+					? (Math.PI * 2) / itemCount
+					: (itemProb / totalProb) * Math.PI * 2;
+			const start = currentStart;
+			const end = start + arcSize;
+			currentStart = end;
+
 			c.beginPath();
 			c.moveTo(centerX, centerY);
 			c.arc(centerX, centerY, radius - 4, start, end);
@@ -374,7 +436,12 @@
 			const off = Math.max(2, Math.min(6, radius * 0.012));
 			c.shadowOffsetX = Math.cos(mid - Math.PI / 2) * off;
 			c.shadowOffsetY = Math.sin(mid - Math.PI / 2) * off;
-			c.fillStyle = segmentColors[i % segmentColors.length];
+
+			if (mode === 'rewards' && rewards[i].color) {
+				c.fillStyle = rewards[i].color as string;
+			} else {
+				c.fillStyle = segmentColors[i % segmentColors.length];
+			}
 			c.fill();
 
 			// Reset shadow to not affect stroke/label
@@ -386,25 +453,49 @@
 			c.lineWidth = 2;
 			c.stroke();
 
-			const raw = String(entries[i]).trim();
-			const label = isValidSuiAddress(raw) ? shortenAddress(raw) : raw;
-			if (!label) continue;
+			const raw = mode === 'rewards' ? rewards[i].text : String(entries[i]).trim();
+			const label = mode === 'participants' && isValidSuiAddress(raw) ? shortenAddress(raw) : raw;
 
 			const innerRadius = Math.max(30, radius * 0.2);
 			const outerRadius = radius - 10;
 			const available = outerRadius - innerRadius;
 			const padding = 10;
-			const layout = labelLayouts[i];
-			if (layout && layout.displayText) {
-				c.font = layout.font;
-				c.fillStyle = '#111827';
-				c.textAlign = 'right';
-				c.textBaseline = 'middle';
+
+			// Draw icon as background watermark if exists
+			if (mode === 'rewards' && rewards[i].icon && loadedImages[rewards[i].icon!]) {
+				const img = loadedImages[rewards[i].icon!];
 				c.save();
 				c.translate(centerX, centerY);
 				c.rotate(mid);
-				c.fillText(layout.displayText, innerRadius + available - padding, 0);
+
+				// Draw icon with low opacity
+				c.globalAlpha = 0.15;
+				const imgSize = Math.min(available * 0.5, arcSize * radius * 0.6, 80);
+				const imgX = innerRadius + (available - imgSize) / 2;
+				const imgY = -imgSize / 2;
+
+				c.drawImage(img, imgX, imgY, imgSize, imgSize);
 				c.restore();
+			}
+
+			// Draw label on top
+			if (label) {
+				const layout = labelLayouts[i];
+				if (layout && layout.displayText) {
+					c.font = layout.font;
+					c.fillStyle = '#111827';
+					c.textAlign = mode === 'rewards' ? 'center' : 'right';
+					c.textBaseline = 'middle';
+					c.save();
+					c.translate(centerX, centerY);
+					c.rotate(mid);
+					if (mode === 'rewards') {
+						c.fillText(layout.displayText, innerRadius + available / 2, 0);
+					} else {
+						c.fillText(layout.displayText, innerRadius + available - padding, 0);
+					}
+					c.restore();
+				}
 			}
 
 			// Save pin position to draw later (so next slice won't cover it)
@@ -498,7 +589,7 @@
 			labelLayouts = [];
 			return;
 		}
-		const n = Math.max(1, entries.length);
+		const n = mode === 'rewards' ? rewards.length : Math.max(1, entries.length);
 		const radius = wheelSize / 2;
 		const arc = (Math.PI * 2) / n;
 		const innerRadius = Math.max(30, radius * 0.2);
@@ -508,14 +599,22 @@
 		const maxWidth = Math.max(0, available - padding);
 
 		const layouts = new Array(n);
+		const totalProb = mode === 'rewards' ? rewards.reduce((acc, r) => acc + r.probability, 0) : n;
+
 		for (let i = 0; i < n; i++) {
-			const raw = String(entries[i] ?? '').trim();
-			const baseLabel = isValidSuiAddress(raw) ? shortenAddress(raw) : raw;
+			const itemProb = mode === 'rewards' ? rewards[i].probability : 1;
+			const arcSize =
+				equalSlices && mode === 'rewards'
+					? (Math.PI * 2) / n
+					: (itemProb / totalProb) * Math.PI * 2;
+			const raw = mode === 'rewards' ? rewards[i].text : String(entries[i] ?? '').trim();
+			const baseLabel =
+				mode === 'participants' && isValidSuiAddress(raw) ? shortenAddress(raw) : raw;
 			if (!baseLabel) {
 				layouts[i] = { displayText: '', font: '' };
 				continue;
 			}
-			const arcDegrees = (arc * 180) / Math.PI;
+			const arcDegrees = (arcSize * 180) / Math.PI;
 			let fontSize = Math.max(9, Math.min(17, arcDegrees * 0.75));
 			let displayText = baseLabel;
 			let font = `600 ${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"`;
@@ -554,11 +653,29 @@
 	}
 
 	function pickSelectedIndex() {
-		const n = Math.max(1, entries.length);
-		const arc = (Math.PI * 2) / n;
 		const normalized = (((Math.PI / 2 - spinAngle) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-		const idx = Math.floor(normalized / arc) % n;
-		return idx;
+
+		if (mode === 'rewards' && rewards.length > 0) {
+			if (equalSlices) {
+				const arc = (Math.PI * 2) / rewards.length;
+				return Math.floor(normalized / arc) % rewards.length;
+			}
+			const totalProb = rewards.reduce((acc, r) => acc + r.probability, 0);
+			let currentAngle = 0;
+			for (let i = 0; i < rewards.length; i++) {
+				const arcSize = (rewards[i].probability / totalProb) * Math.PI * 2;
+				if (normalized >= currentAngle && normalized <= currentAngle + arcSize) {
+					return i;
+				}
+				currentAngle += arcSize;
+			}
+			return rewards.length - 1;
+		} else {
+			const n = Math.max(1, entries.length);
+			const arc = (Math.PI * 2) / n;
+			const idx = Math.floor(normalized / arc) % n;
+			return idx;
+		}
 	}
 
 	async function spinOnChainAndAnimate() {
@@ -752,14 +869,31 @@
 
 	function spin() {
 		if (accountFromWallet) return;
-		if (spinning || entries.length < 2) return;
-		const n = Math.max(1, entries.length);
-		const randomIndex = Math.floor(Math.random() * n);
-		spinToIndex(randomIndex, {
+
+		const itemCount = mode === 'rewards' ? rewards.length : entries.length;
+		if (spinning || itemCount < 2) return;
+
+		let targetIndex = 0;
+		if (mode === 'rewards') {
+			const totalProb = rewards.reduce((acc, r) => acc + r.probability, 0);
+			const random = Math.random() * totalProb;
+			let currentProbSum = 0;
+			for (let i = 0; i < rewards.length; i++) {
+				currentProbSum += rewards[i].probability;
+				if (random <= currentProbSum) {
+					targetIndex = i;
+					break;
+				}
+			}
+		} else {
+			targetIndex = Math.floor(Math.random() * itemCount);
+		}
+
+		spinToIndex(targetIndex, {
 			duration: 10000,
 			extraTurnsMin: 6,
 			extraTurnsMax: 10,
-			marginFraction: 0.05,
+			marginFraction: 0.1, // Increase margin for safety with variable sizes
 			easePower: 3
 		});
 	}
@@ -814,12 +948,32 @@
 
 		const startAngle = spinAngle;
 		lastAngle = startAngle;
-		const arc = (Math.PI * 2) / n;
+
+		let arc = 0;
+		let startTheta = 0;
+
+		if (mode === 'rewards' && rewards.length > 0) {
+			const totalProb = rewards.reduce((acc, r) => acc + r.probability, 0);
+			if (equalSlices) {
+				arc = (Math.PI * 2) / rewards.length;
+				startTheta = idx * arc;
+			} else {
+				arc = (rewards[idx].probability / totalProb) * Math.PI * 2;
+				// Calculate start angle of this segment
+				for (let i = 0; i < idx; i++) {
+					startTheta += (rewards[i].probability / totalProb) * Math.PI * 2;
+				}
+			}
+		} else {
+			arc = (Math.PI * 2) / n;
+			startTheta = idx * arc;
+		}
+
 		const marginFraction = Math.max(0, Math.min(0.49, opts.marginFraction ?? 0.05));
 		const margin = arc * marginFraction;
 		const innerWidth = Math.max(0, arc - 2 * margin);
 		const randomWithin = margin + Math.random() * innerWidth;
-		const targetTheta = idx * arc + randomWithin;
+		const targetTheta = startTheta + randomWithin;
 		const baseAligned = normalizeAngle(Math.PI / 2 - targetTheta);
 
 		const extraTurnsMin = opts.extraTurnsMin ?? 5;
@@ -863,8 +1017,13 @@
 				}
 				const winnerIndex = selectedIndex;
 				if (winnerIndex !== null) {
-					const winnerValue = entries[winnerIndex];
-					lastWinner = String(winnerValue ?? '');
+					if (mode === 'rewards') {
+						lastWinner = rewards[winnerIndex].text;
+						lastWinnerIcon = rewards[winnerIndex].icon || 'gift';
+					} else {
+						lastWinner = String(entries[winnerIndex] ?? '');
+						lastWinnerIcon = '';
+					}
 				}
 				if (usedCombinedSpin && secondaryWinner) {
 					// keep secondaryWinner
@@ -873,7 +1032,7 @@
 					// Notify parent about off-chain winner for history tracking
 					if (!postSpinFetchRequested && !createdWheelId) {
 						onOffchainWinner?.(lastWinner);
-						if (selectedIndex !== null) {
+						if (selectedIndex !== null && mode === 'participants') {
 							const winnerValue = entries[selectedIndex];
 							removeEntry?.(String(winnerValue ?? ''));
 						}
@@ -916,21 +1075,6 @@
 			bind:this={canvasContainerEl}
 			class="relative mx-auto aspect-square w-full rounded-full border-1 border-amber-300/60 shadow-lg"
 		>
-			<!-- Sound toggle -->
-			<button
-				class="tooltip btn absolute top-2 right-2 z-20 btn-circle bg-white/90 shadow-lg backdrop-blur-sm transition-all duration-200 btn-sm hover:bg-white"
-				onclick={() => (muted = !muted)}
-				aria-label={muted ? t('wheel.soundOff') : t('wheel.soundOn')}
-				title={t('wheel.toggleSound')}
-				data-tip={muted ? t('wheel.soundOff') : t('wheel.soundOn')}
-			>
-				{#if muted}
-					<span class="icon-[lucide--volume-off] text-base text-gray-600"></span>
-				{:else}
-					<span class="icon-[lucide--volume-2] text-base text-gray-700"></span>
-				{/if}
-			</button>
-
 			<!-- Pointer -->
 			<div
 				class="pointer-events-none absolute top-1/2 -right-6 z-10 -translate-y-1/2 sm:-right-9"
@@ -986,13 +1130,13 @@
 			</div>
 		</div>
 
-		{#if selectedIndex !== null && entries[selectedIndex]}
+		{#if selectedIndex !== null && ((mode === 'participants' && entries[selectedIndex]) || (mode === 'rewards' && rewards[selectedIndex]))}
 			<div class="mt-3 text-center">
 				<div class="badge animate-pulse badge-lg badge-success">🎯 {t('wheel.winner')}</div>
 				<div
 					class="mt-2 rounded-lg border border-success/20 bg-success/10 px-4 py-2 text-lg font-bold break-words text-success"
 				>
-					{entries[selectedIndex]}
+					{mode === 'rewards' ? rewards[selectedIndex].text : entries[selectedIndex]}
 				</div>
 			</div>
 		{/if}
@@ -1007,7 +1151,7 @@
 			</div>
 		{/if}
 
-		{#if !createdWheelId || (createdWheelId && (remainingSpins ?? 0) > 0)}
+		{#if mode === 'participants' && (!createdWheelId || (createdWheelId && (remainingSpins ?? 0) > 0))}
 			<div class="mt-4 flex flex-wrap justify-center gap-2">
 				<button
 					class="btn btn-outline"
@@ -1028,21 +1172,50 @@
 
 <dialog bind:this={winnerModal} class="modal">
 	<div class="w- modal-box">
-		<h3 class="mb-6 text-center text-2xl font-bold">🎉 {t('wheel.congratulations')}!</h3>
+		<h3 class="mb-6 text-center text-2xl font-bold">
+			{#if mode === 'rewards'}
+				✨ {t('wheel.result')} ✨
+			{:else}
+				🎉 {t('wheel.congratulations')}!
+			{/if}
+		</h3>
 		<div class="text-center">
 			<div class="relative">
 				<div
-					class="absolute inset-0 animate-pulse rounded-xl bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500 opacity-30 blur-xl"
+					class="absolute inset-0 animate-pulse rounded-xl bg-gradient-to-r opacity-30 blur-xl {mode ===
+					'rewards'
+						? 'from-blue-400 via-indigo-500 to-purple-500'
+						: 'from-green-400 via-emerald-500 to-teal-500'}"
 				></div>
 				<div
-					class="relative block transform rounded-xl border-4 border-yellow-400 bg-gradient-to-r from-green-500 to-emerald-600 px-8 py-4 text-3xl font-black text-white shadow-2xl transition-all duration-300 hover:scale-101"
+					class="relative block transform overflow-hidden rounded-xl border-4 border-yellow-400 bg-gradient-to-r px-8 py-4 text-3xl font-black text-white shadow-2xl transition-all duration-300 hover:scale-101 {mode ===
+					'rewards'
+						? 'from-blue-500 to-indigo-600'
+						: 'from-green-500 to-emerald-600'}"
 				>
-					<div class="flex items-center justify-center gap-3">
-						<span class="text-4xl">🏆</span>
+					{#if mode === 'rewards'}
+						<div
+							class="icon-[lucide--{lastWinnerIcon ||
+								'gift'}] pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-8xl opacity-15"
+						></div>
+					{/if}
+
+					<div class="relative flex items-center justify-center gap-3">
+						{#if mode === 'rewards'}
+							<span class="icon-[lucide--{lastWinnerIcon || 'gift'}] text-4xl"></span>
+						{:else}
+							<span class="text-4xl">🏆</span>
+						{/if}
+
 						<span class="drop-shadow-lg"
 							>{isValidSuiAddress(lastWinner) ? shortenAddress(lastWinner) : lastWinner}</span
 						>
-						<span class="text-4xl">🏆</span>
+
+						{#if mode === 'rewards'}
+							<span class="icon-[lucide--{lastWinnerIcon || 'gift'}] text-4xl"></span>
+						{:else}
+							<span class="text-4xl">🏆</span>
+						{/if}
 					</div>
 				</div>
 				{#if usedCombinedSpin && secondaryWinner}
@@ -1066,7 +1239,10 @@
 					⭐
 				</div>
 			</div>
-			<small class="mt-5 block text-gray-500">{t('wheel.winnerWillBeAutomaticallyRemoved')}</small>
+			{#if mode === 'participants'}
+				<small class="mt-5 block text-gray-500">{t('wheel.winnerWillBeAutomaticallyRemoved')}</small
+				>
+			{/if}
 		</div>
 	</div>
 	<form method="dialog" class="modal-backdrop">

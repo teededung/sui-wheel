@@ -55,4 +55,4 @@
 	{@render children()}
 </SuiModule>
 
-<Toaster />
+<Toaster stack={true} />

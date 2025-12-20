@@ -1,563 +1,602 @@
 {
-  "common": {
-    "loading": "Đang tải...",
-    "error": "Lỗi",
-    "success": "Thành công",
-    "cancel": "Hủy",
-    "confirm": "Xác nhận",
-    "save": "Lưu",
-    "edit": "Sửa",
-    "delete": "Xóa",
-    "testnetWarning": "Cảnh báo Testnet",
-    "switchToTestnet": "Vui lòng chuyển ví của bạn sang Sui Testnet để sử dụng ứng dụng này.",
-    "back": "Quay lại",
-    "contractVersionMismatch": "Phiên bản hợp đồng không khớp. Vui lòng làm mới trang và thử lại."
-  },
-  "navigation": {
-    "home": "Trang chủ",
-    "about": "Giới thiệu",
-    "wheelList": "Danh sách vòng quay",
-    "faq": "Câu hỏi thường gặp"
-  },
-  "wallet": {
-    "connectWallet": "Kết nối ví",
-    "connectSuiWallet": "Kết nối ví Sui",
-    "disconnected": "Đã ngắt kết nối",
-    "disconnectFailed": "Không thể ngắt kết nối",
-    "addressCopied": "Đã sao chép địa chỉ",
-    "copyFailed": "Sao chép thất bại",
-    "switchWallet": "Chuyển ví",
-    "disconnect": "Ngắt kết nối",
-    "active": "Đang hoạt động",
-    "switch": "Chuyển",
-    "moreOptions": "Tùy chọn khác"
-  },
-  "faq": {
-    "title": "Câu hỏi thường gặp — Sui Wheel",
-    "metaDescription": "Câu hỏi thường gặp về Sui Wheel - ứng dụng vòng quay may mắn trên blockchain Sui với tính ngẫu nhiên công bằng và minh bạch.",
-    "ogTitle": "Câu hỏi thường gặp — Sui Wheel",
-    "ogDescription": "Câu hỏi thường gặp về Sui Wheel - ứng dụng vòng quay may mắn trên blockchain Sui.",
-    "heroTitle": "Câu hỏi thường gặp",
-    "heroDescription": "Tìm câu trả lời cho những câu hỏi phổ biến nhất về Sui Wheel",
-    "cta": {
-      "title": "Còn câu hỏi nào khác?",
-      "description": "Nếu bạn không tìm thấy câu trả lời cho câu hỏi của mình, hãy liên hệ với chúng tôi để được hỗ trợ.",
-      "getStarted": "Bắt đầu ngay",
-      "learnMore": "Tìm hiểu thêm"
-    },
-    "categories": {
-      "overview": "Tổng quan",
-      "blockchain": "Blockchain & SUI",
-      "features": "Tính năng & Cách sử dụng",
-      "frequentlyAsked": "Các câu hỏi thường gặp"
-    },
-    "questions": {
-      "overview": [
-        {
-          "question": "Sui Wheel là gì và hoạt động như thế nào?",
-          "answer": "Sui Wheel là ứng dụng vòng quay may mắn trên blockchain Sui sử dụng smart contracts để đảm bảo tính công bằng 100%. Người tổ chức tạo vòng quay, thêm người tham gia (tối đa 200 người), đặt giải thưởng và tài trợ pool phần thưởng. Kết quả được xác định bởi tính ngẫu nhiên on-chain, minh bạch và không thể thao túng."
-        },
-        {
-          "question": "Tại sao nên chọn Sui Wheel?",
-          "answer": "Sui Wheel mang lại sự công bằng 100% với tính ngẫu nhiên trên chuỗi, bảo mật không cần tin tưởng, tốc độ nhanh chóng với phí thấp, giao diện dễ sử dụng và theo dõi thời gian thực. Ngoài ra còn hỗ trợ nhiều tính năng nâng cao như zkLogin, nhập danh sách và quản lý giải thưởng linh hoạt."
-        }
-      ],
-      "blockchain": [
-        {
-          "question": "Tôi cần biết gì về blockchain SUI?",
-          "answer": "Sui là một blockchain layer 1 high-performance được thiết kế cho các ứng dụng gaming và DeFi. Sui Wheel được xây dựng trên Sui để đảm bảo tốc độ nhanh chóng và phí giao dịch thấp. Bạn cần có ví Sui (khuyên dùng Slush Wallet) để tham gia các vòng quay on-chain."
-        },
-        {
-          "question": "Có cần trả phí gas không?",
-          "answer": "Có, các giao dịch on-chain sẽ tiêu tốn một lượng nhỏ SUI để trả phí gas. Tuy nhiên, Sui có phí rất thấp so với các blockchain khác. Bạn chỉ cần trả phí khi tham gia các vòng quay on-chain thực sự, không phải cho các demo off-chain."
-        },
-        {
-          "question": "Sui Wheel có an toàn không?",
-          "answer": "Hoàn toàn an toàn! Sui Wheel sử dụng smart contracts được audit và không lưu trữ tài sản của người dùng. Tất cả giao dịch đều minh bạch và có thể kiểm chứng trên blockchain. Người dùng luôn kiểm soát ví và tài sản của mình."
-        }
-      ],
-      "features": [
-        {
-          "question": "Làm thế nào để tạo vòng quay?",
-          "answer": "<ol><li>Kết nối ví Sui của bạn</li><li>Thêm danh sách người tham gia (tối đa 200 người)</li><li>Đặt giải thưởng và thời gian</li><li>Tài trợ pool với đủ token</li><li>Xuất bản vòng quay để mọi người có thể tham gia</li></ol>"
-        },
-        {
-          "question": "Có thể thêm người tham gia như thế nào?",
-          "answer": "<ul><li>Nhập địa chỉ ví Sui thủ công</li><li>Nhập bằng tính năng QR online</li><li>Sử dụng tính năng import từ bài đăng X (Twitter) để tự động trích xuất địa chỉ từ comments</li></ul>"
-        },
-        {
-          "question": "Các loại giải thưởng được hỗ trợ?",
-          "answer": "Sui Wheel hỗ trợ SUI tokens và các loại tiền điện tử khác (coming next). Bạn có thể tùy chỉnh số lượng và phân phối giải thưởng một cách linh hoạt theo nhu cầu của mình."
-        },
-        {
-          "question": "Off-chain và On-chain khác nhau như thế nào?",
-          "answer": "Chế độ Off-chain dành cho demo nhanh và thử nghiệm không tốn phí. Chế độ On-chain dành cho các vòng quay thực sự với giải thưởng thật, mọi thứ đều minh bạch và được ghi lại vĩnh viễn trên blockchain."
-        },
-        {
-          "question": "Nút Shuffle có tác dụng không?",
-          "answer": "Có! Nút Shuffle thực sự có tác dụng và có thể kiểm chứng on-chain. Khi nhấn Shuffle, hệ thống sẽ tạo ra một thứ tự ngẫu nhiên mới cho danh sách người tham gia, và quá trình này được ghi lại trên blockchain để đảm bảo tính minh bạch và công bằng."
-        }
-      ],
-      "frequentlyAsked": [
-        {
-          "question": "Làm thế nào để nhận giải thưởng?",
-          "answer": "Nếu bạn thắng, sẽ có link claim giải được tạo ra mỗi khi vòng quay kết thúc. Truy cập link này để claim giải."
-        },
-        {
-          "question": "Có giới hạn thời gian nhận giải không?",
-          "answer": "Có, người tổ chức có thể đặt thời hạn nhận giải thưởng. Sau thời hạn này, giải thưởng chưa nhận sẽ được trả lại vào pool để phân phối lại hoặc trả về ví của người tổ chức."
-        },
-        {
-          "question": "Tôi có thể theo dõi kết quả ở đâu?",
-          "answer": "Tất cả kết quả được ghi lại trên blockchain và có thể xem trực tiếp trên Sui Explorer. Ngoài ra, Sui Wheel cung cấp giao diện theo dõi thời gian thực để bạn có thể theo dõi các vòng quay và người thắng cuộc."
-        },
-        {
-          "question": "Có hỗ trợ đăng nhập bằng Google không?",
-          "answer": "Có! Sui Wheel hỗ trợ zkLogin với Google. Đây là cách dễ dàng nhất để bắt đầu với Sui Wheel. Hãy nhớ rằng bạn cần có Sui coin trong ví để tạo vòng quay."
-        },
-        {
-          "question": "Tác giả vòng quay có thể hủy vòng quay không?",
-          "answer": "Có, tác giả vòng quay có thể hủy vòng quay với điều kiện bạn chưa thực hiện vòng quay. Pool thưởng sẽ tự động trả về ví của bạn khi hủy."
-        },
-        {
-          "question": "Điều gì sẽ xảy ra nếu tôi không nhận thưởng trước thời hạn?",
-          "answer": "Bạn không thể claim giải thưởng sau khi hết hạn nhận thưởng."
-        },
-        {
-          "question": "Tác giả có thể thu hồi pool thưởng sau khi vòng quay kết thúc không?",
-          "answer": "Chỉ khi thời gian nhận thưởng đã kết thúc; nếu chưa đến hạn, không thể thu hồi."
-        }
-      ]
-    }
-  },
-  "wheelList": {
-    "title": "Sui Wheel — Vòng quay của bạn",
-    "metaDescription": "Danh sách các vòng quay bạn đã tạo trên Sui Testnet.",
-    "ogTitle": "Sui Wheel — Vòng quay của bạn",
-    "ogDescription": "Danh sách các vòng quay bạn đã tạo trên Sui Testnet.",
-    "pageTitle": "Vòng quay của bạn",
-    "createNew": "Tạo mới",
-    "loading": "Đang tải...",
-    "connectWallet": "Vui lòng kết nối ví để xem các vòng quay của bạn.",
-    "noWheels": "Không tìm thấy vòng quay nào.",
-    "refreshing": "Đang làm mới",
-    "table": {
-      "number": "#",
-      "wheelId": "ID Vòng quay",
-      "created": "Tạo lúc",
-      "status": "Trạng thái",
-      "totalEntries": "Số người tham gia",
-      "actions": "Hành động"
-    },
-    "status": {
-      "cancelled": "Đã hủy",
-      "running": "Đang chạy",
-      "finished": "Đã kết thúc",
-      "unknown": "—"
-    },
-    "actions": {
-      "open": "Mở",
-      "results": "Nhận thưởng"
-    },
-    "publicWheels": {
-      "title": "Vòng quay công khai gần đây",
-      "description": "Khám phá các vòng quay được tạo gần đây bởi cộng đồng",
-      "loading": "Đang tải vòng quay công khai...",
-      "noWheels": "Chưa có vòng quay công khai nào."
-    },
-    "joinedWheels": {
-      "title": "Vòng quay đã tham gia",
-      "description": "Các vòng quay mà ví của bạn đã tham gia.",
-      "loading": "Đang tải vòng quay đã tham gia...",
-      "noWheels": "Không tìm thấy vòng quay đã tham gia nào."
-    }
-  },
-  "wheelResult": {
-    "title": "Sui Wheel — Kết quả",
-    "metaDescription": "Xem người thắng và nhận giải thưởng cho một Sui Wheel trên Testnet.",
-    "ogTitle": "Sui Wheel — Kết quả",
-    "ogDescription": "Xem người thắng và nhận giải thưởng cho một Sui Wheel trên Testnet.",
-    "pageTitle": "Kết quả vòng quay",
-    "lastReclaim": "Thu hồi cuối:",
-    "on": "vào",
-    "viewTx": "Xem giao dịch",
-    "winners": "Người thắng",
-    "remainingEntries": "Người tham gia còn lại",
-    "claimed": "Đã nhận",
-    "unclaimed": "Chưa nhận",
-    "notSelected": "Không được chọn",
-    "table": {
-      "number": "#",
-      "amount": "Giải thưởng",
-      "winner": "Địa chỉ",
-      "spunAt": "Quay lúc"
-    },
-    "nonWinningEntries": "Người tham gia không thắng",
-    "tableNonWinning": {
-      "number": "#",
-      "address": "Địa chỉ"
-    },
-    "you": "Bạn",
-    "wheelCancelled": "Vòng quay này đã bị hủy!",
-    "connectWallet": "Kết nối ví của bạn để xem giải thưởng và nhận nó! 🔑",
-    "yourPrize": "Giải thưởng của bạn",
-    "congratulations": "Chúc mừng bạn đã thắng!",
-    "claimedAt": "Nhận lúc",
-    "congratulationsClaim": "Chúc mừng! Bạn có thể nhận giải thưởng ngay bây giờ.",
-    "claimExpired": "Thời hạn nhận giải đã hết. Bạn không thể nhận giải thưởng nữa.",
-    "wheelRunning": "Vòng quay vẫn đang chạy. Vui lòng quay lại sau.",
-    "notWinner": "Bạn không phải người thắng của vòng quay này.",
-    "claiming": "Đang nhận...",
-    "claim": "Nhận",
-    "startsIn": "Bắt đầu sau",
-    "claimExpiredOn": "Thời hạn nhận giải hết vào",
-    "wheelId": "ID:",
-    "explorer": "Explorer",
-    "status": "Trạng thái:",
-    "remainingPoolBalance": "Số dư pool còn lại:",
-    "reclaiming": "Đang thu hồi...",
-    "reclaim": "Thu hồi",
-    "created": "Tạo lúc:",
-    "errors": {
-      "connectWalletToClaim": "Kết nối ví để nhận giải",
-      "onlyOrganizerCanReclaim": "Chỉ người tổ chức mới có thể thu hồi pool",
-      "poolCannotBeReclaimedYet": "Pool chưa thể thu hồi",
-      "connectWalletToReclaim": "Kết nối ví để thu hồi",
-      "reclaimWindowNotYetOpen": "Cửa sổ thu hồi chưa mở. Vui lòng chờ.",
-      "noRemainingFunds": "Không còn tiền trong pool để thu hồi."
-    },
-    "success": {
-      "reclaimedPoolSuccessfully": "Thu hồi pool thành công",
-      "openOnSuivision": "Mở trên Suivision"
-    }
-  },
-  "main": {
-    "title": "Sui Wheel — Quay & Thắng",
-    "metaDescription": "Sui Wheel — tạo và tài trợ vòng quay trên Sui Testnet, quản lý người tham gia và giải thưởng.",
-    "ogTitle": "Sui Wheel — Quay & Thắng",
-    "ogDescription": "Sui Wheel — tạo và tài trợ vòng quay trên Sui Testnet, quản lý người tham gia và giải thưởng.",
-    "wheelId": "ID:",
-    "finished": "Đã kết thúc",
-    "cancelled": "Đã hủy",
-    "newWheel": "Vòng quay mới",
-    "updating": "Đang cập nhật...",
-    "updateWheel": "Cập nhật vòng quay",
-    "cancelEdit": "Hủy chỉnh sửa",
-    "cancelling": "Đang hủy...",
-    "cancelWheel": "Hủy vòng quay",
-    "entries": "Người tham gia",
-    "history": "Lịch sử",
-    "noHistory": "Chưa có lịch sử trúng thưởng",
-    "clearHistory": "Xóa lịch sử",
-    "spinNumber": "Lần quay #{number}",
-    "historyNote": "Lịch sử chỉ áp dụng cho vòng quay off-chain",
-    "timestamp": "Thời gian",
-    "text": "Viết",
-    "table": "Bảng",
-    "import": "Nhập",
-    "onlineEntryForm": "Tạo form trực tuyến",
-    "importByXPost": "Nhập từ bài đăng X",
-    "prizes": "Giải thưởng",
-    "prizeNumber": "Giải #{number}",
-    "amount": "Số tiền",
-    "winner": "Người thắng",
-    "winners": "Người thắng",
-    "remainingEntries": "Người tham gia còn lại",
-    "claimed": "Đã nhận",
-    "unclaimed": "Chưa nhận",
-    "notSelected": "Không được chọn",
-    "addPrize": "Thêm giải",
-    "need": "Cần",
-    "topUpRequired": "Cần nạp thêm:",
-    "settings": "Cài đặt",
-    "claimDelay": "Thời gian chờ nhận giải",
-    "claimPeriod": "Thời hạn nhận giải",
-    "waitTimeBeforeClaimingPrize": "Thời gian chờ trước khi nhận giải",
-    "deadlineToClaimPrize": "Hạn chót để nhận giải",
-    "claimLink": "Link nhận giải",
-    "scanWithYourPhone": "Quét bằng điện thoại",
-    "onlineEntryFormScanToJoin": "Form tham gia trực tuyến. Quét để tham gia vòng quay.",
-    "timeRemaining": "Thời gian còn lại",
-    "min": "phút",
-    "sec": "giây",
-    "disableOnlineEntries": "Tắt tham gia trực tuyến",
-    "createWheelAndFund": "Tạo và tài trợ",
-    "createWheel": "Tạo vòng quay",
-    "connectWalletToCreateAndSpin": "Kết nối ví Sui của bạn để tạo và quay vòng quay trực tiếp trên chuỗi (on-chain). Bạn vẫn có thể thử quay off-chain mà không cần kết nối ví.",
-    "importEntriesByXPost": "Nhập người tham gia từ bài đăng X",
-    "pasteXLinkOrTweetId": "Dán link X hoặc ID tweet.",
-    "noteOnlyFirstEntriesFromReplies": "Lưu ý: chỉ {max} địa chỉ Sui đầu tiên từ các bình luận.",
-    "importing": "Đang nhập...",
-    "importButton": "Nhập",
-    "close": "Đóng",
-    "onlineEntryFormSettings": "Cài đặt Form tham gia trực tuyến",
-    "configureHowParticipantsCanJoin": "Cấu hình cách người tham gia có thể tham gia vòng quay trực tuyến.",
-    "enableOnlineEntryForm": "Bật form tham gia trực tuyến",
-    "allowParticipantsToJoinByScanningQrCode": "Cho phép người tham gia tham gia bằng cách quét mã QR",
-    "wheelName": "Tên vòng quay",
-    "selectCoin": "Chọn Coin",
-    "selectCoinPlaceholder": "Chọn loại coin",
-    "prize": "Giải",
-    "amountExample": "Số tiền (ví dụ: 0.5)",
-    "zeroMinuteDefault": "0 phút (mặc định)",
-    "fifteenMinutes": "15 phút",
-    "thirtyMinutes": "30 phút",
-    "oneHour": "1 giờ",
-    "twoHours": "2 giờ",
-    "twentyFourHoursDefault": "24 giờ (mặc định)",
-    "twoDays": "2 ngày",
-    "threeDays": "3 ngày",
-    "oneWeek": "1 tuần",
-    "resultQr": "QR kết quả",
-    "entryFormQr": "QR form tham gia",
-    "importEntries": "Nhập người tham gia",
-    "setupOnlineEntryForm": "Thiết lập form tham gia trực tuyến",
-    "textareaView": "Chế độ văn bản",
-    "entriesViewModeLabel": "Chế độ xem",
-    "tableView": "Chế độ bảng",
-    "tableAction": "Hành động",
-    "tableCollapse": "Thu gọn",
-    "tableShowAll": "Hiển thị tất cả",
-    "xPostLinkPlaceholder": "https://x.com/username/status/1234567890",
-    "xPostLinkOrId": "Link bài đăng X hoặc ID",
-    "enterWheelNameOptional": "Nhập tên vòng quay (tùy chọn)",
-    "thisNameWillBeDisplayedToParticipants": "Tên này sẽ được hiển thị cho người tham gia",
-    "durationMinutes": "Thời lượng (phút)",
-    "entryFormWillAutomaticallyCloseAfterThisTime": "Form tham gia sẽ tự động đóng sau thời gian này (1-60 phút)",
-    "entryType": "Loại tham gia",
-    "suiWalletAddress": "Địa chỉ ví Sui",
-    "nameAnyText": "Tên (Văn bản bất kỳ)",
-    "emailAddress": "Địa chỉ email",
-    "cancel": "Hủy",
-    "ok": "OK",
-    "pleaseSwitchWalletToTestnet": "Vui lòng chuyển ví sang Testnet.",
-    "pleaseFixInvalidEntries": "Vui lòng sửa {count} người tham gia không hợp lệ (phải là địa chỉ SUI).",
-    "atLeastTwoUniqueEntriesRequired": "Cần ít nhất 2 người tham gia duy nhất.",
-    "youNeedToAddAtLeastOnePrize": "Bạn cần thêm ít nhất 1 giải thưởng.",
-    "goToPrizesTab": "Đi đến tab Giải thưởng",
-    "openPrizes": "Mở Giải thưởng",
-    "prizesCountMustBeLessThanOrEqualUniqueEntries": "Số lượng giải ({prizesCount}) phải ≤ số người tham gia duy nhất ({uniqueValidEntriesCount}).",
-    "prizesMustBeAtLeast": "{count} giải phải ít nhất {amount} SUI.",
-    "entriesCountMustBeLessThanOrEqual": "Số lượng người tham gia ({count}) phải ≤ {max}.",
-    "walletBalanceNeedsToBeMoreThanOneSui": "Số dư ví cần phải lớn hơn 1 SUI.",
-    "walletBalanceIsLessThanTotalRequired": "Số dư ví ({balance} SUI) nhỏ hơn tổng số cần thiết ({required} SUI).",
-    "insufficientSuiBalance": "Số dư SUI không đủ. Nhớ chừa lại một lượng nhỏ SUI cho phí gas.",
-    "insufficientGasBalance": "Số dư SUI không đủ cho phí gas. Nhớ chừa lại một lượng nhỏ SUI cho phí giao dịch.",
-    "insufficientCoinBalance": "Số dư {symbol} không đủ.",
-    "settingUp": "Đang thiết lập...",
-    "duplicateEntries": "Người tham gia trùng lặp:",
-    "noEntries": "Không có người tham gia",
-    "removeEntry": "Xóa người tham gia",
-    "collapseTable": "Thu gọn bảng",
-    "expandTable": "Mở rộng bảng",
-    "showAll": "Hiển thị tất cả ({count})",
-    "oneEntryPerLine": "Mỗi dòng một người tham gia",
-    "entriesListReadOnly": "Danh sách người tham gia (chỉ đọc)",
-    "prizeAmountInSui": "Số tiền giải #{number} trong SUI",
-    "removePrize": "Xóa giải",
-    "delay": "Thời gian chờ",
-    "claimWindow": "Cửa sổ nhận giải",
-    "delayOptions": {
-      "0min": "0 phút (mặc định)",
-      "15min": "15 phút",
-      "30min": "30 phút",
-      "1hour": "1 giờ",
-      "2hours": "2 giờ"
-    },
-    "claimWindowOptions": {
-      "1hour": "1 giờ",
-      "24hours": "24 giờ (mặc định)",
-      "2days": "2 ngày",
-      "3days": "3 ngày",
-      "1week": "1 tuần"
-    },
-    "errors": {
-      "walletNotConnected": "Ví chưa được kết nối.",
-      "walletMustBeOnTestnet": "Ví phải ở trên Testnet.",
-      "packageIdRequired": "Package ID là bắt buộc.",
-      "atLeast2Addresses": "Cần ít nhất 2 địa chỉ hợp lệ.",
-      "entriesCountLimit": "Số lượng người tham gia phải ≤ {maxEntries}.",
-      "addAtLeast1Prize": "Vui lòng thêm ít nhất 1 giải với số tiền > 0.",
-      "entriesMustBeGreaterThanPrizes": "Số lượng người tham gia phải >= số lượng giải.",
-      "uniqueAddressCountMustBeGreaterThanPrizes": "Số lượng địa chỉ duy nhất phải >= số lượng giải.",
-      "eachPrizeMustBeAtLeast": "Mỗi giải phải ít nhất {minAmount} SUI.",
-      "totalDonationMustBeGreaterThan0": "Tổng tài trợ phải lớn hơn 0",
-      "wheelObjectIdNotFound": "Không tìm thấy ID đối tượng vòng quay sau khi tạo",
-      "failedToGetTransactionDigest": "Không thể lấy mã giao dịch",
-      "failedToCancelWheel": "Không thể hủy vòng quay.",
-      "wheelNotFound": "Không tìm thấy vòng quay."
-    },
-    "success": {
-      "wheelCreatedAndFunded": "Đã tạo và tài trợ thành công. Bạn có thể quay ngay bây giờ.",
-      "wheelCreatedAndFundedSuccessfully": "Đã tạo và tài trợ vòng quay thành công",
-      "viewTx": "Xem giao dịch",
-      "wheelUpdatedSuccessfully": "Đã cập nhật vòng quay thành công.",
-      "wheelCancelledAndPoolReclaimed": "Đã hủy vòng quay và thu hồi pool nếu có.",
-      "wheelCancelledSuccessfully": "Đã hủy vòng quay thành công.",
-      "onlineEntriesDisabled": "Đã tắt tham gia trực tuyến",
-      "importedEntriesFromXPost": "Đã nhập {count} người tham gia từ bài đăng X thành công!",
-      "imported": "Đã nhập"
-    },
-    "warnings": {
-      "switchWalletToTestnet": "Vui lòng chuyển ví sang Testnet.",
-      "fixInvalidEntries": "Vui lòng sửa {count} người tham gia không hợp lệ (phải là địa chỉ SUI).",
-      "atLeast2UniqueEntries": "Cần ít nhất 2 người tham gia duy nhất.",
-      "addAtLeast1Prize": "Bạn cần thêm ít nhất 1 giải.",
-      "openPrizes": "Mở Giải thưởng",
-      "prizesCountMustBeLessThanEntries": "Số lượng giải ({prizesCount}) phải ≤ người tham gia duy nhất ({entriesCount}).",
-      "prizesMustBeAtLeast": "{count} giải phải ít nhất {minAmount} SUI.",
-      "entriesCountMustBeLessThanMax": "Số lượng người tham gia ({count}) phải ≤ {maxEntries}.",
-      "walletBalanceNeedsMoreThan1Sui": "Số dư ví cần lớn hơn 1 SUI.",
-      "walletBalanceLessThanRequired": "Số dư ví ({balance} SUI) nhỏ hơn tổng cần thiết ({required} SUI)."
-    },
-    "notifications": {
-      "newEntriesAdded": "{count} người tham gia mới được thêm",
-      "noEntriesFoundInXPost": "Không tìm thấy người tham gia trong bài đăng X",
-      "failedToImportXPost": "Không thể nhập từ bài đăng X"
-    }
-  },
-  "entryForm": {
-    "title": "Tham gia Vòng quay - Sui Wheel",
-    "metaDescription": "Tham gia Sui Wheel bằng cách gửi thông tin của bạn",
-    "loadingWheelInformation": "Đang tải thông tin vòng quay...",
-    "entrySubmitted": "Đã gửi thông tin!",
-    "pleaseWaitForTableToUpdate": "Vui lòng chờ bảng tự động cập nhật. Bạn có thể đóng cửa sổ này.",
-    "yourEntryHasBeenRecordedSuccessfully": "Thông tin của bạn đã được ghi nhận thành công!",
-    "joinTheWheel": "Tham gia Vòng quay!",
-    "enterYourSuiWalletAddressToJoin": "Nhập địa chỉ ví Sui của bạn để tham gia",
-    "enterYourEmailAddressToJoin": "Nhập địa chỉ email của bạn để tham gia",
-    "enterYourNameToJoin": "Nhập tên của bạn để tham gia",
-    "submitting": "Đang gửi...",
-    "joinWheel": "Tham gia Vòng quay",
-    "wheel": "Vòng quay",
-    "temporary": "Tạm thời",
-    "placeholder": {
-      "walletAddress": "0x...",
-      "emailAddress": "your@email.com",
-      "name": "Nhập tên của bạn"
-    },
-    "label": {
-      "walletAddress": "Địa chỉ ví",
-      "emailAddress": "Địa chỉ email",
-      "name": "Tên"
-    },
-    "errors": {
-      "invalidWheelLink": "Link vòng quay không hợp lệ",
-      "pleaseEnterValidSuiAddress": "Vui lòng nhập địa chỉ Sui hợp lệ",
-      "nameMustBe1To50Characters": "Tên phải có từ 1-50 ký tự",
-      "pleaseEnterValidEmailAddress": "Vui lòng nhập địa chỉ email hợp lệ",
-      "failedToSubmitEntry": "Không thể gửi thông tin",
-      "networkErrorPleaseTryAgain": "Lỗi mạng. Vui lòng thử lại."
-    },
-    "success": {
-      "entrySubmittedSuccessfully": "Gửi thông tin thành công!"
-    }
-  },
-  "wheel": {
-    "soundOn": "Âm thanh: bật",
-    "soundOff": "Âm thanh: tắt",
-    "toggleSound": "Bật/tắt âm thanh",
-    "confirming": "Đang xác nhận...",
-    "spinning": "Đang quay...",
-    "spinTheWheel": "Quay vòng quay",
-    "spin": "Quay",
-    "winner": "Người thắng",
-    "remainingSpins": "Lần quay còn lại",
-    "shuffleEntries": "Xáo trộn người tham gia",
-    "shuffle": "Xáo trộn",
-    "clear": "Xóa",
-    "congratulations": "Chúc mừng",
-    "alsoAssigned": "Cũng được gán",
-    "winnerWillBeAutomaticallyRemoved": "Người thắng sẽ được tự động xóa khỏi danh sách.",
-    "close": "Đóng",
-    "notOrganizer": "Bạn không phải là người tổ chức của vòng quay này."
-  },
-  "about": {
-    "title": "Giới thiệu — Sui Wheel",
-    "metaDescription": "Giới thiệu Sui Wheel — tạo và quản lý vòng quay giải thưởng on-chain trên Sui Testnet.",
-    "ogTitle": "Giới thiệu — Sui Wheel",
-    "ogDescription": "Giới thiệu Sui Wheel — ứng dụng vòng quay công bằng với tính ngẫu nhiên on-chain và kết quả có thể kiểm chứng.",
-    "heroTitle": "Sui Wheel",
-    "heroDescription": "Tạo các vòng quay giải thưởng công bằng, minh bạch và hấp dẫn trên blockchain Sui. Quay để trúng thưởng với tính ngẫu nhiên on-chain và kết quả có thể kiểm chứng.",
-    "stats": {
-      "onChain": "On-chain",
-      "onChainDesc": "Minh bạch & có thể kiểm chứng",
-      "maxEntries": "Số người tham gia tối đa",
-      "maxEntriesDesc": "Người tham gia mỗi vòng quay",
-      "network": "Mạng",
-      "networkDesc": "Blockchain cho trò chơi"
-    },
-    "whyChoose": {
-      "title": "Vì sao chọn Sui Wheel?",
-      "description": "Trải nghiệm tương lai của sự công bằng với tính ngẫu nhiên trên blockchain và kết quả minh bạch."
-    },
-    "features": {
-      "onChainRandomness": {
-        "title": "Ngẫu nhiên trên chuỗi",
-        "description": "Mỗi lượt quay sử dụng tính ngẫu nhiên on-chain có thể kiểm chứng, đảm bảo kết quả công bằng và không thể bị thao túng."
-      },
-      "secureTrustless": {
-        "title": "An toàn & không cần tin tưởng",
-        "description": "Không có bên trung gian kiểm soát kết quả. Smart contract xử lý mọi thứ tự động và minh bạch."
-      },
-      "fastEfficient": {
-        "title": "Nhanh & hiệu quả",
-        "description": "Xây dựng trên blockchain hiệu năng cao của Sui cho giao dịch tức thì và phí thấp."
-      },
-      "easyToUse": {
-        "title": "Dễ sử dụng",
-        "description": "Giao diện đơn giản cho người tổ chức và người tham gia. Kết nối ví, cấu hình và quay!"
-      },
-      "realTimeTracking": {
-        "title": "Theo dõi thời gian thực",
-        "description": "Theo dõi lượt quay, người thắng cuộc và nhận thưởng theo thời gian thực với thống kê chi tiết."
-      },
-      "flexiblePrizes": {
-        "title": "Giải thưởng linh hoạt",
-        "description": "Hỗ trợ token SUI và các tiền mã hóa khác. Linh hoạt về số lượng và cách phân phối."
-      }
-    },
-    "wheelEntries": [
-      "Kiểm chứng onchain!",
-      "Giữ sự công bằng",
-      "Xây dựng trên Sui",
-      "🎁 Giải thưởng thật",
-      "Nhanh & hiệu quả",
-      "Giải thưởng linh hoạt"
-    ],
-    "moreFeatures": {
-      "title": "Tính năng khác",
-      "description": "Công cụ mạnh mẽ cho người tổ chức và người tham gia",
-      "dualModeGaming": {
-        "title": "Chế độ chơi kép",
-        "description": "Chơi off-chain cho demo nhanh và on-chain cho giải thưởng thật với tính minh bạch đầy đủ."
-      },
-      "zkLoginGoogle": {
-        "title": "Đăng nhập zkLogin Google",
-        "description": "Đăng nhập bằng tài khoản Google với công nghệ zkLogin cho trải nghiệm liền mạch."
-      },
-      "onlineImport": {
-        "title": "Nhập trực tuyến",
-        "description": "Nhập danh sách người tham gia trực tuyến - phù hợp cho workshop và sự kiện offline."
-      },
-      "xPostImport": {
-        "title": "Nhập từ bài đăng X",
-        "description": "Dán link bài đăng X và tự động trích xuất địa chỉ Sui từ bình luận."
-      },
-      "verifiableShuffle": {
-        "title": "Xáo trộn có thể kiểm chứng",
-        "description": "Xáo trộn on-chain thực sự với bằng chứng mật mã có thể tự xác minh."
-      },
-      "deadlineClaims": {
-        "title": "Hạn nhận thưởng",
-        "description": "Đặt thời hạn nhận thưởng cùng cơ chế tự động hoàn tiền sau khi hết hạn."
-      }
-    },
-    "cta": {
-      "title": "Sẵn sàng quay?",
-      "description": "Tham gia tương lai của sự công bằng. Tạo vòng quay đầu tiên của bạn và trải nghiệm tính ngẫu nhiên có thể kiểm chứng.",
-      "playNow": "Chơi ngay",
-      "faq": "FAQ"
-    }
-  }
+	"common": {
+		"loading": "Đang tải...",
+		"error": "Lỗi",
+		"success": "Thành công",
+		"cancel": "Hủy",
+		"confirm": "Xác nhận",
+		"save": "Lưu",
+		"edit": "Sửa",
+		"delete": "Xóa",
+		"testnetWarning": "Cảnh báo Testnet",
+		"switchToTestnet": "Vui lòng chuyển ví của bạn sang Sui Testnet để sử dụng ứng dụng này.",
+		"back": "Quay lại",
+		"contractVersionMismatch": "Phiên bản hợp đồng không khớp. Vui lòng làm mới trang và thử lại."
+	},
+	"navigation": {
+		"home": "Trang chủ",
+		"about": "Giới thiệu",
+		"wheelList": "Danh sách vòng quay",
+		"faq": "Câu hỏi thường gặp"
+	},
+	"wallet": {
+		"connectWallet": "Kết nối ví",
+		"connectSuiWallet": "Kết nối ví Sui",
+		"disconnected": "Đã ngắt kết nối",
+		"disconnectFailed": "Không thể ngắt kết nối",
+		"addressCopied": "Đã sao chép địa chỉ",
+		"copyFailed": "Sao chép thất bại",
+		"switchWallet": "Chuyển ví",
+		"disconnect": "Ngắt kết nối",
+		"active": "Đang hoạt động",
+		"switch": "Chuyển",
+		"moreOptions": "Tùy chọn khác"
+	},
+	"faq": {
+		"title": "Câu hỏi thường gặp — Sui Wheel",
+		"metaDescription": "Câu hỏi thường gặp về Sui Wheel - ứng dụng vòng quay may mắn trên blockchain Sui với tính ngẫu nhiên công bằng và minh bạch.",
+		"ogTitle": "Câu hỏi thường gặp — Sui Wheel",
+		"ogDescription": "Câu hỏi thường gặp về Sui Wheel - ứng dụng vòng quay may mắn trên blockchain Sui.",
+		"heroTitle": "Câu hỏi thường gặp",
+		"heroDescription": "Tìm câu trả lời cho những câu hỏi phổ biến nhất về Sui Wheel",
+		"cta": {
+			"title": "Còn câu hỏi nào khác?",
+			"description": "Nếu bạn không tìm thấy câu trả lời cho câu hỏi của mình, hãy liên hệ với chúng tôi để được hỗ trợ.",
+			"getStarted": "Bắt đầu ngay",
+			"learnMore": "Tìm hiểu thêm"
+		},
+		"categories": {
+			"overview": "Tổng quan",
+			"blockchain": "Blockchain & SUI",
+			"features": "Tính năng & Cách sử dụng",
+			"frequentlyAsked": "Các câu hỏi thường gặp"
+		},
+		"questions": {
+			"overview": [
+				{
+					"question": "Sui Wheel là gì và hoạt động như thế nào?",
+					"answer": "Sui Wheel là ứng dụng vòng quay may mắn trên blockchain Sui sử dụng smart contracts để đảm bảo tính công bằng 100%. Người tổ chức tạo vòng quay, thêm người tham gia (tối đa 200 người), đặt giải thưởng và tài trợ pool phần thưởng. Kết quả được xác định bởi tính ngẫu nhiên on-chain, minh bạch và không thể thao túng."
+				},
+				{
+					"question": "Tại sao nên chọn Sui Wheel?",
+					"answer": "Sui Wheel mang lại sự công bằng 100% với tính ngẫu nhiên trên chuỗi, bảo mật không cần tin tưởng, tốc độ nhanh chóng với phí thấp, giao diện dễ sử dụng và theo dõi thời gian thực. Ngoài ra còn hỗ trợ nhiều tính năng nâng cao như zkLogin, nhập danh sách và quản lý giải thưởng linh hoạt."
+				}
+			],
+			"blockchain": [
+				{
+					"question": "Tôi cần biết gì về blockchain SUI?",
+					"answer": "Sui là một blockchain layer 1 high-performance được thiết kế cho các ứng dụng gaming và DeFi. Sui Wheel được xây dựng trên Sui để đảm bảo tốc độ nhanh chóng và phí giao dịch thấp. Bạn cần có ví Sui (khuyên dùng Slush Wallet) để tham gia các vòng quay on-chain."
+				},
+				{
+					"question": "Có cần trả phí gas không?",
+					"answer": "Có, các giao dịch on-chain sẽ tiêu tốn một lượng nhỏ SUI để trả phí gas. Tuy nhiên, Sui có phí rất thấp so với các blockchain khác. Bạn chỉ cần trả phí khi tham gia các vòng quay on-chain thực sự, không phải cho các demo off-chain."
+				},
+				{
+					"question": "Sui Wheel có an toàn không?",
+					"answer": "Hoàn toàn an toàn! Sui Wheel sử dụng smart contracts được audit và không lưu trữ tài sản của người dùng. Tất cả giao dịch đều minh bạch và có thể kiểm chứng trên blockchain. Người dùng luôn kiểm soát ví và tài sản của mình."
+				}
+			],
+			"features": [
+				{
+					"question": "Làm thế nào để tạo vòng quay?",
+					"answer": "<ol><li>Kết nối ví Sui của bạn</li><li>Thêm danh sách người tham gia (tối đa 200 người)</li><li>Đặt giải thưởng và thời gian</li><li>Tài trợ pool với đủ token</li><li>Xuất bản vòng quay để mọi người có thể tham gia</li></ol>"
+				},
+				{
+					"question": "Có thể thêm người tham gia như thế nào?",
+					"answer": "<ul><li>Nhập địa chỉ ví Sui thủ công</li><li>Nhập bằng tính năng QR online</li><li>Sử dụng tính năng import từ bài đăng X (Twitter) để tự động trích xuất địa chỉ từ comments</li></ul>"
+				},
+				{
+					"question": "Các loại giải thưởng được hỗ trợ?",
+					"answer": "Sui Wheel hỗ trợ SUI tokens và các loại tiền điện tử khác (coming next). Bạn có thể tùy chỉnh số lượng và phân phối giải thưởng một cách linh hoạt theo nhu cầu của mình."
+				},
+				{
+					"question": "Off-chain và On-chain khác nhau như thế nào?",
+					"answer": "Chế độ Off-chain dành cho demo nhanh và thử nghiệm không tốn phí. Chế độ On-chain dành cho các vòng quay thực sự với giải thưởng thật, mọi thứ đều minh bạch và được ghi lại vĩnh viễn trên blockchain."
+				},
+				{
+					"question": "Nút Shuffle có tác dụng không?",
+					"answer": "Có! Nút Shuffle thực sự có tác dụng và có thể kiểm chứng on-chain. Khi nhấn Shuffle, hệ thống sẽ tạo ra một thứ tự ngẫu nhiên mới cho danh sách người tham gia, và quá trình này được ghi lại trên blockchain để đảm bảo tính minh bạch và công bằng."
+				}
+			],
+			"frequentlyAsked": [
+				{
+					"question": "Làm thế nào để nhận giải thưởng?",
+					"answer": "Nếu bạn thắng, sẽ có link claim giải được tạo ra mỗi khi vòng quay kết thúc. Truy cập link này để claim giải."
+				},
+				{
+					"question": "Có giới hạn thời gian nhận giải không?",
+					"answer": "Có, người tổ chức có thể đặt thời hạn nhận giải thưởng. Sau thời hạn này, giải thưởng chưa nhận sẽ được trả lại vào pool để phân phối lại hoặc trả về ví của người tổ chức."
+				},
+				{
+					"question": "Tôi có thể theo dõi kết quả ở đâu?",
+					"answer": "Tất cả kết quả được ghi lại trên blockchain và có thể xem trực tiếp trên Sui Explorer. Ngoài ra, Sui Wheel cung cấp giao diện theo dõi thời gian thực để bạn có thể theo dõi các vòng quay và người thắng cuộc."
+				},
+				{
+					"question": "Có hỗ trợ đăng nhập bằng Google không?",
+					"answer": "Có! Sui Wheel hỗ trợ zkLogin với Google. Đây là cách dễ dàng nhất để bắt đầu với Sui Wheel. Hãy nhớ rằng bạn cần có Sui coin trong ví để tạo vòng quay."
+				},
+				{
+					"question": "Tác giả vòng quay có thể hủy vòng quay không?",
+					"answer": "Có, tác giả vòng quay có thể hủy vòng quay với điều kiện bạn chưa thực hiện vòng quay. Pool thưởng sẽ tự động trả về ví của bạn khi hủy."
+				},
+				{
+					"question": "Điều gì sẽ xảy ra nếu tôi không nhận thưởng trước thời hạn?",
+					"answer": "Bạn không thể claim giải thưởng sau khi hết hạn nhận thưởng."
+				},
+				{
+					"question": "Tác giả có thể thu hồi pool thưởng sau khi vòng quay kết thúc không?",
+					"answer": "Chỉ khi thời gian nhận thưởng đã kết thúc; nếu chưa đến hạn, không thể thu hồi."
+				}
+			]
+		}
+	},
+	"wheelList": {
+		"title": "Sui Wheel — Vòng quay của bạn",
+		"metaDescription": "Danh sách các vòng quay bạn đã tạo trên Sui Testnet.",
+		"ogTitle": "Sui Wheel — Vòng quay của bạn",
+		"ogDescription": "Danh sách các vòng quay bạn đã tạo trên Sui Testnet.",
+		"pageTitle": "Vòng quay của bạn",
+		"createNew": "Tạo mới",
+		"loading": "Đang tải...",
+		"connectWallet": "Vui lòng kết nối ví để xem các vòng quay của bạn.",
+		"noWheels": "Không tìm thấy vòng quay nào.",
+		"refreshing": "Đang làm mới",
+		"table": {
+			"number": "#",
+			"wheelId": "ID Vòng quay",
+			"created": "Tạo lúc",
+			"status": "Trạng thái",
+			"totalEntries": "Số người tham gia",
+			"actions": "Hành động"
+		},
+		"status": {
+			"cancelled": "Đã hủy",
+			"running": "Đang chạy",
+			"finished": "Đã kết thúc",
+			"unknown": "—"
+		},
+		"actions": {
+			"open": "Mở",
+			"results": "Nhận thưởng"
+		},
+		"publicWheels": {
+			"title": "Vòng quay công khai gần đây",
+			"description": "Khám phá các vòng quay được tạo gần đây bởi cộng đồng",
+			"loading": "Đang tải vòng quay công khai...",
+			"noWheels": "Chưa có vòng quay công khai nào."
+		},
+		"joinedWheels": {
+			"title": "Vòng quay đã tham gia",
+			"description": "Các vòng quay mà ví của bạn đã tham gia.",
+			"loading": "Đang tải vòng quay đã tham gia...",
+			"noWheels": "Không tìm thấy vòng quay đã tham gia nào."
+		}
+	},
+	"wheelResult": {
+		"title": "Sui Wheel — Kết quả",
+		"metaDescription": "Xem người thắng và nhận giải thưởng cho một Sui Wheel trên Testnet.",
+		"ogTitle": "Sui Wheel — Kết quả",
+		"ogDescription": "Xem người thắng và nhận giải thưởng cho một Sui Wheel trên Testnet.",
+		"pageTitle": "Kết quả vòng quay",
+		"lastReclaim": "Thu hồi cuối:",
+		"on": "vào",
+		"viewTx": "Xem giao dịch",
+		"winners": "Người thắng",
+		"remainingEntries": "Người tham gia còn lại",
+		"claimed": "Đã nhận",
+		"unclaimed": "Chưa nhận",
+		"notSelected": "Không được chọn",
+		"table": {
+			"number": "#",
+			"amount": "Giải thưởng",
+			"winner": "Địa chỉ",
+			"spunAt": "Quay lúc"
+		},
+		"nonWinningEntries": "Người tham gia không thắng",
+		"tableNonWinning": {
+			"number": "#",
+			"address": "Địa chỉ"
+		},
+		"you": "Bạn",
+		"wheelCancelled": "Vòng quay này đã bị hủy!",
+		"connectWallet": "Kết nối ví của bạn để xem giải thưởng và nhận nó! 🔑",
+		"yourPrize": "Giải thưởng của bạn",
+		"congratulations": "Chúc mừng bạn đã thắng!",
+		"claimedAt": "Nhận lúc",
+		"congratulationsClaim": "Chúc mừng! Bạn có thể nhận giải thưởng ngay bây giờ.",
+		"claimExpired": "Thời hạn nhận giải đã hết. Bạn không thể nhận giải thưởng nữa.",
+		"wheelRunning": "Vòng quay vẫn đang chạy. Vui lòng quay lại sau.",
+		"notWinner": "Bạn không phải người thắng của vòng quay này.",
+		"claiming": "Đang nhận...",
+		"claim": "Nhận",
+		"startsIn": "Bắt đầu sau",
+		"claimExpiredOn": "Thời hạn nhận giải hết vào",
+		"wheelId": "ID:",
+		"explorer": "Explorer",
+		"status": "Trạng thái:",
+		"remainingPoolBalance": "Số dư pool còn lại:",
+		"reclaiming": "Đang thu hồi...",
+		"reclaim": "Thu hồi",
+		"created": "Tạo lúc:",
+		"errors": {
+			"connectWalletToClaim": "Kết nối ví để nhận giải",
+			"onlyOrganizerCanReclaim": "Chỉ người tổ chức mới có thể thu hồi pool",
+			"poolCannotBeReclaimedYet": "Pool chưa thể thu hồi",
+			"connectWalletToReclaim": "Kết nối ví để thu hồi",
+			"reclaimWindowNotYetOpen": "Cửa sổ thu hồi chưa mở. Vui lòng chờ.",
+			"noRemainingFunds": "Không còn tiền trong pool để thu hồi."
+		},
+		"success": {
+			"reclaimedPoolSuccessfully": "Thu hồi pool thành công",
+			"openOnSuivision": "Mở trên Suivision"
+		}
+	},
+	"main": {
+		"title": "Sui Wheel — Quay & Thắng",
+		"metaDescription": "Sui Wheel — tạo và tài trợ vòng quay trên Sui Testnet, quản lý người tham gia và giải thưởng.",
+		"ogTitle": "Sui Wheel — Quay & Thắng",
+		"ogDescription": "Sui Wheel — tạo và tài trợ vòng quay trên Sui Testnet, quản lý người tham gia và giải thưởng.",
+		"wheelId": "ID:",
+		"finished": "Đã kết thúc",
+		"cancelled": "Đã hủy",
+		"newWheel": "Vòng quay mới",
+		"updating": "Đang cập nhật...",
+		"updateWheel": "Cập nhật vòng quay",
+		"cancelEdit": "Hủy chỉnh sửa",
+		"cancelling": "Đang hủy...",
+		"cancelWheel": "Hủy vòng quay",
+		"entries": "Người tham gia",
+		"history": "Lịch sử",
+		"noHistory": "Chưa có lịch sử trúng thưởng",
+		"clearHistory": "Xóa lịch sử",
+		"spinNumber": "Lần quay #{number}",
+		"historyNote": "Lịch sử chỉ áp dụng cho vòng quay off-chain",
+		"timestamp": "Thời gian",
+		"text": "Viết",
+		"table": "Bảng",
+		"import": "Nhập",
+		"onlineEntryForm": "Tạo form trực tuyến",
+		"importByXPost": "Nhập từ bài đăng X",
+		"prizes": "Giải thưởng",
+		"prizeNumber": "Giải #{number}",
+		"amount": "Số tiền",
+		"winner": "Người thắng",
+		"winners": "Người thắng",
+		"remainingEntries": "Người tham gia còn lại",
+		"claimed": "Đã nhận",
+		"unclaimed": "Chưa nhận",
+		"notSelected": "Không được chọn",
+		"addPrize": "Thêm giải",
+		"need": "Cần",
+		"topUpRequired": "Cần nạp thêm:",
+		"settings": "Cài đặt",
+		"claimDelay": "Thời gian chờ nhận giải",
+		"claimPeriod": "Thời hạn nhận giải",
+		"waitTimeBeforeClaimingPrize": "Thời gian chờ trước khi nhận giải",
+		"deadlineToClaimPrize": "Hạn chót để nhận giải",
+		"claimLink": "Link nhận giải",
+		"scanWithYourPhone": "Quét bằng điện thoại",
+		"onlineEntryFormScanToJoin": "Form tham gia trực tuyến. Quét để tham gia vòng quay.",
+		"timeRemaining": "Thời gian còn lại",
+		"min": "phút",
+		"sec": "giây",
+		"disableOnlineEntries": "Tắt tham gia trực tuyến",
+		"createWheelAndFund": "Tạo và tài trợ",
+		"createWheel": "Tạo vòng quay",
+		"connectWalletToCreateAndSpin": "Kết nối ví Sui của bạn để tạo và quay vòng quay trực tiếp trên chuỗi (on-chain). Bạn vẫn có thể thử quay off-chain mà không cần kết nối ví.",
+		"importEntriesByXPost": "Nhập người tham gia từ bài đăng X",
+		"pasteXLinkOrTweetId": "Dán link X hoặc ID tweet.",
+		"noteOnlyFirstEntriesFromReplies": "Lưu ý: chỉ {max} địa chỉ Sui đầu tiên từ các bình luận.",
+		"importing": "Đang nhập...",
+		"importButton": "Nhập",
+		"close": "Đóng",
+		"onlineEntryFormSettings": "Cài đặt Form tham gia trực tuyến",
+		"configureHowParticipantsCanJoin": "Cấu hình cách người tham gia có thể tham gia vòng quay trực tuyến.",
+		"enableOnlineEntryForm": "Bật form tham gia trực tuyến",
+		"allowParticipantsToJoinByScanningQrCode": "Cho phép người tham gia tham gia bằng cách quét mã QR",
+		"wheelName": "Tên vòng quay",
+		"selectCoin": "Chọn Coin",
+		"selectCoinPlaceholder": "Chọn loại coin",
+		"prize": "Giải",
+		"amountExample": "Số tiền (ví dụ: 0.5)",
+		"zeroMinuteDefault": "0 phút (mặc định)",
+		"fifteenMinutes": "15 phút",
+		"thirtyMinutes": "30 phút",
+		"oneHour": "1 giờ",
+		"twoHours": "2 giờ",
+		"twentyFourHoursDefault": "24 giờ (mặc định)",
+		"twoDays": "2 ngày",
+		"threeDays": "3 ngày",
+		"oneWeek": "1 tuần",
+		"resultQr": "QR kết quả",
+		"entryFormQr": "QR form tham gia",
+		"importEntries": "Nhập người tham gia",
+		"setupOnlineEntryForm": "Thiết lập form tham gia trực tuyến",
+		"textareaView": "Chế độ văn bản",
+		"entriesViewModeLabel": "Chế độ xem",
+		"tableView": "Chế độ bảng",
+		"tableAction": "Hành động",
+		"tableCollapse": "Thu gọn",
+		"tableShowAll": "Hiển thị tất cả",
+		"xPostLinkPlaceholder": "https://x.com/username/status/1234567890",
+		"xPostLinkOrId": "Link bài đăng X hoặc ID",
+		"enterWheelNameOptional": "Nhập tên vòng quay (tùy chọn)",
+		"thisNameWillBeDisplayedToParticipants": "Tên này sẽ được hiển thị cho người tham gia",
+		"durationMinutes": "Thời lượng (phút)",
+		"entryFormWillAutomaticallyCloseAfterThisTime": "Form tham gia sẽ tự động đóng sau thời gian này (1-60 phút)",
+		"entryType": "Loại tham gia",
+		"suiWalletAddress": "Địa chỉ ví Sui",
+		"nameAnyText": "Tên (Văn bản bất kỳ)",
+		"emailAddress": "Địa chỉ email",
+		"wheelSettings": "Cài đặt vòng quay",
+		"wheelMode": "Chế độ vòng quay",
+		"participantsMode": "Người tham gia",
+		"participantsModeDesc": "Chế độ tiêu chuẩn sử dụng địa chỉ người tham gia.",
+		"rewardsMode": "Phần thưởng",
+		"rewardsModeDesc": "Chế độ phần thưởng với xác suất có trọng số.",
+		"rewardsOffchainOnly": "Reward mode chỉ mới ở chế độ offchain (hãy disconnect wallet trước).",
+		"cancel": "Hủy",
+		"ok": "OK",
+		"pleaseSwitchWalletToTestnet": "Vui lòng chuyển ví sang Testnet.",
+		"pleaseFixInvalidEntries": "Vui lòng sửa {count} người tham gia không hợp lệ (phải là địa chỉ SUI).",
+		"atLeastTwoUniqueEntriesRequired": "Cần ít nhất 2 người tham gia duy nhất.",
+		"youNeedToAddAtLeastOnePrize": "Bạn cần thêm ít nhất 1 giải thưởng.",
+		"goToPrizesTab": "Đi đến tab Giải thưởng",
+		"openPrizes": "Mở Giải thưởng",
+		"prizesCountMustBeLessThanOrEqualUniqueEntries": "Số lượng giải ({prizesCount}) phải ≤ số người tham gia duy nhất ({uniqueValidEntriesCount}).",
+		"prizesMustBeAtLeast": "{count} giải phải ít nhất {amount} SUI.",
+		"entriesCountMustBeLessThanOrEqual": "Số lượng người tham gia ({count}) phải ≤ {max}.",
+		"walletBalanceNeedsToBeMoreThanOneSui": "Số dư ví cần phải lớn hơn 1 SUI.",
+		"walletBalanceIsLessThanTotalRequired": "Số dư ví ({balance} SUI) nhỏ hơn tổng số cần thiết ({required} SUI).",
+		"insufficientSuiBalance": "Số dư SUI không đủ. Nhớ chừa lại một lượng nhỏ SUI cho phí gas.",
+		"insufficientGasBalance": "Số dư SUI không đủ cho phí gas. Nhớ chừa lại một lượng nhỏ SUI cho phí giao dịch.",
+		"insufficientCoinBalance": "Số dư {symbol} không đủ.",
+		"settingUp": "Đang thiết lập...",
+		"duplicateEntries": "Người tham gia trùng lặp:",
+		"noEntries": "Không có người tham gia",
+		"removeEntry": "Xóa người tham gia",
+		"collapseTable": "Thu gọn bảng",
+		"expandTable": "Mở rộng bảng",
+		"showAll": "Hiển thị tất cả ({count})",
+		"oneEntryPerLine": "Mỗi dòng một người tham gia",
+		"entriesListReadOnly": "Danh sách người tham gia (chỉ đọc)",
+		"prizeAmountInSui": "Số tiền giải #{number} trong SUI",
+		"removePrize": "Xóa giải",
+		"delay": "Thời gian chờ",
+		"claimWindow": "Cửa sổ nhận giải",
+		"delayOptions": {
+			"0min": "0 phút (mặc định)",
+			"15min": "15 phút",
+			"30min": "30 phút",
+			"1hour": "1 giờ",
+			"2hours": "2 giờ"
+		},
+		"claimWindowOptions": {
+			"1hour": "1 giờ",
+			"24hours": "24 giờ (mặc định)",
+			"2days": "2 ngày",
+			"3days": "3 ngày",
+			"1week": "1 tuần"
+		},
+		"errors": {
+			"walletNotConnected": "Ví chưa được kết nối.",
+			"walletMustBeOnTestnet": "Ví phải ở trên Testnet.",
+			"packageIdRequired": "Package ID là bắt buộc.",
+			"atLeast2Addresses": "Cần ít nhất 2 địa chỉ hợp lệ.",
+			"entriesCountLimit": "Số lượng người tham gia phải ≤ {maxEntries}.",
+			"addAtLeast1Prize": "Vui lòng thêm ít nhất 1 giải với số tiền > 0.",
+			"entriesMustBeGreaterThanPrizes": "Số lượng người tham gia phải >= số lượng giải.",
+			"uniqueAddressCountMustBeGreaterThanPrizes": "Số lượng địa chỉ duy nhất phải >= số lượng giải.",
+			"eachPrizeMustBeAtLeast": "Mỗi giải phải ít nhất {minAmount} SUI.",
+			"totalDonationMustBeGreaterThan0": "Tổng tài trợ phải lớn hơn 0",
+			"wheelObjectIdNotFound": "Không tìm thấy ID đối tượng vòng quay sau khi tạo",
+			"failedToGetTransactionDigest": "Không thể lấy mã giao dịch",
+			"failedToCancelWheel": "Không thể hủy vòng quay.",
+			"wheelNotFound": "Không tìm thấy vòng quay."
+		},
+		"success": {
+			"wheelCreatedAndFunded": "Đã tạo và tài trợ thành công. Bạn có thể quay ngay bây giờ.",
+			"wheelCreatedAndFundedSuccessfully": "Đã tạo và tài trợ vòng quay thành công",
+			"viewTx": "Xem giao dịch",
+			"wheelUpdatedSuccessfully": "Đã cập nhật vòng quay thành công.",
+			"wheelCancelledAndPoolReclaimed": "Đã hủy vòng quay và thu hồi pool nếu có.",
+			"wheelCancelledSuccessfully": "Đã hủy vòng quay thành công.",
+			"onlineEntriesDisabled": "Đã tắt tham gia trực tuyến",
+			"importedEntriesFromXPost": "Đã nhập {count} người tham gia từ bài đăng X thành công!",
+			"imported": "Đã nhập"
+		},
+		"warnings": {
+			"switchWalletToTestnet": "Vui lòng chuyển ví sang Testnet.",
+			"fixInvalidEntries": "Vui lòng sửa {count} người tham gia không hợp lệ (phải là địa chỉ SUI).",
+			"atLeast2UniqueEntries": "Cần ít nhất 2 người tham gia duy nhất.",
+			"addAtLeast1Prize": "Bạn cần thêm ít nhất 1 giải.",
+			"openPrizes": "Mở Giải thưởng",
+			"prizesCountMustBeLessThanEntries": "Số lượng giải ({prizesCount}) phải ≤ người tham gia duy nhất ({entriesCount}).",
+			"prizesMustBeAtLeast": "{count} giải phải ít nhất {minAmount} SUI.",
+			"entriesCountMustBeLessThanMax": "Số lượng người tham gia ({count}) phải ≤ {maxEntries}.",
+			"walletBalanceNeedsMoreThan1Sui": "Số dư ví cần lớn hơn 1 SUI.",
+			"walletBalanceLessThanRequired": "Số dư ví ({balance} SUI) nhỏ hơn tổng cần thiết ({required} SUI)."
+		},
+		"notifications": {
+			"newEntriesAdded": "{count} người tham gia mới được thêm",
+			"noEntriesFoundInXPost": "Không tìm thấy người tham gia trong bài đăng X",
+			"failedToImportXPost": "Không thể nhập từ bài đăng X"
+		}
+	},
+	"entryForm": {
+		"title": "Tham gia Vòng quay - Sui Wheel",
+		"metaDescription": "Tham gia Sui Wheel bằng cách gửi thông tin của bạn",
+		"loadingWheelInformation": "Đang tải thông tin vòng quay...",
+		"entrySubmitted": "Đã gửi thông tin!",
+		"pleaseWaitForTableToUpdate": "Vui lòng chờ bảng tự động cập nhật. Bạn có thể đóng cửa sổ này.",
+		"yourEntryHasBeenRecordedSuccessfully": "Thông tin của bạn đã được ghi nhận thành công!",
+		"joinTheWheel": "Tham gia Vòng quay!",
+		"enterYourSuiWalletAddressToJoin": "Nhập địa chỉ ví Sui của bạn để tham gia",
+		"enterYourEmailAddressToJoin": "Nhập địa chỉ email của bạn để tham gia",
+		"enterYourNameToJoin": "Nhập tên của bạn để tham gia",
+		"submitting": "Đang gửi...",
+		"joinWheel": "Tham gia Vòng quay",
+		"wheel": "Vòng quay",
+		"temporary": "Tạm thời",
+		"placeholder": {
+			"walletAddress": "0x...",
+			"emailAddress": "your@email.com",
+			"name": "Nhập tên của bạn"
+		},
+		"label": {
+			"walletAddress": "Địa chỉ ví",
+			"emailAddress": "Địa chỉ email",
+			"name": "Tên"
+		},
+		"errors": {
+			"invalidWheelLink": "Link vòng quay không hợp lệ",
+			"pleaseEnterValidSuiAddress": "Vui lòng nhập địa chỉ Sui hợp lệ",
+			"nameMustBe1To50Characters": "Tên phải có từ 1-50 ký tự",
+			"pleaseEnterValidEmailAddress": "Vui lòng nhập địa chỉ email hợp lệ",
+			"failedToSubmitEntry": "Không thể gửi thông tin",
+			"networkErrorPleaseTryAgain": "Lỗi mạng. Vui lòng thử lại."
+		},
+		"success": {
+			"entrySubmittedSuccessfully": "Gửi thông tin thành công!"
+		}
+	},
+	"wheel": {
+		"soundOn": "Âm thanh: bật",
+		"soundOff": "Âm thanh: tắt",
+		"toggleSound": "Bật/tắt âm thanh",
+		"confirming": "Đang xác nhận...",
+		"spinning": "Đang quay...",
+		"spinTheWheel": "Quay vòng quay",
+		"spin": "Quay",
+		"winner": "Người thắng",
+		"remainingSpins": "Lần quay còn lại",
+		"shuffleEntries": "Xáo trộn người tham gia",
+		"shuffle": "Xáo trộn",
+		"clear": "Xóa",
+		"congratulations": "Chúc mừng",
+		"alsoAssigned": "Cũng được gán",
+		"winnerWillBeAutomaticallyRemoved": "Người thắng sẽ được tự động xóa khỏi danh sách.",
+		"close": "Đóng",
+		"notOrganizer": "Bạn không phải là người tổ chức của vòng quay này.",
+		"result": "Kết quả"
+	},
+	"about": {
+		"title": "Giới thiệu — Sui Wheel",
+		"metaDescription": "Giới thiệu Sui Wheel — tạo và quản lý vòng quay giải thưởng on-chain trên Sui Testnet.",
+		"ogTitle": "Giới thiệu — Sui Wheel",
+		"ogDescription": "Giới thiệu Sui Wheel — ứng dụng vòng quay công bằng với tính ngẫu nhiên on-chain và kết quả có thể kiểm chứng.",
+		"heroTitle": "Sui Wheel",
+		"heroDescription": "Tạo các vòng quay giải thưởng công bằng, minh bạch và hấp dẫn trên blockchain Sui. Quay để trúng thưởng với tính ngẫu nhiên on-chain và kết quả có thể kiểm chứng.",
+		"stats": {
+			"onChain": "On-chain",
+			"onChainDesc": "Minh bạch & có thể kiểm chứng",
+			"maxEntries": "Số người tham gia tối đa",
+			"maxEntriesDesc": "Người tham gia mỗi vòng quay",
+			"network": "Mạng",
+			"networkDesc": "Blockchain cho trò chơi"
+		},
+		"whyChoose": {
+			"title": "Vì sao chọn Sui Wheel?",
+			"description": "Trải nghiệm tương lai của sự công bằng với tính ngẫu nhiên trên blockchain và kết quả minh bạch."
+		},
+		"features": {
+			"onChainRandomness": {
+				"title": "Ngẫu nhiên trên chuỗi",
+				"description": "Mỗi lượt quay sử dụng tính ngẫu nhiên on-chain có thể kiểm chứng, đảm bảo kết quả công bằng và không thể bị thao túng."
+			},
+			"secureTrustless": {
+				"title": "An toàn & không cần tin tưởng",
+				"description": "Không có bên trung gian kiểm soát kết quả. Smart contract xử lý mọi thứ tự động và minh bạch."
+			},
+			"fastEfficient": {
+				"title": "Nhanh & hiệu quả",
+				"description": "Xây dựng trên blockchain hiệu năng cao của Sui cho giao dịch tức thì và phí thấp."
+			},
+			"easyToUse": {
+				"title": "Dễ sử dụng",
+				"description": "Giao diện đơn giản cho người tổ chức và người tham gia. Kết nối ví, cấu hình và quay!"
+			},
+			"realTimeTracking": {
+				"title": "Theo dõi thời gian thực",
+				"description": "Theo dõi lượt quay, người thắng cuộc và nhận thưởng theo thời gian thực với thống kê chi tiết."
+			},
+			"flexiblePrizes": {
+				"title": "Giải thưởng linh hoạt",
+				"description": "Hỗ trợ token SUI và các tiền mã hóa khác. Linh hoạt về số lượng và cách phân phối."
+			}
+		},
+		"wheelEntries": [
+			"Kiểm chứng onchain!",
+			"Giữ sự công bằng",
+			"Xây dựng trên Sui",
+			"🎁 Giải thưởng thật",
+			"Nhanh & hiệu quả",
+			"Giải thưởng linh hoạt"
+		],
+		"moreFeatures": {
+			"title": "Tính năng khác",
+			"description": "Công cụ mạnh mẽ cho người tổ chức và người tham gia",
+			"dualModeGaming": {
+				"title": "Chế độ chơi kép",
+				"description": "Chơi off-chain cho demo nhanh và on-chain cho giải thưởng thật với tính minh bạch đầy đủ."
+			},
+			"zkLoginGoogle": {
+				"title": "Đăng nhập zkLogin Google",
+				"description": "Đăng nhập bằng tài khoản Google với công nghệ zkLogin cho trải nghiệm liền mạch."
+			},
+			"onlineImport": {
+				"title": "Nhập trực tuyến",
+				"description": "Nhập danh sách người tham gia trực tuyến - phù hợp cho workshop và sự kiện offline."
+			},
+			"xPostImport": {
+				"title": "Nhập từ bài đăng X",
+				"description": "Dán link bài đăng X và tự động trích xuất địa chỉ Sui từ bình luận."
+			},
+			"verifiableShuffle": {
+				"title": "Xáo trộn có thể kiểm chứng",
+				"description": "Xáo trộn on-chain thực sự với bằng chứng mật mã có thể tự xác minh."
+			},
+			"deadlineClaims": {
+				"title": "Hạn nhận thưởng",
+				"description": "Đặt thời hạn nhận thưởng cùng cơ chế tự động hoàn tiền sau khi hết hạn."
+			}
+		},
+		"cta": {
+			"title": "Sẵn sàng quay?",
+			"description": "Tham gia tương lai của sự công bằng. Tạo vòng quay đầu tiên của bạn và trải nghiệm tính ngẫu nhiên có thể kiểm chứng.",
+			"playNow": "Chơi ngay",
+			"faq": "FAQ"
+		}
+	},
+	"reward": {
+		"title": "Cấu hình phần thưởng",
+		"add": "Thêm phần thưởng",
+		"remove": "Xóa phần thưởng",
+		"label": "Tên phần thưởng",
+		"placeholder": "Nhập tên phần thưởng...",
+		"probability": "Xác suất (%)",
+		"color": "Màu sắc",
+		"totalProbability": "Tổng phân phối",
+		"not100Percent": "Tự động chuẩn hóa về 100% trên vòng quay",
+		"setEqual": "Chia đều",
+		"min2Rewards": "Cần ít nhất 2 phần thưởng",
+		"icon": "Biểu tượng",
+		"selectIcon": "Chọn biểu tượng",
+		"equalSlices": "Hiện đồng đều",
+		"savePreset": "Lưu Preset",
+		"loadPreset": "Tải Preset",
+		"presetSaved": "Đã lưu preset thành công",
+		"presetLoaded": "Đã tải preset thành công",
+		"noPresetFound": "Không tìm thấy preset đã lưu",
+		"presets": "Danh sách Preset",
+		"clearAll": "Xóa tất cả",
+		"saveAs": "Lưu với tên...",
+		"enterPresetName": "Nhập tên preset",
+		"deletePreset": "Xóa Preset",
+		"clearAllConfirm": "Bạn có chắc chắn muốn xóa tất cả preset không?",
+		"presetDeleted": "Đã xóa preset",
+		"allPresetsCleared": "Đã xóa tất cả preset",
+		"confirmDelete": "Nhấn để xóa",
+		"confirmClear": "Xóa luôn?"
+	}
 }

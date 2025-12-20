@@ -123,3 +123,14 @@ export type WheelDataSource = 'graphql' | 'rpc' | 'none';
  * Extended data source type that includes offchain backup
  */
 export type ExtendedWheelDataSource = 'offchain backup' | 'graphql' | 'rpc' | 'none';
+
+/**
+ * Reward item for offchain wheel Reward Mode
+ */
+export interface Reward {
+	id: string;
+	text: string;
+	probability: number; // 0 to 100
+	icon?: string;
+	color?: string; // Optional override color
+}
