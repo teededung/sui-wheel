@@ -116,6 +116,9 @@
 	let usedCombinedSpin = $state(false);
 	let postSpinFetchRequested = $state(false);
 	let pointerBounce = $state(false);
+	let unfoldProgress = $state(0); // 0 to 1, controls how many slices are visible
+	let previousItemCount = $state(0); // Track previous count to detect new entries
+	let previousWheelId = $state<string | undefined>(undefined); // Track wheel ID changes
 
 	// Canvas/layout
 	let labelLayouts = $state<LabelLayout[]>([]);
@@ -165,8 +168,34 @@
 		'#06b6d4'
 	];
 
+	// Helper function to adjust color brightness for gradients
+	function adjustBrightness(color: string, amount: number): string {
+		const hex = color.replace('#', '');
+		const r = Math.max(0, Math.min(255, parseInt(hex.substring(0, 2), 16) + amount * 255));
+		const g = Math.max(0, Math.min(255, parseInt(hex.substring(2, 4), 16) + amount * 255));
+		const b = Math.max(0, Math.min(255, parseInt(hex.substring(4, 6), 16) + amount * 255));
+		return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+	}
+
 	onMount(async () => {
-		void ensureGsap().then(() => startIdleRotationIfNeeded());
+		const gsapLib = await ensureGsap();
+
+		// Animate unfold progress from 0 to 1
+		gsapLib.to(
+			{ value: 0 },
+			{
+				value: 1,
+				duration: 1.2,
+				ease: 'power2.out',
+				onUpdate: function () {
+					unfoldProgress = this.targets()[0].value;
+				},
+				onComplete: () => {
+					unfoldProgress = 1;
+					startIdleRotationIfNeeded();
+				}
+			}
+		);
 
 		winAudio = new Audio('/crowd-reaction.mp3');
 		winAudio.preload = 'auto';
@@ -193,12 +222,92 @@
 
 	// Watch entries for layout updates
 	watch(
-		() => [entries, rewards, mode, loadedImages, equalSlices],
+		() => [entries, rewards, mode, loadedImages, equalSlices, unfoldProgress],
 		() => {
 			recomputeLabelLayouts();
 			renderWheelBitmap();
 			drawStaticWheel();
 			updatePointerColor();
+		}
+	);
+
+	// Watch for entries changes and animate
+	watch(
+		() => [mode === 'rewards' ? rewards.length : entries.length],
+		() => {
+			const currentItemCount = mode === 'rewards' ? rewards.length : entries.length;
+
+			// If items increased, animate the new slice
+			if (previousItemCount > 0 && currentItemCount > previousItemCount && unfoldProgress >= 1) {
+				// Calculate progress to show only the new slice unfolding
+				const startProgress = previousItemCount / currentItemCount;
+				unfoldProgress = startProgress;
+
+				// Animate to full
+				void ensureGsap().then((gsapLib) => {
+					gsapLib.to(
+						{ value: startProgress },
+						{
+							value: 1,
+							duration: 0.4,
+							ease: 'back.out(1.7)',
+							onUpdate: function () {
+								unfoldProgress = this.targets()[0].value;
+							}
+						}
+					);
+				});
+			}
+
+			// If items decreased (winner removed), animate unfold from 0
+			if (previousItemCount > 0 && currentItemCount < previousItemCount && unfoldProgress >= 1) {
+				unfoldProgress = 0;
+
+				// Animate unfold effect like onMount
+				void ensureGsap().then((gsapLib) => {
+					gsapLib.to(
+						{ value: 0 },
+						{
+							value: 1,
+							duration: 1.2,
+							ease: 'power2.out',
+							onUpdate: function () {
+								unfoldProgress = this.targets()[0].value;
+							}
+						}
+					);
+				});
+			}
+
+			previousItemCount = currentItemCount;
+		}
+	);
+
+	// Watch for wheel creation on-chain and animate unfold
+	watch(
+		() => [createdWheelId, entries.length],
+		() => {
+			// When createdWheelId changes from undefined/null to a value (wheel just created)
+			if (!previousWheelId && createdWheelId && entries.length > 0) {
+				unfoldProgress = 0;
+
+				// Animate unfold effect for newly created wheel
+				void ensureGsap().then((gsapLib) => {
+					gsapLib.to(
+						{ value: 0 },
+						{
+							value: 1,
+							duration: 1.2,
+							ease: 'power2.out',
+							onUpdate: function () {
+								unfoldProgress = this.targets()[0].value;
+							}
+						}
+					);
+				});
+			}
+
+			previousWheelId = createdWheelId;
 		}
 	);
 
@@ -263,7 +372,8 @@
 		renderWheelBitmap();
 		drawStaticWheel();
 		if (canvasEl) {
-			canvasEl.style.transform = `rotate(${spinAngle}rad)`;
+			const angle = (spinAngle * 180) / Math.PI;
+			canvasEl.style.transform = `rotate(${angle}deg) translateZ(0)`;
 		}
 		updatePointerColor();
 		startIdleRotationIfNeeded();
@@ -277,6 +387,9 @@
 			canvasEl.style.willChange = 'transform';
 			canvasEl.style.transformOrigin = '50% 50%';
 			canvasEl.style.backfaceVisibility = 'hidden';
+			// Add hardware acceleration hints
+			canvasEl.style.transform = 'translateZ(0)';
+			canvasEl.style.perspective = '1000px';
 		}
 	});
 
@@ -322,7 +435,7 @@
 		pointerBounce = true;
 		setTimeout(() => {
 			pointerBounce = false;
-		}, 150);
+		}, 150); // Match animation duration
 	}
 
 	function updatePointerColor() {
@@ -412,7 +525,7 @@
 		c.clip();
 
 		// Pin size controller: 1 = default, >1 bigger, <1 smaller
-		const pinSizeScale = 0.5; // adjust if you want larger/smaller rivets
+		const pinSizeScale = 0.6; // Slightly larger for better visibility
 
 		// Defer drawing of rim pins until after all slices are filled so they stay on top
 		const deferredPins = [];
@@ -423,34 +536,66 @@
 		const totalProb =
 			mode === 'rewards' ? rewards.reduce((acc, r) => acc + r.probability, 0) : itemCount;
 
+		// Calculate how many slices to show based on unfoldProgress
+		const visibleSlices = Math.ceil(itemCount * unfoldProgress);
+
 		for (let i = 0; i < itemCount; i++) {
+			// Skip slices that haven't unfolded yet
+			if (i >= visibleSlices) {
+				currentStart +=
+					equalSlices && mode === 'rewards'
+						? (Math.PI * 2) / itemCount
+						: ((mode === 'rewards' ? rewards[i].probability : 1) / totalProb) * Math.PI * 2;
+				continue;
+			}
+
 			const itemProb = mode === 'rewards' ? rewards[i].probability : 1;
 			const arcSize =
 				equalSlices && mode === 'rewards'
 					? (Math.PI * 2) / itemCount
 					: (itemProb / totalProb) * Math.PI * 2;
 			const start = currentStart;
-			const end = start + arcSize;
-			currentStart = end;
+			let end = start + arcSize;
+
+			// Animate the currently unfolding slice
+			if (i === visibleSlices - 1 && unfoldProgress < 1) {
+				const sliceProgress = unfoldProgress * itemCount - i;
+				end = start + arcSize * sliceProgress;
+			}
+
+			currentStart = start + arcSize; // Always advance by full arc
 
 			c.beginPath();
 			c.moveTo(centerX, centerY);
 			c.arc(centerX, centerY, radius - 4, start, end);
 			c.closePath();
 
-			// Fine shadow along the tangent to make current slice look like it's on top of previous slice
+			// Enhanced shadow for better depth perception
 			const mid = (start + end) / 2;
-			c.shadowColor = 'rgba(0,0,0,0.18)';
-			c.shadowBlur = 8;
-			const off = Math.max(2, Math.min(6, radius * 0.012));
+			c.shadowColor = 'rgba(0,0,0,0.22)';
+			c.shadowBlur = 10;
+			const off = Math.max(3, Math.min(8, radius * 0.015));
 			c.shadowOffsetX = Math.cos(mid - Math.PI / 2) * off;
 			c.shadowOffsetY = Math.sin(mid - Math.PI / 2) * off;
 
-			if (mode === 'rewards' && rewards[i].color) {
-				c.fillStyle = rewards[i].color as string;
-			} else {
-				c.fillStyle = segmentColors[i % segmentColors.length];
-			}
+			// Apply color with subtle gradient for depth
+			const baseColor =
+				mode === 'rewards' && rewards[i].color
+					? (rewards[i].color as string)
+					: segmentColors[i % segmentColors.length];
+
+			// Create subtle radial gradient for each segment
+			const gradient = c.createRadialGradient(
+				centerX + Math.cos(mid) * radius * 0.3,
+				centerY + Math.sin(mid) * radius * 0.3,
+				0,
+				centerX,
+				centerY,
+				radius
+			);
+			gradient.addColorStop(0, baseColor);
+			gradient.addColorStop(1, adjustBrightness(baseColor, -0.15));
+			c.fillStyle = gradient;
 			c.fill();
 
 			// Reset shadow to not affect stroke/label
@@ -458,7 +603,7 @@
 			c.shadowBlur = 0;
 			c.shadowOffsetX = 0;
 			c.shadowOffsetY = 0;
-			c.strokeStyle = 'rgba(0,0,0,0.06)';
+			c.strokeStyle = 'rgba(0,0,0,0.08)';
 			c.lineWidth = 2;
 			c.stroke();
 
@@ -517,31 +662,47 @@
 			deferredPins.push({ x: pinX, y: pinY, r: pinRadius });
 		}
 
-		// Draw pins on top of all slices/labels
+		// Draw pins on top of all slices/labels with enhanced metallic effect
 		for (const pin of deferredPins) {
 			c.save();
-			c.shadowColor = 'rgba(0,0,0,0.25)';
-			c.shadowBlur = 5;
+			// Enhanced shadow for pins
+			c.shadowColor = 'rgba(0,0,0,0.35)';
+			c.shadowBlur = 6;
 			c.shadowOffsetX = 0;
-			c.shadowOffsetY = 1.5;
+			c.shadowOffsetY = 2;
+
+			// More realistic metallic gradient
 			const g = c.createRadialGradient(
-				pin.x - pin.r * 0.35,
-				pin.y - pin.r * 0.35,
-				0.5,
+				pin.x - pin.r * 0.4,
+				pin.y - pin.r * 0.4,
+				0,
 				pin.x,
 				pin.y,
 				pin.r
 			);
-			g.addColorStop(0, 'rgba(255,255,255,0.96)');
-			g.addColorStop(1, 'rgba(172,172,172,0.95)');
+			g.addColorStop(0, 'rgba(255,255,255,1)');
+			g.addColorStop(0.4, 'rgba(230,230,230,0.98)');
+			g.addColorStop(0.7, 'rgba(180,180,180,0.96)');
+			g.addColorStop(1, 'rgba(140,140,140,0.94)');
 			c.fillStyle = g;
 			c.beginPath();
 			c.arc(pin.x, pin.y, pin.r, 0, Math.PI * 2);
 			c.fill();
+
+			// Add subtle highlight
 			c.shadowColor = 'transparent';
 			c.shadowBlur = 0;
+			c.strokeStyle = 'rgba(255,255,255,0.6)';
+			c.lineWidth = 0.5;
+			c.beginPath();
+			c.arc(pin.x - pin.r * 0.3, pin.y - pin.r * 0.3, pin.r * 0.4, 0, Math.PI * 2);
+			c.stroke();
+
+			// Outer rim
+			c.strokeStyle = 'rgba(0,0,0,0.3)';
 			c.lineWidth = 1;
-			c.strokeStyle = 'rgba(0,0,0,0.25)';
+			c.beginPath();
+			c.arc(pin.x, pin.y, pin.r, 0, Math.PI * 2);
 			c.stroke();
 			c.restore();
 		}
@@ -573,13 +734,17 @@
 		idleAnimState.angle = spinAngle;
 		idleTween = gsap.to(idleAnimState, {
 			angle: idleAnimState.angle + Math.PI * 2,
-			duration: 40,
+			duration: 50, // Slower, more gentle rotation
 			ease: 'linear',
 			repeat: -1,
 			onUpdate: () => {
 				if (!spinning && !currentTween) {
 					spinAngle = idleAnimState.angle;
-					if (canvasEl) canvasEl.style.transform = `rotate(${spinAngle}rad)`;
+					if (canvasEl) {
+						// Use transform3d for better performance
+						const angle = (spinAngle * 180) / Math.PI;
+						canvasEl.style.transform = `rotate(${angle}deg) translateZ(0)`;
+					}
 				}
 			}
 		});
@@ -1010,7 +1175,9 @@
 			onUpdate: () => {
 				spinAngle = animState.angle;
 				if (canvasEl) {
-					canvasEl.style.transform = `rotate(${spinAngle}rad)`;
+					// Use degree for better browser optimization
+					const angle = (spinAngle * 180) / Math.PI;
+					canvasEl.style.transform = `rotate(${angle}deg) translateZ(0)`;
 				}
 				updatePointerColor();
 			},
@@ -1073,7 +1240,8 @@
 	$effect(() => {
 		void spinAngle;
 		if (!spinning && canvasEl) {
-			canvasEl.style.transform = `rotate(${spinAngle}rad)`;
+			const angle = (spinAngle * 180) / Math.PI;
+			canvasEl.style.transform = `rotate(${angle}deg) translateZ(0)`;
 			updatePointerColor();
 		}
 	});
@@ -1087,25 +1255,27 @@
 	});
 </script>
 
-<div class="relative mx-auto max-w-[560px] overflow-hidden sm:overflow-visible">
-	<div class="rounded-box p-6 sm:p-3">
+<div class="relative mx-auto max-w-[560px] overflow-visible">
+	<div class="rounded-box p-8 sm:p-6">
 		<div
 			bind:this={canvasContainerEl}
-			class="relative mx-auto aspect-square w-full rounded-full border-1 border-amber-300/60 shadow-lg"
+			class="relative mx-auto aspect-square w-full rounded-full border-4 border-amber-400/70 shadow-2xl"
+			style="box-shadow: 0 0 40px rgba(251, 191, 36, 0.3), 0 20px 60px rgba(0, 0, 0, 0.3), inset 0 0 20px rgba(251, 191, 36, 0.1);"
 		>
 			<!-- Pointer -->
 			<div
 				class="pointer-events-none absolute top-1/2 -right-6 z-10 -translate-y-1/2 sm:-right-9"
 				class:bounce={pointerBounce}
 				aria-hidden="true"
+				style="transition: filter 0.15s ease-out;"
 			>
 				<svg
 					width="52"
 					height="52"
 					viewBox="0 0 96 123"
 					xmlns="http://www.w3.org/2000/svg"
-					class="block h-10 w-10 sm:h-[52px] sm:w-[52px]"
-					style={`transform: rotate(-90deg); filter: drop-shadow(0 0 12px ${pointerColor}80)`}
+					class="pointer-logo block h-10 w-10 sm:h-[52px] sm:w-[52px]"
+					style={`filter: drop-shadow(0 0 16px ${pointerColor}95) drop-shadow(0 0 8px ${pointerColor})`}
 					aria-hidden="true"
 				>
 					<!-- Outer silhouette fill (white) -->
@@ -1132,14 +1302,16 @@
 			<div
 				class="pointer-events-none absolute top-1/2 left-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center"
 			>
-				<div class="relative h-16 w-16 sm:h-18 sm:w-18">
+				<div class="relative h-16 w-16 sm:h-20 sm:w-20">
+					<!-- Glow effect behind button -->
+					<div class="absolute inset-0 animate-pulse rounded-full bg-amber-400/30 blur-xl"></div>
 					<ButtonLoading
 						formLoading={spinning}
 						size="lg"
 						loadingText={progressing ? t('wheel.confirming') : t('wheel.spinning')}
 						onclick={accountFromWallet ? spinOnChainAndAnimate : spin}
 						aria-label={t('wheel.spinTheWheel')}
-						className={`border-0 w-full h-full rounded-full text-gray-800 !pointer-events-auto cursor-pointer disabled:cursor-not-allowed disabled:!shadow-lg disabled:opacity-70 disabled:text-gray-500 shadow-lg ring-2 ring-amber-300/80 bg-gradient-to-b from-amber-200 to-amber-500 hover:from-amber-200 hover:to-amber-600 transition-all duration-200 font-extrabold uppercase ${isSpinDisabled ? 'text-xs' : ''}`}
+						className={`border-0 w-full h-full rounded-full text-gray-800 !pointer-events-auto cursor-pointer disabled:cursor-not-allowed disabled:!shadow-lg disabled:opacity-70 disabled:text-gray-500 shadow-2xl ring-4 ring-amber-400/90 bg-gradient-to-br from-amber-200 via-amber-300 to-amber-500 hover:from-amber-300 hover:via-amber-400 hover:to-amber-600 active:scale-95 transition-all duration-200 font-extrabold uppercase ${isSpinDisabled ? 'text-xs' : 'text-sm'}`}
 						disabled={isSpinDisabled}
 					>
 						{t('wheel.spin')}
@@ -1269,19 +1441,47 @@
 </dialog>
 
 <style>
-	.bounce {
-		animation: pointerBounce 0.2s ease-out;
+	/* Base rotation for pointer logo */
+	.pointer-logo {
+		transform: rotate(-90deg);
+		transform-origin: center center;
 	}
 
-	@keyframes pointerBounce {
+	/* SVG logo rotates on its own center when hitting a pin */
+	.bounce .pointer-logo {
+		animation: logoRotate 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
+
+	@keyframes logoRotate {
 		0% {
-			transform: rotate(-20deg);
+			transform: rotate(-90deg);
 		}
-		70% {
-			transform: rotate(5deg);
+		50% {
+			transform: rotate(-95deg);
 		}
 		100% {
-			transform: rotate(-20deg);
+			transform: rotate(-90deg);
+		}
+	}
+
+	/* Wheel unfold animation - like a paper fan opening */
+	.wheel-unfold {
+		animation: wheelUnfold 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
+
+	@keyframes wheelUnfold {
+		0% {
+			clip-path: circle(0% at 50% 50%);
+			transform: scale(0.3) rotate(-180deg) translateZ(0);
+			opacity: 0;
+		}
+		50% {
+			opacity: 1;
+		}
+		100% {
+			clip-path: circle(100% at 50% 50%);
+			transform: scale(1) rotate(0deg) translateZ(0);
+			opacity: 1;
 		}
 	}
 </style>
