@@ -1703,13 +1703,13 @@
 <PhysicsSuiEffect trigger={isFormCollapsed} logoUrl={logo} />
 
 <section class="container mx-auto px-4 py-12">
-	<div class="relative flex flex-col justify-center gap-6 lg:flex-row">
+	<div class="relative flex flex-col justify-center gap-6 lg:flex-row lg:items-start">
 		<!-- Wheel Container -->
 		<div
-			class="w-full transition-all duration-1000 ease-[cubic-bezier(0.23,1,0.32,1)] {isFormCollapsed
+			class="w-full transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] {isFormCollapsed
 				? 'lg:max-w-3xl'
 				: 'lg:w-1/2'}"
-			style="min-height: 500px; transition-delay: {isFormCollapsed ? '600ms' : '0ms'};"
+			style="min-height: 500px;"
 		>
 			<div class="relative w-full">
 				<div class="absolute top-4 right-4 z-10 flex gap-2">
@@ -1780,10 +1780,9 @@
 
 		<!-- Form Container -->
 		<div
-			class="group relative w-full transition-all duration-1000 ease-[cubic-bezier(0.23,1,0.32,1)] {isFormCollapsed
-				? 'lg:pointer-events-none lg:max-h-0 lg:w-0 lg:overflow-hidden lg:opacity-0'
+			class="group relative w-full transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] lg:overflow-hidden {isFormCollapsed
+				? 'lg:pointer-events-none lg:max-h-0 lg:w-0 lg:opacity-0'
 				: 'max-h-[2000px] opacity-100 lg:w-1/2'}"
-			style="transition-delay: {isFormCollapsed ? '500ms' : '0ms'};"
 		>
 			<!-- The Edge Toggle Handle (Desktop Only) -->
 			<div
@@ -1802,10 +1801,9 @@
 			</div>
 
 			<div
-				class="card transition-all duration-1000 ease-[cubic-bezier(0.23,1,0.32,1)] {isFormCollapsed
+				class="card transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] {isFormCollapsed
 					? 'border-transparent bg-transparent shadow-none lg:translate-x-full'
-					: 'translate-x-0 border-base-300 bg-base-200 shadow'} border lg:ml-4"
-				style="transition-delay: {isFormCollapsed ? '100ms' : '0ms'};"
+					: 'translate-x-0 border-base-300 bg-base-200 shadow'} border lg:ml-4 lg:min-w-[400px]"
 			>
 				<div class="card-body">
 					<div
