@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { IsIdle, watch } from 'runed';
+	import { IsIdle, watch, useEventListener } from 'runed';
 	import { Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 	import { toast } from 'svelte-daisy-toaster';
 	import { useSuiClient, signAndExecuteTransaction } from 'sui-svelte-wallet-kit';
@@ -176,6 +176,34 @@
 		const b = Math.max(0, Math.min(255, parseInt(hex.substring(4, 6), 16) + amount * 255));
 		return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
 	}
+
+	// Handle Space key to spin the wheel
+	function handleKeyDown(event: KeyboardEvent) {
+		// Only handle Space key
+		if (event.code !== 'Space') return;
+
+		// Don't trigger if user is typing in an input/textarea
+		const target = event.target as HTMLElement;
+		if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+			return;
+		}
+
+		// Don't trigger if spin is disabled
+		if (isSpinDisabled) return;
+
+		// Prevent default space behavior (scrolling)
+		event.preventDefault();
+
+		// Trigger the appropriate spin function
+		if (accountFromWallet) {
+			spinOnChainAndAnimate();
+		} else {
+			spin();
+		}
+	}
+
+	// Use runed's useEventListener for automatic cleanup
+	useEventListener(() => window, 'keydown', handleKeyDown);
 
 	onMount(async () => {
 		const gsapLib = await ensureGsap();
@@ -1331,29 +1359,26 @@
 			</div>
 		{/if}
 
-		{#if accountFromWallet && createdWheelId}
-			<div class="mt-4 flex justify-center">
-				<div
-					class="badge rounded px-2 py-1 text-center text-xs badge-lg font-medium shadow badge-primary"
-				>
-					{t('wheel.remainingSpins')}: {Math.max(0, remainingSpins || 0)}
-				</div>
-			</div>
-		{/if}
-
 		{#if mode === 'participants' && (!createdWheelId || (createdWheelId && (remainingSpins ?? 0) > 0))}
-			<div class="mt-4 flex flex-wrap justify-center gap-2">
+			<div class="mt-4 flex flex-col flex-wrap items-center justify-center gap-3">
 				<button
 					class="btn btn-outline"
 					class:btn-disabled={spinning || entries.length < 2}
 					disabled={spinning || entries.length < 2}
 					onclick={onShuffle}
-					aria-label={t('wheel.shuffleEntries')}>{t('wheel.shuffle')}</button
+					aria-label={t('wheel.shuffleEntries')}
 				>
-				{#if !createdWheelId}
-					<button class="btn btn-warning" disabled={spinning} onclick={onClearAllEntries}
-						>{t('wheel.clear')}</button
-					>
+					<span class="icon-[lucide--shuffle] h-4 w-4"></span>
+					{t('wheel.shuffle')}
+				</button>
+
+				<!-- Keyboard shortcut hint - only on desktop, when spin is available -->
+				{#if !isSpinDisabled && !spinning}
+					<div class="hidden items-center gap-1.5 text-xs text-base-content/50 md:flex">
+						<span>{t('wheel.pressToSpin') || 'Press'}</span>
+						<kbd class="kbd kbd-sm">Space</kbd>
+						<span>{t('wheel.toSpin') || 'to spin'}</span>
+					</div>
 				{/if}
 			</div>
 		{/if}

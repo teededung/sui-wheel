@@ -471,6 +471,10 @@
 	let entriesTextareaEl = $state<HTMLTextAreaElement | null>(null);
 	let entriesText = $state('');
 
+	// Table mode: input for adding new entries
+	let newEntryInput = $state('');
+	let tableEntryInputEl = $state<HTMLInputElement | null>(null);
+
 	// Duplicate entries tracking
 	let duplicateEntries = $state<Array<{ entry: string; count: number }>>([]);
 
@@ -1527,6 +1531,28 @@
 		shuffledIndexOrder = [];
 	}
 
+	// Add entry from table mode input
+	function addEntryFromInput() {
+		if (spinning) return;
+		const trimmed = newEntryInput.trim();
+		if (!trimmed) return;
+
+		// Add the new entry
+		entries = [...entries, trimmed];
+		entriesText = entries.join('\n');
+		newEntryInput = '';
+
+		// Focus back to input for quick successive adds
+		tableEntryInputEl?.focus();
+	}
+
+	function handleTableInputKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			addEntryFromInput();
+		}
+	}
+
 	function onEntriesTextChange(text: string) {
 		if (spinning) return;
 		const list = text
@@ -1825,9 +1851,9 @@
 						{:else}
 							<!-- Header actions for view/edit -->
 							{#if createdWheelId && wheelFetched}
-								<div class="mb-3 flex items-center justify-between gap-2">
+								<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
 									<!-- Header info -->
-									<div class="flex items-center gap-2 text-sm opacity-70">
+									<div class="flex flex-wrap items-center gap-2 text-sm opacity-70">
 										<span
 											>{t('main.wheelId')}
 											<a
@@ -1854,6 +1880,13 @@
 											>
 										{/if}
 										<DataSourceBadge source={wheelDataSource} />
+										<!-- Remaining spins badge - only when wheel is still active -->
+										{#if remainingSpins > 0}
+											<span class="badge gap-1 badge-sm whitespace-nowrap badge-primary">
+												<span class="icon-[lucide--rotate-cw] h-3 w-3"></span>
+												{t('wheel.remainingSpins')}: {remainingSpins}
+											</span>
+										{/if}
 									</div>
 
 									<div class="flex items-center gap-2">
@@ -1953,8 +1986,10 @@
 												onClearPresets={clearAllPresets}
 											/>
 										{:else}
-											<div class="mb-1 flex items-center justify-end gap-2">
-												<div class="text-xs opacity-70">{t('main.entriesViewModeLabel')}</div>
+											<div class="mb-2 flex items-center justify-end gap-2">
+												<div class="hidden text-xs opacity-70 md:block">
+													{t('main.entriesViewModeLabel')}
+												</div>
 												<div class="flex items-center gap-2">
 													<div class="join">
 														<button
@@ -2021,6 +2056,19 @@
 														{/if}
 													</ul>
 												</div>
+
+												<!-- Clear all button (only for off-chain mode) -->
+												{#if !createdWheelId && entries.length > 0}
+													<button
+														class="btn btn-soft btn-xs btn-warning"
+														disabled={spinning}
+														onclick={clearAllEntries}
+														aria-label={t('wheel.clear')}
+													>
+														<span class="icon-[lucide--trash-2] h-4 w-4"></span>
+														<span>{t('wheel.clear')}</span>
+													</button>
+												{/if}
 											</div>
 
 											{#if createdWheelId && wheelFetched && !isEditing}
@@ -2036,6 +2084,28 @@
 													></textarea>
 												{/if}
 											{:else if entriesViewMode === 'table'}
+												<!-- Add entry input form at top -->
+												<div class="my-2 flex gap-2">
+													<input
+														type="text"
+														class="input input-sm flex-1"
+														placeholder={t('main.addNewEntryPlaceholder') ||
+															'Enter address or name...'}
+														bind:value={newEntryInput}
+														bind:this={tableEntryInputEl}
+														onkeydown={handleTableInputKeydown}
+														disabled={spinning}
+													/>
+													<button
+														class="btn btn-sm btn-primary"
+														onclick={addEntryFromInput}
+														disabled={spinning || !newEntryInput.trim()}
+														aria-label={t('main.addEntry') || 'Add entry'}
+													>
+														<span class="icon-[lucide--plus] h-4 w-4"></span>
+														{t('main.add') || 'Add'}
+													</button>
+												</div>
 												{@render entriesTable(entries, true)}
 											{:else}
 												<textarea
