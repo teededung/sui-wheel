@@ -131,11 +131,12 @@
 	let loadedImages = $state<Record<string, HTMLImageElement>>({});
 
 	// Audio
-	let winAudio: HTMLAudioElement | null = null;
+	// Use Web Audio API for better timing validation on mobile
 	let audioContext: AudioContext | null = null;
 	let tickBuffer: AudioBuffer | null = null;
 	let tickGainNode: GainNode | null = null;
-	let tickSourceIndex = 0;
+	let winBuffer: AudioBuffer | null = null;
+	let winGainNode: GainNode | null = null;
 
 	// Modal
 	let winnerModal = $state<HTMLDialogElement | null>(null);
@@ -225,26 +226,34 @@
 			}
 		);
 
-		winAudio = new Audio('/crowd-reaction.mp3');
-		winAudio.preload = 'auto';
-		winAudio.volume = 0.5;
-
 		// Initialize Web Audio API for instant tick sounds
 		try {
 			const AudioContextClass =
 				window.AudioContext ||
 				(window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
 			audioContext = new AudioContextClass();
+
+			// Setup tick sound
 			tickGainNode = audioContext.createGain();
 			tickGainNode.connect(audioContext.destination);
 			tickGainNode.gain.value = 1; // Volume control
+
+			// Setup win sound
+			winGainNode = audioContext.createGain();
+			winGainNode.connect(audioContext.destination);
+			winGainNode.gain.value = 0.5; // Win sound is louder/longer, keep it reasonable
 
 			// Load tick sound as AudioBuffer for instant playback
 			const response = await fetch('/tick.mp3');
 			const arrayBuffer = await response.arrayBuffer();
 			tickBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+			// Load win sound
+			const winResponse = await fetch('/crowd-reaction.mp3');
+			const winArrayBuffer = await winResponse.arrayBuffer();
+			winBuffer = await audioContext.decodeAudioData(winArrayBuffer);
 		} catch (e) {
-			console.warn('Web Audio API not supported or failed to load tick sound:', e);
+			console.warn('Web Audio API not supported or failed to load sounds:', e);
 		}
 	});
 
@@ -455,6 +464,23 @@
 
 		// Trigger pointer bounce animation
 		triggerPointerBounce();
+	}
+
+	function playWinSound() {
+		if (muted) return;
+		if (!audioContext || !winBuffer || !winGainNode) return;
+
+		try {
+			if (audioContext.state === 'suspended') {
+				audioContext.resume();
+			}
+			const source = audioContext.createBufferSource();
+			source.buffer = winBuffer;
+			source.connect(winGainNode);
+			source.start(0);
+		} catch (e) {
+			console.warn('Failed to play win sound:', e);
+		}
 	}
 
 	function triggerPointerBounce() {
@@ -881,6 +907,9 @@
 	}
 
 	async function spinOnChainAndAnimate() {
+		if (audioContext && audioContext.state === 'suspended') {
+			void audioContext.resume();
+		}
 		if (!accountFromWallet) return;
 		if (isNotOrganizer) {
 			return toast({ type: 'error', message: t('wheel.notOrganizer'), position: 'top-right' });
@@ -1070,6 +1099,9 @@
 	}
 
 	function spin() {
+		if (audioContext && audioContext.state === 'suspended') {
+			void audioContext.resume();
+		}
 		if (accountFromWallet) return;
 
 		const itemCount = mode === 'rewards' ? rewards.length : entries.length;
@@ -1220,11 +1252,8 @@
 					(rewards[winnerIndex]?.isLoss || rewards[winnerIndex]?.icon === 'x');
 
 				updatePointerColor();
-				if (!muted && winAudio && !isLossReward) {
-					try {
-						winAudio.currentTime = 0;
-						winAudio.play();
-					} catch {}
+				if (!muted && !isLossReward) {
+					playWinSound();
 				}
 
 				if (winnerIndex !== null) {
