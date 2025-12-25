@@ -212,7 +212,9 @@ async function loadWithGraphQL(networkPart: SuiNetwork): Promise<WheelItem[]> {
 async function loadPublicWheels(networkPart: SuiNetwork) {
 	const cacheKey = `publicWheels:${networkPart}`;
 	const cached = publicWheelsCache.get(cacheKey);
-	if (cached) return cached as { publicWheels: WheelItem[]; publicWheelsSource: 'graphql' | 'rpc' | 'none' };
+
+	if (cached)
+		return cached as { publicWheels: WheelItem[]; publicWheelsSource: 'graphql' | 'rpc' | 'none' };
 
 	try {
 		const shouldTryGraphQL = gqlFunctionFilterSupportedCache.get(networkPart) !== false;

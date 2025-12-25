@@ -107,7 +107,7 @@
 	let progressing = $state(false);
 	let selectedIndex = $state<number | null>(null);
 	let spinAngle = $state(0);
-	let pointerIndex = $state(0);
+	let pointerIndex = 0;
 	let pointerColor = $state('#ef4444');
 	let pointerColorOverride = $state(''); // sea color #4DA2FF
 	let lastWinner = $state('');
@@ -115,7 +115,6 @@
 	let secondaryWinner = $state('');
 	let usedCombinedSpin = $state(false);
 	let postSpinFetchRequested = $state(false);
-	let pointerBounce = $state(false);
 	let unfoldProgress = $state(0); // 0 to 1, controls how many slices are visible
 	let previousItemCount = $state(0); // Track previous count to detect new entries
 	let previousWheelId = $state<string | undefined>(undefined); // Track wheel ID changes
@@ -129,6 +128,9 @@
 	let offscreenCanvas: HTMLCanvasElement | null = null;
 	let offscreenCtx: CanvasRenderingContext2D | null = null;
 	let loadedImages = $state<Record<string, HTMLImageElement>>({});
+
+	// Elements
+	let pointerLogoEl = $state<SVGElement | null>(null);
 
 	// Audio
 	// Use Web Audio API for better timing validation on mobile
@@ -155,6 +157,7 @@
 		if (gsap) return gsap;
 		const mod: any = await import('gsap');
 		gsap = mod?.gsap ?? mod?.default ?? mod;
+		gsap.ticker.fps(-1);
 		return gsap;
 	}
 
@@ -442,7 +445,16 @@
 		return ((v % n) + n) % n;
 	}
 
+	let lastTickTime = 0;
 	function fireTickForIndex(idx: number) {
+		// Throttle tick rate to avoid audio engine overload and GC stutter (max ~20-25 ticks/sec)
+		const now = Date.now();
+		if (now - lastTickTime < 40) return;
+		lastTickTime = now;
+
+		// Trigger pointer bounce animation
+		triggerPointerBounce();
+
 		// Play a short tick sound when the pointer passes an entry boundary
 		if (muted) return;
 		if (!audioContext || !tickBuffer || !tickGainNode) return;
@@ -461,9 +473,6 @@
 		} catch (e) {
 			console.warn('Failed to play tick sound:', e);
 		}
-
-		// Trigger pointer bounce animation
-		triggerPointerBounce();
 	}
 
 	function playWinSound() {
@@ -484,18 +493,27 @@
 	}
 
 	function triggerPointerBounce() {
-		if (pointerBounce) return; // Prevent overlapping animations
-
-		pointerBounce = true;
-		setTimeout(() => {
-			pointerBounce = false;
-		}, 150); // Match animation duration
+		if (!pointerLogoEl || !gsap) return;
+		// Use GSAP for performant animation instead of CSS class toggling
+		gsap.fromTo(
+			pointerLogoEl,
+			{ rotation: -90 },
+			{
+				rotation: -115,
+				duration: 0.05,
+				yoyo: true,
+				repeat: 1,
+				ease: 'power1.out',
+				overwrite: true // Important: kill previous tweens to prevent conflict/memory leak
+			}
+		);
 	}
 
-	function updatePointerColor() {
+	function updatePointerColor(currentAngle?: number) {
+		const angleToUse = currentAngle ?? spinAngle;
 		const sliceCount =
 			mode === 'rewards' && rewards.length > 0 ? rewards.length : Math.max(1, entries.length);
-		const normalized = (((Math.PI / 2 - spinAngle) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+		const normalized = (((Math.PI / 2 - angleToUse) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
 
 		let newIndex = 0;
 		if (mode === 'rewards' && rewards.length > 0) {
@@ -521,23 +539,25 @@
 		}
 
 		if (pointerColorOverride && pointerColorOverride.trim() !== '') {
-			pointerColor = pointerColorOverride.trim();
+			const newColor = pointerColorOverride.trim();
+			if (pointerColor !== newColor) pointerColor = newColor;
 		} else {
-			pointerColor = segmentColors[newIndex % segmentColors.length];
+			const newColor = segmentColors[newIndex % segmentColors.length];
+			if (pointerColor !== newColor) pointerColor = newColor;
 		}
 
 		if (!spinning) {
 			pointerIndex = newIndex;
 			lastTickIndex = newIndex;
-			lastAngle = spinAngle;
+			lastAngle = angleToUse;
 			return;
 		}
 
-		const deltaAngle = spinAngle - lastAngle;
+		const deltaAngle = angleToUse - lastAngle;
 
 		if (lastTickIndex === null) {
 			lastTickIndex = newIndex;
-			lastAngle = spinAngle;
+			lastAngle = angleToUse;
 			pointerIndex = newIndex;
 			return;
 		}
@@ -558,7 +578,7 @@
 		}
 
 		pointerIndex = newIndex;
-		lastAngle = spinAngle;
+		lastAngle = angleToUse;
 	}
 
 	function renderWheelBitmap() {
@@ -1233,15 +1253,16 @@
 			duration: duration / 1000,
 			ease: getGsapEaseFromPower(opts.easePower ?? 4),
 			onUpdate: () => {
-				spinAngle = animState.angle;
+				const currentAngle = animState.angle;
 				if (canvasEl) {
 					// Use degree for better browser optimization
-					const angle = (spinAngle * 180) / Math.PI;
+					const angle = (currentAngle * 180) / Math.PI;
 					canvasEl.style.transform = `rotate(${angle}deg) translateZ(0)`;
 				}
-				updatePointerColor();
+				updatePointerColor(currentAngle);
 			},
 			onComplete: () => {
+				spinAngle = animState.angle;
 				currentTween = null;
 				setSpinning?.(false);
 				selectedIndex = pickSelectedIndex(); // Restore this call
@@ -1322,11 +1343,11 @@
 			<!-- Pointer -->
 			<div
 				class="pointer-events-none absolute top-1/2 -right-6 z-10 -translate-y-1/2 sm:-right-9"
-				class:bounce={pointerBounce}
 				aria-hidden="true"
 				style="transition: filter 0.15s ease-out;"
 			>
 				<svg
+					bind:this={pointerLogoEl}
 					width="52"
 					height="52"
 					viewBox="0 0 96 123"
@@ -1499,23 +1520,6 @@
 	.pointer-logo {
 		transform: rotate(-90deg);
 		transform-origin: center center;
-	}
-
-	/* SVG logo rotates on its own center when hitting a pin */
-	.bounce .pointer-logo {
-		animation: logoRotate 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
-	}
-
-	@keyframes logoRotate {
-		0% {
-			transform: rotate(-90deg);
-		}
-		50% {
-			transform: rotate(-95deg);
-		}
-		100% {
-			transform: rotate(-90deg);
-		}
 	}
 
 	/* Wheel unfold animation - like a paper fan opening */
