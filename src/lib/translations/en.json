@@ -159,6 +159,8 @@
 			"open": "Open",
 			"results": "Claim"
 		},
+		"connectWalletTitle": "Connect Your Wallet",
+		"connectWalletDescription": "Connect your wallet to view your wheels and joined wheels. You need to be connected to interact with the blockchain.",
 		"publicWheels": {
 			"title": "Recent Public Wheels",
 			"description": "Discover wheels recently created by the community",

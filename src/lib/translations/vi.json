@@ -159,6 +159,8 @@
 			"open": "Mở",
 			"results": "Nhận thưởng"
 		},
+		"connectWalletTitle": "Kết nối ví của bạn",
+		"connectWalletDescription": "Kết nối ví để xem các vòng quay của bạn và các vòng quay đã tham gia. Bạn cần kết nối để tương tác với blockchain.",
 		"publicWheels": {
 			"title": "Vòng quay công khai gần đây",
 			"description": "Khám phá các vòng quay được tạo gần đây bởi cộng đồng",

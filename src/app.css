@@ -15,3 +15,11 @@
 }
 
 @custom-variant light (&:where([data-theme=light], [data-theme=light] *));
+
+@layer utilities {
+	.bg-dot-pattern {
+		background-image: radial-gradient(currentColor 1px, transparent 1px);
+		background-size: 24px 24px;
+		mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+	}
+}

@@ -19,7 +19,7 @@
 	}
 </script>
 
-<div class="navbar bg-base-100 px-4 shadow-sm">
+<div class="navbar bg-base-100 relative z-50 px-4 shadow-sm">
 	<div class="navbar-start">
 		<!-- Mobile dropdown menu -->
 		<div class="dropdown lg:hidden">
@@ -27,9 +27,10 @@
 				<span class="icon-[lucide--menu] h-7 w-7"></span>
 			</div>
 			<ul
-				class="dropdown-content menu z-10 mt-3 w-52 rounded-box bg-base-200 p-2 shadow sm:menu-sm"
+				class="dropdown-content menu z-50 mt-3 w-52 rounded-box bg-base-200 p-2 shadow sm:menu-sm"
 			>
 				<li><a href="/wheel-list" aria-label="Go to Wheel List">Wheel List</a></li>
+				<li><a href="/faq" aria-label="Go to FAQ">FAQ</a></li>
 				<li><a href="/about" aria-label="Go to About">About</a></li>
 				<li class="menu-title">
 					<span>Language</span>

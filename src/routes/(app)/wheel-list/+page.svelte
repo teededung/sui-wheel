@@ -21,6 +21,7 @@
 
 	import AlertTestnetWarning from '$lib/components/AlertTestnetWarning.svelte';
 	import DataSourceBadge from '$lib/components/DataSourceBadge.svelte';
+	import ButtonConnectWallet from '$lib/components/ButtonConnectWallet.svelte';
 
 	type WheelRow = {
 		id: string;
@@ -80,7 +81,7 @@
 
 	// Public wheels state (server-provided)
 	const { data } = $props();
-	let publicWheelsPageState = $state('loaded'); // already loaded from server
+	let publicWheelsPageState = $state('initializing'); // may be streamed from server
 	let publicWheelsSource = $state<WheelDataSource>('none');
 	let publicWheels = $state<
 		Array<{
@@ -96,14 +97,34 @@
 	// Your wheels source tracking
 	let yourWheelsSource = $state<WheelDataSource>('none');
 
-	// Initialize public wheels from server data (run once)
-	let publicWheelsInitialized = $state(false);
+	// Initialize/stream public wheels from server data (supports deferred promises)
+	let publicWheelsLoadSeq = 0;
 	$effect(() => {
-		if (!publicWheelsInitialized && Array.isArray(data?.publicWheels)) {
-			publicWheels = data.publicWheels;
-			publicWheelsSource = data.publicWheelsSource || 'none';
-			publicWheelsInitialized = true;
-		}
+		const wheelsOrPromise = data?.publicWheels;
+		const sourceOrPromise = data?.publicWheelsSource;
+
+		// No server data at all (shouldn't happen), keep defaults
+		if (wheelsOrPromise === undefined && sourceOrPromise === undefined) return;
+
+		publicWheelsPageState = 'loading';
+		publicWheelsLoadSeq += 1;
+		const seq = publicWheelsLoadSeq;
+
+		void Promise.all([Promise.resolve(wheelsOrPromise), Promise.resolve(sourceOrPromise)])
+			.then(([wheelsResolved, sourceResolved]) => {
+				if (seq !== publicWheelsLoadSeq) return;
+				publicWheels = Array.isArray(wheelsResolved) ? wheelsResolved : [];
+				publicWheelsSource = (sourceResolved as WheelDataSource) || 'none';
+			})
+			.catch(() => {
+				if (seq !== publicWheelsLoadSeq) return;
+				publicWheels = [];
+				publicWheelsSource = 'none';
+			})
+			.finally(() => {
+				if (seq !== publicWheelsLoadSeq) return;
+				publicWheelsPageState = 'loaded';
+			});
 	});
 
 	// Load wheels using GraphQL
@@ -729,97 +750,112 @@
 {/snippet}
 
 <section class="container mx-auto px-4 py-12">
-	<!-- User's Wheels Section -->
-	<div class="card bg-base-200 shadow">
-		<div class="card-body">
-			<div class="mb-4 flex items-center justify-between">
-				<div class="flex items-center gap-2">
-					<h2 class="text-lg font-semibold">{t('wheelList.pageTitle')}</h2>
-					{#if wheels.length > 0}
-						<DataSourceBadge source={yourWheelsSource} />
-					{/if}
-				</div>
-				<a href="/" class="btn btn-sm btn-primary" aria-label={t('wheelList.createNew')}
-					>{t('wheelList.createNew')}</a
-				>
-			</div>
-			{#if account && !isOnTestnet}
-				<AlertTestnetWarning />
-			{:else if pageState === 'initializing' || (pageState === 'loading' && accountLoading.value)}
-				<div class="flex items-center gap-2">
-					<span class="loading loading-sm loading-spinner"></span>
-					{t('wheelList.loading')}
-				</div>
-			{:else if pageState === 'loading'}
-				{@render skeleton()}
-			{:else if pageState === 'loaded'}
-				{#if !account}
-					<div class="text-sm opacity-70">{t('wheelList.connectWallet')}</div>
-				{:else if wheels.length === 0}
-					<div class="text-sm opacity-70">{t('wheelList.noWheels')}</div>
-				{:else}
-					<div class="relative">
-						{@render wheelsTable(wheels)}
-						{#if refreshing}
-							<div
-								class="pointer-events-none absolute inset-0 grid place-items-center bg-base-300/40"
-								in:fade
-								out:fade
-								aria-hidden="true"
-							>
-								<span
-									class="loading loading-md loading-spinner text-primary"
-									aria-label={t('wheelList.refreshing')}
-								></span>
-							</div>
+	{#if account}
+		<!-- User's Wheels Section -->
+		<div class="card bg-base-200 border border-base-300 shadow-sm">
+			<div class="card-body">
+				<div class="mb-4 flex items-center justify-between">
+					<div class="flex items-center gap-2">
+						<h2 class="text-lg font-semibold">{t('wheelList.pageTitle')}</h2>
+						{#if wheels.length > 0}
+							<DataSourceBadge source={yourWheelsSource} />
 						{/if}
 					</div>
-				{/if}
-			{/if}
-		</div>
-	</div>
-
-	<!-- Joined Wheels Section -->
-	<div class="card mt-8 bg-base-200 shadow">
-		<div class="card-body">
-			<div class="mb-4">
-				<div class="flex items-center gap-2">
-					<h2 class="text-lg font-semibold">{t('wheelList.joinedWheels.title')}</h2>
-					{#if joinedWheels.length > 0}
-						<DataSourceBadge source={joinedWheelsSource} />
+					<a href="/" class="btn btn-sm btn-primary" aria-label={t('wheelList.createNew')}
+						>{t('wheelList.createNew')}</a
+					>
+				</div>
+				{#if !isOnTestnet}
+					<AlertTestnetWarning />
+				{:else if pageState === 'initializing' || (pageState === 'loading' && accountLoading.value)}
+					<div class="flex items-center gap-2">
+						<span class="loading loading-sm loading-spinner"></span>
+						{t('wheelList.loading')}
+					</div>
+				{:else if pageState === 'loading'}
+					{@render skeleton()}
+				{:else if pageState === 'loaded'}
+					{#if wheels.length === 0}
+						<div class="text-sm opacity-70">{t('wheelList.noWheels')}</div>
+					{:else}
+						<div class="relative">
+							{@render wheelsTable(wheels)}
+							{#if refreshing}
+								<div
+									class="pointer-events-none absolute inset-0 grid place-items-center bg-base-300/40"
+									in:fade
+									out:fade
+									aria-hidden="true"
+								>
+									<span
+										class="loading loading-md loading-spinner text-primary"
+										aria-label={t('wheelList.refreshing')}
+									></span>
+								</div>
+							{/if}
+						</div>
 					{/if}
-				</div>
-				<p class="mt-1 text-sm opacity-70">{t('wheelList.joinedWheels.description')}</p>
-			</div>
-
-			{#if joinedWheelsWarning && dev}
-				<div class="alert alert-warning">
-					<span class="icon-[lucide--alert-triangle]"></span>
-					<span>{joinedWheelsWarning}</span>
-				</div>
-			{/if}
-
-			{#if joinedWheelsPageState === 'initializing'}
-				<div class="flex items-center gap-2">
-					<span class="loading loading-sm loading-spinner"></span>
-					{t('wheelList.publicWheels.loading')}
-				</div>
-			{:else if joinedWheelsPageState === 'loading'}
-				{@render skeleton()}
-			{:else if joinedWheelsPageState === 'loaded'}
-				{#if !account}
-					<div class="flex items-center gap-2">{t('wheelList.connectWallet')}</div>
-				{:else if joinedWheels.length > 0}
-					{@render wheelsTable(joinedWheels)}
-				{:else}
-					<div class="text-sm opacity-70">{t('wheelList.joinedWheels.noWheels')}</div>
 				{/if}
-			{/if}
+			</div>
 		</div>
-	</div>
+
+		<!-- Joined Wheels Section -->
+		<div class="card mt-8 bg-base-200 border border-base-300 shadow-sm">
+			<div class="card-body">
+				<div class="mb-4">
+					<div class="flex items-center gap-2">
+						<h2 class="text-lg font-semibold">{t('wheelList.joinedWheels.title')}</h2>
+						{#if joinedWheels.length > 0}
+							<DataSourceBadge source={joinedWheelsSource} />
+						{/if}
+					</div>
+					<p class="mt-1 text-sm opacity-70">{t('wheelList.joinedWheels.description')}</p>
+				</div>
+
+				{#if joinedWheelsWarning && dev}
+					<div class="alert alert-warning">
+						<span class="icon-[lucide--alert-triangle]"></span>
+						<span>{joinedWheelsWarning}</span>
+					</div>
+				{/if}
+
+				{#if joinedWheelsPageState === 'initializing'}
+					<div class="flex items-center gap-2">
+						<span class="loading loading-sm loading-spinner"></span>
+						{t('wheelList.publicWheels.loading')}
+					</div>
+				{:else if joinedWheelsPageState === 'loading'}
+					{@render skeleton()}
+				{:else if joinedWheelsPageState === 'loaded'}
+					{#if joinedWheels.length > 0}
+						{@render wheelsTable(joinedWheels)}
+					{:else}
+						<div class="text-sm opacity-70">{t('wheelList.joinedWheels.noWheels')}</div>
+					{/if}
+				{/if}
+			</div>
+		</div>
+	{:else}
+		<!-- Connect Wallet Placeholder -->
+		<div class="card relative overflow-hidden border border-base-300 bg-base-200/50 shadow-sm text-center">
+			<!-- Background Pattern -->
+			<div class="bg-dot-pattern text-base-content/10 absolute inset-0 pointer-events-none"></div>
+
+			<div class="card-body relative z-10 items-center py-10">
+				<div class="bg-base-100 flex h-12 w-12 items-center justify-center rounded-full mb-2 shadow-sm">
+					<span class="icon-[lucide--wallet] h-6 w-6 text-primary"></span>
+				</div>
+				<h2 class="text-lg font-bold mb-1">{t('wheelList.connectWalletTitle')}</h2>
+				<p class="text-base-content/60 text-sm max-w-sm mx-auto mb-4">
+					{t('wheelList.connectWalletDescription')}
+				</p>
+				<ButtonConnectWallet />
+			</div>
+		</div>
+	{/if}
 
 	<!-- Public Wheels Section -->
-	<div class="card mt-8 bg-base-200 shadow">
+	<div class="card mt-8 bg-base-200 border border-base-300 shadow-sm">
 		<div class="card-body">
 			<div class="mb-4">
 				<div class="flex items-center gap-2">

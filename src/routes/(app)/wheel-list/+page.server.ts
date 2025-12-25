@@ -9,6 +9,7 @@ import {
 	NETWORK
 } from '$lib/constants.js';
 import { dev } from '$app/environment';
+import { LRUCache } from 'lru-cache';
 
 interface WheelItem {
 	id: string;
@@ -17,6 +18,35 @@ interface WheelItem {
 	status?: string;
 	remainingSpins?: number;
 	totalEntries?: number;
+}
+
+const publicWheelsCache = new LRUCache({
+	max: 10,
+	ttl: 15_000
+});
+
+const gqlFunctionFilterSupportedCache = new LRUCache({
+	max: 10,
+	ttl: 5 * 60_000
+});
+
+function isFunctionFilterUnsupportedError(err: unknown) {
+	const msg = err instanceof Error ? err.message : String(err);
+	return msg.toLowerCase().includes('filtering transactions by function calls not available');
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+	let timer: ReturnType<typeof setTimeout> | null = null;
+	try {
+		return await Promise.race([
+			promise,
+			new Promise<T>((_, reject) => {
+				timer = setTimeout(() => reject(new Error(`[Timeout] ${label} exceeded ${ms}ms`)), ms);
+			})
+		]);
+	} finally {
+		if (timer) clearTimeout(timer);
+	}
 }
 
 // Fallback to JSON-RPC when GraphQL is unavailable
@@ -33,7 +63,7 @@ async function loadWithRPC(networkPart: 'mainnet' | 'testnet' | 'devnet'): Promi
 		},
 		options: {
 			showObjectChanges: true,
-			showInput: true,
+			showInput: false,
 			showEffects: false,
 			showEvents: false
 		},
@@ -179,27 +209,69 @@ async function loadWithGraphQL(networkPart: SuiNetwork): Promise<WheelItem[]> {
 		.filter((w) => w.status !== 'Cancelled');
 }
 
-export const load: PageServerLoad = async () => {
-	const networkPart = NETWORK.split(':')[1] as SuiNetwork;
+async function loadPublicWheels(networkPart: SuiNetwork) {
+	const cacheKey = `publicWheels:${networkPart}`;
+	const cached = publicWheelsCache.get(cacheKey);
+	if (cached) return cached as { publicWheels: WheelItem[]; publicWheelsSource: 'graphql' | 'rpc' | 'none' };
 
-	// Try GraphQL first (for Sui GraphQL challenge)
 	try {
-		const publicWheels = await loadWithGraphQL(networkPart);
-		return { publicWheels, publicWheelsSource: 'graphql' as const };
-	} catch (gqlErr) {
-		if (dev) {
-			console.warn('[WheelList Server] GraphQL failed, falling back to RPC:', gqlErr);
+		const shouldTryGraphQL = gqlFunctionFilterSupportedCache.get(networkPart) !== false;
+
+		// Try GraphQL first (for Sui GraphQL challenge), but skip if we already learned it's unsupported
+		if (shouldTryGraphQL) {
+			try {
+				const publicWheels = await withTimeout(
+					loadWithGraphQL(networkPart),
+					1200,
+					'WheelList public wheels GraphQL'
+				);
+				const result = { publicWheels, publicWheelsSource: 'graphql' as const };
+				gqlFunctionFilterSupportedCache.set(networkPart, true);
+				publicWheelsCache.set(cacheKey, result);
+				return result;
+			} catch (gqlErr) {
+				if (isFunctionFilterUnsupportedError(gqlErr)) {
+					gqlFunctionFilterSupportedCache.set(networkPart, false);
+				}
+				if (dev) {
+					console.warn('[WheelList Server] GraphQL failed, falling back to RPC:', gqlErr);
+				}
+			}
 		}
 
 		// Fallback to JSON-RPC
 		try {
 			const publicWheels = await loadWithRPC(networkPart as 'mainnet' | 'testnet' | 'devnet');
-			return { publicWheels, publicWheelsSource: 'rpc' as const };
+			const result = { publicWheels, publicWheelsSource: 'rpc' as const };
+			publicWheelsCache.set(cacheKey, result);
+			return result;
 		} catch (rpcErr) {
 			if (dev) {
 				console.error('[WheelList Server] RPC fallback also failed:', rpcErr);
 			}
-			return { publicWheels: [] as WheelItem[], publicWheelsSource: 'none' as const };
+			const result = { publicWheels: [] as WheelItem[], publicWheelsSource: 'none' as const };
+			publicWheelsCache.set(cacheKey, result);
+			return result;
 		}
+	} catch (err) {
+		if (dev) {
+			console.error('[WheelList Server] loadPublicWheels unexpected error:', err);
+		}
+		const result = { publicWheels: [] as WheelItem[], publicWheelsSource: 'none' as const };
+		publicWheelsCache.set(cacheKey, result);
+		return result;
 	}
+}
+
+export const load: PageServerLoad = async () => {
+	const networkPart = NETWORK.split(':')[1] as SuiNetwork;
+
+	const payloadPromise = loadPublicWheels(networkPart);
+	// Prevent unhandled rejections before SvelteKit starts rendering/streaming
+	payloadPromise.catch(() => {});
+
+	return {
+		publicWheels: payloadPromise.then((r) => r.publicWheels),
+		publicWheelsSource: payloadPromise.then((r) => r.publicWheelsSource)
+	};
 };

@@ -813,7 +813,7 @@
 				{/if}
 			</div>
 			<div class="order-1 mb-4 lg:order-2 lg:mb-0">
-				<div class="card border-1 border-base-300 bg-base-200 shadow">
+				<div class="card border border-base-300 bg-base-200 shadow-sm">
 					<div class="card-body">
 						{#if isCancelled}
 							<div class="alert alert-soft text-sm alert-warning dark:!border-warning">
@@ -940,7 +940,7 @@
 				</div>
 
 				{#if wheelId}
-					<div class="card mt-4 border-1 border-base-300 bg-base-200 shadow">
+					<div class="card mt-4 border border-base-300 bg-base-200 shadow-sm">
 						<div class="card-body">
 							<div class="flex max-w-full items-center gap-2 text-sm">
 								<span class="mr-1 inline-block">{t('wheelResult.wheelId')}</span>
